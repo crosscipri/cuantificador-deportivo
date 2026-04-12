@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, ActivatedRoute } from '@angular/router';
+import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
@@ -37,6 +37,7 @@ export class SessionDetailComponent implements OnInit {
   session: Session | null = null;
   loading = true;
   error   = '';
+  deviceId = '';
   metricQuality = metricQuality;
 
   readonly zoneColumns = ['zone', 'range', 'pct_time', 'n', 'mae', 'mape', 'bias'];
@@ -44,12 +45,14 @@ export class SessionDetailComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private api: ApiService,
     private snack: MatSnackBar,
   ) {}
 
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id')!;
+    this.deviceId = this.route.snapshot.paramMap.get('deviceId') || '';
+    const id = this.route.snapshot.paramMap.get('sessionId')!;
     this.api.getSession(id).subscribe({
       next:  s  => { this.session = s; this.loading = false; },
       error: () => { this.error = 'No se pudo cargar la sesión.'; this.loading = false; },
@@ -62,7 +65,7 @@ export class SessionDetailComponent implements OnInit {
     this.api.deleteSession(this.session.id).subscribe({
       next: () => {
         this.snack.open('Sesión eliminada', 'OK', { duration: 2000 });
-        history.back();
+        this.router.navigate(['/devices', this.deviceId]);
       },
       error: () => this.snack.open('Error al eliminar', 'Cerrar', { duration: 3000 }),
     });
@@ -85,7 +88,7 @@ export class SessionDetailComponent implements OnInit {
   }
 
   zoneCssClass(name: string): string {
-    const z = name.split(' ')[0].toLowerCase(); // z1, z2 …
+    const z = name.split(' ')[0].toLowerCase();
     return `zone-${z}`;
   }
 }

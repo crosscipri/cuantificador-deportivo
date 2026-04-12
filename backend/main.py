@@ -1,6 +1,6 @@
 """
 FastAPI backend for HR Analyzer.
-Endpoints for uploading FIT sessions, querying results and generating aggregate analysis.
+Hierarchy: Device → Training Type → Sessions
 """
 
 from __future__ import annotations
@@ -19,11 +19,7 @@ from analyzer import analyze_session, generate_aggregate_analysis
 
 load_dotenv()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# App & CORS
-# ─────────────────────────────────────────────────────────────────────────────
-
-app = FastAPI(title="HR Analyzer API", version="1.0.0")
+app = FastAPI(title="HR Analyzer API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,14 +34,15 @@ app.add_middleware(
 # ─────────────────────────────────────────────────────────────────────────────
 
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
-DB_NAME   = os.getenv("DB_NAME", "hr_analyzer")
+DB_NAME   = os.getenv("DB_NAME",   "hr_analyzer")
 
 
 @app.on_event("startup")
 async def startup() -> None:
     app.state.mongo = AsyncIOMotorClient(MONGO_URL)
     app.state.db    = app.state.mongo[DB_NAME]
-    # Indexes
+    await app.state.db.devices.create_index([("created_at", -1)])
+    await app.state.db.sessions.create_index("device_id")
     await app.state.db.sessions.create_index("training_type")
     await app.state.db.sessions.create_index([("created_at", -1)])
 
@@ -60,130 +57,213 @@ def db():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Serialisation helper
+# Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _serialise(doc: dict, include_fc_data: bool = False) -> dict:
+def _oid(value: str) -> ObjectId:
+    try:
+        return ObjectId(value)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID inválido")
+
+
+def _ser(doc: dict, *, keep_fc: bool = False) -> dict:
     doc["id"] = str(doc.pop("_id"))
+    if "device_id" in doc:
+        doc["device_id"] = str(doc["device_id"])
     if isinstance(doc.get("created_at"), datetime):
         doc["created_at"] = doc["created_at"].isoformat()
-    if not include_fc_data:
+    if not keep_fc:
         doc.pop("fc_data", None)
     return doc
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SESSIONS
+# DEVICES
 # ─────────────────────────────────────────────────────────────────────────────
 
-@app.post("/api/sessions", status_code=201)
+@app.post("/api/devices", status_code=201)
+async def create_device(body: dict) -> dict:
+    """Create a device to validate (e.g. Garmin FR265 vs Polar H10)."""
+    name           = (body.get("name") or "").strip()
+    reference_name = (body.get("reference_name") or "").strip()
+    description    = (body.get("description") or "").strip()
+
+    if not name or not reference_name:
+        raise HTTPException(status_code=422, detail="name y reference_name son obligatorios")
+
+    doc: dict[str, Any] = {
+        "name":           name,
+        "reference_name": reference_name,
+        "description":    description,
+        "created_at":     datetime.utcnow(),
+    }
+    inserted = await db().devices.insert_one(doc)
+    doc["_id"] = inserted.inserted_id
+    return _ser(doc)
+
+
+@app.get("/api/devices")
+async def list_devices() -> list[dict]:
+    """List all devices with session count and training types summary."""
+    devices = [_ser(d) async for d in db().devices.find().sort("created_at", -1)]
+
+    for dev in devices:
+        pipeline = [
+            {"$match": {"device_id": ObjectId(dev["id"])}},
+            {"$group": {
+                "_id": "$training_type",
+                "count": {"$sum": 1},
+                "last_date": {"$max": "$created_at"},
+            }},
+            {"$sort": {"_id": 1}},
+        ]
+        types = [d async for d in db().sessions.aggregate(pipeline)]
+        dev["training_types"] = [
+            {
+                "name":      t["_id"],
+                "count":     t["count"],
+                "last_date": t["last_date"].isoformat() if isinstance(t["last_date"], datetime) else t["last_date"],
+            }
+            for t in types
+        ]
+        dev["session_count"] = sum(t["count"] for t in types)
+
+    return devices
+
+
+@app.get("/api/devices/{device_id}")
+async def get_device(device_id: str) -> dict:
+    """Get a device with its training types and per-type metrics."""
+    doc = await db().devices.find_one({"_id": _oid(device_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+    dev = _ser(doc)
+
+    pipeline = [
+        {"$match": {"device_id": ObjectId(device_id)}},
+        {"$group": {
+            "_id": "$training_type",
+            "count": {"$sum": 1},
+            "last_date": {"$max": "$created_at"},
+            "avg_mae":  {"$avg": "$metrics.mae"},
+            "avg_ccc":  {"$avg": "$metrics.ccc"},
+        }},
+        {"$sort": {"_id": 1}},
+    ]
+    types = [d async for d in db().sessions.aggregate(pipeline)]
+    dev["training_types"] = [
+        {
+            "name":      t["_id"],
+            "count":     t["count"],
+            "last_date": t["last_date"].isoformat() if isinstance(t["last_date"], datetime) else t["last_date"],
+            "avg_mae":   round(t["avg_mae"], 2) if t["avg_mae"] is not None else None,
+            "avg_ccc":   round(t["avg_ccc"], 4) if t["avg_ccc"] is not None else None,
+        }
+        for t in types
+    ]
+    dev["session_count"] = sum(t["count"] for t in types)
+    return dev
+
+
+@app.delete("/api/devices/{device_id}")
+async def delete_device(device_id: str) -> dict:
+    """Delete a device and ALL its sessions."""
+    oid = _oid(device_id)
+    result = await db().devices.delete_one({"_id": oid})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+    await db().sessions.delete_many({"device_id": oid})
+    return {"deleted": True}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SESSIONS  (scoped to a device)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.post("/api/devices/{device_id}/sessions", status_code=201)
 async def create_session(
-    device_file:    UploadFile = File(..., description="Reloj / dispositivo .FIT"),
-    reference_file: UploadFile = File(..., description="Banda de referencia .FIT"),
-    training_type:  str = Form(..., description="Tipo de entrenamiento"),
+    device_id:      str,
+    device_file:    UploadFile = File(...),
+    reference_file: UploadFile = File(...),
+    training_type:  str = Form(...),
     session_name:   str = Form(default=""),
-    device_name:    str = Form(default=""),
-    reference_name: str = Form(default=""),
 ) -> dict:
-    """Upload a pair of FIT files, analyse them and persist the result."""
+    """Upload a FIT/TCX/GPX pair for a device and persist the analysis."""
+    dev_doc = await db().devices.find_one({"_id": _oid(device_id)})
+    if not dev_doc:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+
+    dev_name = dev_doc["name"]
+    ref_name = dev_doc["reference_name"]
+
     device_bytes    = await device_file.read()
     reference_bytes = await reference_file.read()
 
-    dev_name = device_name    or device_file.filename.replace(".fit", "").replace(".FIT", "")
-    ref_name = reference_name or reference_file.filename.replace(".fit", "").replace(".FIT", "")
-
     try:
-        result = analyze_session(device_bytes, reference_bytes, dev_name, ref_name)
+        result = analyze_session(
+            device_bytes, reference_bytes, dev_name, ref_name,
+            device_filename=device_file.filename or "",
+            reference_filename=reference_file.filename or "",
+        )
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
     doc: dict[str, Any] = {
-        "training_type":  training_type,
-        "session_name":   session_name or f"Sesión {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        "device_id":      ObjectId(device_id),
+        "training_type":  training_type.strip(),
+        "session_name":   session_name.strip() or f"Sesión {datetime.now().strftime('%d/%m/%Y %H:%M')}",
         "device_name":    dev_name,
         "reference_name": ref_name,
         "created_at":     datetime.utcnow(),
         **result,
     }
-
     inserted = await db().sessions.insert_one(doc)
     doc["_id"] = inserted.inserted_id
-    return _serialise(doc)
+    return _ser(doc)
 
 
-@app.get("/api/sessions")
-async def list_sessions(
+@app.get("/api/devices/{device_id}/sessions")
+async def list_device_sessions(
+    device_id:     str,
     training_type: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 100,
 ) -> list[dict]:
-    """List all sessions, optionally filtered by training type."""
-    query = {"training_type": training_type} if training_type else {}
-    cursor = (
-        db()
-        .sessions.find(query, {"fc_data": 0})
-        .sort("created_at", -1)
-        .skip(skip)
-        .limit(limit)
-    )
-    return [_serialise(doc) async for doc in cursor]
+    """List sessions for a device, optionally filtered by training type."""
+    query: dict[str, Any] = {"device_id": _oid(device_id)}
+    if training_type:
+        query["training_type"] = training_type
+
+    cursor = db().sessions.find(query, {"fc_data": 0}).sort("created_at", -1)
+    return [_ser(d) async for d in cursor]
 
 
 @app.get("/api/sessions/{session_id}")
 async def get_session(session_id: str) -> dict:
-    """Retrieve a single session including full charts."""
-    try:
-        oid = ObjectId(session_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid session ID")
-
-    doc = await db().sessions.find_one({"_id": oid}, {"fc_data": 0})
+    """Get a single session with full chart data."""
+    doc = await db().sessions.find_one({"_id": _oid(session_id)}, {"fc_data": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
-    return _serialise(doc)
+    return _ser(doc)
 
 
 @app.delete("/api/sessions/{session_id}")
 async def delete_session(session_id: str) -> dict:
     """Delete a session."""
-    try:
-        oid = ObjectId(session_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid session ID")
-
-    result = await db().sessions.delete_one({"_id": oid})
+    result = await db().sessions.delete_one({"_id": _oid(session_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
     return {"deleted": True}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TRAINING TYPES
-# ─────────────────────────────────────────────────────────────────────────────
-
-@app.get("/api/training-types")
-async def get_training_types() -> list[dict]:
-    """Return distinct training types with session counts."""
-    pipeline = [
-        {"$group": {"_id": "$training_type", "count": {"$sum": 1}}},
-        {"$sort": {"_id": 1}},
-    ]
-    return [
-        {"name": doc["_id"], "count": doc["count"]}
-        async for doc in db().sessions.aggregate(pipeline)
-    ]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# AGGREGATE ANALYSIS
+# AGGREGATE  (scoped to device + training type)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.post("/api/aggregate")
 async def create_aggregate(body: dict) -> dict:
     """
-    Generate an aggregate validation chart from one or more sessions.
-
-    Body: { "session_ids": ["..."], "training_type": "...", "device_name": "...", "reference_name": "..." }
+    Aggregate analysis for selected sessions.
+    Body: { "session_ids": ["..."], "training_type": "..." }
     """
     session_ids   = body.get("session_ids", [])
     training_type = body.get("training_type", "Agregado")
@@ -192,16 +272,12 @@ async def create_aggregate(body: dict) -> dict:
         raise HTTPException(status_code=400, detail="Se requiere al menos una sesión.")
 
     sessions_data: list[dict] = []
-    dev_names:     list[str]  = []
-    ref_names:     list[str]  = []
+    dev_names: list[str] = []
+    ref_names: list[str] = []
 
     for sid in session_ids:
-        try:
-            oid = ObjectId(sid)
-        except Exception:
-            continue
         doc = await db().sessions.find_one(
-            {"_id": oid},
+            {"_id": _oid(sid)},
             {"fc_data": 1, "device_name": 1, "reference_name": 1},
         )
         if doc:
@@ -216,9 +292,7 @@ async def create_aggregate(body: dict) -> dict:
     ref_name = ref_names[0] if len(set(ref_names)) == 1 else "Referencia"
 
     try:
-        result = generate_aggregate_analysis(
-            sessions_data, training_type, dev_name, ref_name
-        )
+        result = generate_aggregate_analysis(sessions_data, training_type, dev_name, ref_name)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 

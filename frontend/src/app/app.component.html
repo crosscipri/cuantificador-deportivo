@@ -1,5 +1,5 @@
 <mat-toolbar class="app-toolbar">
-  <div class="toolbar-brand" routerLink="/">
+  <div class="toolbar-brand" routerLink="/devices">
     <mat-icon class="brand-icon">favorite</mat-icon>
     <span class="brand-name">HR <strong>Analyzer</strong></span>
     <span class="brand-sub">Validador Científico de FC</span>
@@ -8,20 +8,9 @@
   <span class="toolbar-spacer"></span>
 
   <nav class="toolbar-nav">
-    <a mat-button routerLink="/sessions" routerLinkActive="active-link"
-       matTooltip="Mis sesiones">
-      <mat-icon>bar_chart</mat-icon>
-      <span>Sesiones</span>
-    </a>
-    <a mat-button routerLink="/upload" routerLinkActive="active-link"
-       matTooltip="Subir archivos FIT">
-      <mat-icon>upload_file</mat-icon>
-      <span>Subir</span>
-    </a>
-    <a mat-button routerLink="/aggregate" routerLinkActive="active-link"
-       matTooltip="Análisis agregado">
-      <mat-icon>analytics</mat-icon>
-      <span>Agregado</span>
+    <a mat-button routerLink="/devices" routerLinkActive="active-link">
+      <mat-icon>devices</mat-icon>
+      <span>Dispositivos</span>
     </a>
   </nav>
 </mat-toolbar>

@@ -7,7 +7,7 @@
   <div class="empty-state" *ngIf="error">
     <mat-icon>error_outline</mat-icon>
     <h3>{{ error }}</h3>
-    <button mat-flat-button routerLink="/sessions">Volver a sesiones</button>
+    <button mat-flat-button [routerLink]="['/devices', deviceId]">Volver al dispositivo</button>
   </div>
 
   <ng-container *ngIf="session && !loading">
@@ -15,9 +15,9 @@
     <!-- ── Breadcrumb & actions ─── -->
     <div class="page-header">
       <div class="breadcrumb">
-        <a routerLink="/sessions">
-          <mat-icon>bar_chart</mat-icon> Sesiones
-        </a>
+        <a routerLink="/devices"><mat-icon>devices</mat-icon> Dispositivos</a>
+        <mat-icon class="sep">chevron_right</mat-icon>
+        <a [routerLink]="['/devices', deviceId]">{{ session.device_name }}</a>
         <mat-icon class="sep">chevron_right</mat-icon>
         <span>{{ session.session_name }}</span>
       </div>

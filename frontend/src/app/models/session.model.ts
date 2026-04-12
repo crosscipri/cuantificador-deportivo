@@ -31,8 +31,27 @@ export interface Charts {
   validation: string; // base64 PNG
 }
 
+export interface TrainingTypeSummary {
+  name: string;
+  count: number;
+  last_date: string;
+  avg_mae: number | null;
+  avg_ccc: number | null;
+}
+
+export interface Device {
+  id: string;
+  name: string;
+  reference_name: string;
+  description: string;
+  created_at: string;
+  session_count: number;
+  training_types: TrainingTypeSummary[];
+}
+
 export interface Session {
   id: string;
+  device_id: string;
   training_type: string;
   session_name: string;
   device_name: string;
@@ -44,11 +63,6 @@ export interface Session {
   fcmax: number;
   duration_seconds: number;
   charts: Charts;
-}
-
-export interface TrainingType {
-  name: string;
-  count: number;
 }
 
 export interface AggregateResult {
@@ -66,8 +80,8 @@ export function metricQuality(
   value: number
 ): 'good' | 'warn' | 'bad' {
   const thresholds: Partial<Record<keyof Metrics, { good: number; bad: number; higher?: boolean }>> = {
-    mae:  { good: 3,   bad: 5   },
-    mape: { good: 5,   bad: 10  },
+    mae:  { good: 3,    bad: 5   },
+    mape: { good: 5,    bad: 10  },
     ccc:  { good: 0.95, bad: 0.9, higher: true },
     icc:  { good: 0.9,  bad: 0.7, higher: true },
     r:    { good: 0.95, bad: 0.9, higher: true },

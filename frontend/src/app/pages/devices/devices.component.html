@@ -1,0 +1,71 @@
+<div class="devices-page">
+
+  <div class="page-header">
+    <div>
+      <h1>Mis dispositivos</h1>
+      <p class="subtitle">Crea un dispositivo y empieza a subir sesiones para validarlo</p>
+    </div>
+    <button mat-flat-button color="primary" (click)="openCreate()">
+      <mat-icon>add</mat-icon> Nuevo dispositivo
+    </button>
+  </div>
+
+  <div class="center-spinner" *ngIf="loading">
+    <mat-spinner diameter="48"></mat-spinner>
+  </div>
+
+  <div class="empty-state" *ngIf="!loading && devices.length === 0">
+    <mat-icon>devices</mat-icon>
+    <h3>No hay dispositivos aún</h3>
+    <p>Crea tu primer dispositivo para empezar a analizar sesiones</p>
+    <button mat-flat-button color="primary" (click)="openCreate()">
+      <mat-icon>add</mat-icon> Crear dispositivo
+    </button>
+  </div>
+
+  <div class="devices-grid" *ngIf="!loading && devices.length > 0">
+    <mat-card class="device-card" *ngFor="let dev of devices"
+              [routerLink]="['/devices', dev.id]">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="device-avatar">watch</mat-icon>
+        <mat-card-title>{{ dev.name }}</mat-card-title>
+        <mat-card-subtitle>
+          <mat-icon class="inline-icon">compare_arrows</mat-icon>
+          {{ dev.reference_name }}
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <p class="description" *ngIf="dev.description">{{ dev.description }}</p>
+
+        <div class="stats-row">
+          <span class="stat">
+            <mat-icon>bar_chart</mat-icon>
+            {{ dev.session_count }} sesión{{ dev.session_count !== 1 ? 'es' : '' }}
+          </span>
+        </div>
+
+        <div class="type-chips" *ngIf="dev.training_types.length > 0">
+          <mat-chip *ngFor="let t of dev.training_types" class="type-chip">
+            {{ t.name }} <span class="chip-count">×{{ t.count }}</span>
+          </mat-chip>
+        </div>
+        <p class="no-sessions" *ngIf="dev.training_types.length === 0">
+          Sin sesiones todavía
+        </p>
+      </mat-card-content>
+
+      <mat-card-actions align="end">
+        <button mat-icon-button color="warn" (click)="delete(dev, $event)"
+                matTooltip="Eliminar dispositivo y todas sus sesiones">
+          <mat-icon>delete_outline</mat-icon>
+        </button>
+        <button mat-stroked-button [routerLink]="['/devices', dev.id]"
+                (click)="$event.stopPropagation()">
+          <mat-icon>open_in_new</mat-icon> Abrir
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+
+</div>

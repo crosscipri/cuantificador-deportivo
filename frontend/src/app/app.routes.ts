@@ -1,28 +1,26 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'sessions', pathMatch: 'full' },
+  { path: '', redirectTo: 'devices', pathMatch: 'full' },
   {
-    path: 'upload',
+    path: 'devices',
+    loadComponent: () =>
+      import('./pages/devices/devices.component').then(m => m.DevicesComponent),
+  },
+  {
+    path: 'devices/:deviceId',
+    loadComponent: () =>
+      import('./pages/device-detail/device-detail.component').then(m => m.DeviceDetailComponent),
+  },
+  {
+    path: 'devices/:deviceId/upload',
     loadComponent: () =>
       import('./pages/upload/upload.component').then(m => m.UploadComponent),
   },
   {
-    path: 'sessions',
+    path: 'devices/:deviceId/sessions/:sessionId',
     loadComponent: () =>
-      import('./pages/sessions/sessions.component').then(m => m.SessionsComponent),
+      import('./pages/session-detail/session-detail.component').then(m => m.SessionDetailComponent),
   },
-  {
-    path: 'sessions/:id',
-    loadComponent: () =>
-      import('./pages/session-detail/session-detail.component').then(
-        m => m.SessionDetailComponent
-      ),
-  },
-  {
-    path: 'aggregate',
-    loadComponent: () =>
-      import('./pages/aggregate/aggregate.component').then(m => m.AggregateComponent),
-  },
-  { path: '**', redirectTo: 'sessions' },
+  { path: '**', redirectTo: 'devices' },
 ];

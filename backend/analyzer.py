@@ -1,6 +1,6 @@
 """
 HR Analyzer — core engine adapted from hr-analyzer.py.
-Receives FIT file bytes, returns metrics, zones, charts (base64 PNG).
+Receives FIT/TCX/GPX file bytes, returns metrics, zones, charts (base64 PNG).
 """
 
 import io
@@ -33,27 +33,120 @@ COLORES_ZONA = ["#3498db", "#2ecc71", "#f1c40f", "#e67e22", "#e74c3c"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. READ FIT
+# 1. READ FILES (FIT / TCX / GPX)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def read_fc_from_bytes(data: bytes) -> pd.Series:
-    """Parse a FIT file from raw bytes. Returns a Series of HR indexed by seconds."""
-    fitfile = fitparse.FitFile(io.BytesIO(data))
+def _records_to_series(records: list) -> pd.Series:
+    """Convert a list of {time, hr} dicts to a HR Series indexed by seconds."""
+    if not records:
+        raise ValueError("No se encontraron datos de FC en el archivo.")
+    df = pd.DataFrame(records)
+    df["time"] = pd.to_datetime(df["time"], utc=True)
+    df = df.sort_values("time")
+    df["seconds"] = (df["time"] - df["time"].iloc[0]).dt.total_seconds().astype(int)
+    df["hr"] = pd.to_numeric(df["hr"], errors="coerce")
+    series = df.dropna(subset=["hr"]).set_index("seconds")["hr"]
+    if series.empty:
+        raise ValueError("El archivo no contiene datos de FC válidos.")
+    return series
+
+
+def _read_fit(data: bytes) -> pd.Series:
+    fitfile = fitparse.FitFile(io.BytesIO(data), check_crc=False)
     records = []
     for msg in fitfile.get_messages("record"):
         d = {f.name: f.value for f in msg}
         if "heart_rate" in d and "timestamp" in d:
             records.append({"time": d["timestamp"], "hr": d["heart_rate"]})
+    return _records_to_series(records)
 
-    if not records:
-        raise ValueError("No se encontraron datos de FC en el archivo FIT.")
 
-    df = pd.DataFrame(records)
-    df["time"] = pd.to_datetime(df["time"])
-    df["seconds"] = (df["time"] - df["time"].iloc[0]).dt.total_seconds().astype(int)
-    df["hr"] = pd.to_numeric(df["hr"], errors="coerce")
-    series = df.dropna(subset=["hr"]).set_index("seconds")["hr"]
-    return series
+def _read_tcx(data: bytes) -> pd.Series:
+    """Parse TCX (Training Center XML). Handles Garmin namespaces."""
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(data)
+    NS = "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+
+    def tag(name):
+        return f"{{{NS}}}{name}"
+
+    records = []
+    for tp in root.iter(tag("Trackpoint")):
+        time_el   = tp.find(tag("Time"))
+        hr_parent = tp.find(tag("HeartRateBpm"))
+        if time_el is None or hr_parent is None:
+            continue
+        hr_val_el = hr_parent.find(tag("Value"))
+        if hr_val_el is not None:
+            try:
+                records.append({"time": time_el.text.strip(),
+                                 "hr":   float(hr_val_el.text.strip())})
+            except (ValueError, AttributeError):
+                continue
+    return _records_to_series(records)
+
+
+def _read_gpx(data: bytes) -> pd.Series:
+    """Parse GPX with heart rate in Garmin TrackPointExtension."""
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(data)
+    GPX_NS  = "http://www.topografix.com/GPX/1/1"
+    EXT_NS1 = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
+    EXT_NS2 = "http://www.garmin.com/xmlschemas/TrackPointExtension/v2"
+
+    records = []
+    for trkpt in root.iter(f"{{{GPX_NS}}}trkpt"):
+        time_el = trkpt.find(f"{{{GPX_NS}}}time")
+        if time_el is None:
+            continue
+        hr = None
+        for ns in (EXT_NS1, EXT_NS2):
+            hr_el = trkpt.find(f".//{{{ns}}}hr")
+            if hr_el is not None:
+                try:
+                    hr = float(hr_el.text.strip())
+                except (ValueError, AttributeError):
+                    pass
+                break
+        if hr is not None:
+            records.append({"time": time_el.text.strip(), "hr": hr})
+    return _records_to_series(records)
+
+
+def read_fc_from_bytes(data: bytes, filename: str = "") -> pd.Series:
+    """
+    Parse a FIT, TCX or GPX file from raw bytes.
+    Format detected by filename extension, then content sniffing.
+    Falls back gracefully between formats.
+    """
+    ext = filename.lower().rsplit(".", 1)[-1] if filename else ""
+
+    # ── Explicit extension ────────────────────────────────────────────────
+    if ext == "tcx":
+        return _read_tcx(data)
+    if ext == "gpx":
+        return _read_gpx(data)
+
+    # For .fit (or no extension) try FIT first, fall through on header error
+    fit_error: Exception | None = None
+    if ext in ("fit", ""):
+        try:
+            return _read_fit(data)
+        except Exception as e:
+            fit_error = e
+
+    # ── Content sniffing — maybe it's XML despite the .fit extension ─────
+    text_start = data[:400].lower()
+    if b"trainingcenterdatabase" in text_start or b"<tcx" in text_start:
+        return _read_tcx(data)
+    if b"<gpx" in text_start:
+        return _read_gpx(data)
+
+    # Re-raise original FIT error if nothing else matched
+    if fit_error:
+        raise ValueError(f"No se pudo leer el archivo: {fit_error}")
+
+    return _read_fit(data)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -227,7 +320,6 @@ def generate_temporal_chart(
                     where=fc2_s.values < fc1_s.values,
                     alpha=0.13, color=C_REF, interpolate=True)
 
-    # Annotate max peaks
     for fc_s, c in [(fc1_s, C_REF), (fc2_s, C_DEV)]:
         idx_max = fc_s.idxmax()
         ax.annotate(f"{int(fc_s[idx_max])} ppm",
@@ -405,13 +497,15 @@ def analyze_session(
     reference_bytes: bytes,
     device_name: str = "Dispositivo",
     ref_name: str = "Referencia",
+    device_filename: str = "",
+    reference_filename: str = "",
 ) -> dict:
     """
     Full analysis for one training session.
     Returns metrics, zones, lag, fcmax, two charts (base64), and downsampled FC data.
     """
-    fc_ref = read_fc_from_bytes(reference_bytes)
-    fc_dev = read_fc_from_bytes(device_bytes)
+    fc_ref = read_fc_from_bytes(reference_bytes, reference_filename)
+    fc_dev = read_fc_from_bytes(device_bytes, device_filename)
 
     ref_aligned, dev_aligned, x_seg, _ = align(fc_ref, fc_dev)
 
