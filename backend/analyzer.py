@@ -616,3 +616,94 @@ def generate_aggregate_analysis(
         "total_samples": len(combined_ref),
         "chart":         chart,
     }
+
+
+def generate_overview_chart(devices_data: list) -> str:
+    """
+    Lollipop chart of Pearson R for every device vs its reference.
+    Sorted ascending so the best device is at the top.
+    """
+    # ── Build per-device R ────────────────────────────────────────────────
+    entries = []
+    for dev in devices_data:
+        all_ref, all_dev = [], []
+        for fc in dev["fc_data_list"]:
+            all_ref.extend(fc.get("reference", []))
+            all_dev.extend(fc.get("device", []))
+        if len(all_ref) < 10:
+            continue
+        ref_s = pd.Series(all_ref, dtype=float)
+        dev_s = pd.Series(all_dev, dtype=float)
+        m = calculate_metrics(ref_s, dev_s)
+        entries.append({
+            "name":     dev["name"],
+            "ref_name": dev["reference_name"],
+            "r":        m["r"],
+            "n":        m["n"],
+            "sessions": dev["session_count"],
+        })
+
+    if not entries:
+        raise ValueError("No hay datos suficientes para generar el gráfico global.")
+
+    # Sort ascending — best (highest R) at top of the chart
+    entries.sort(key=lambda x: x["r"])
+
+    names     = [e["name"]     for e in entries]
+    r_vals    = [e["r"]        for e in entries]
+    ref_label = entries[-1]["ref_name"]   # use the ref from best device
+    n_devs    = len(entries)
+
+    def _color(r):
+        if r >= 0.95: return "#27ae60"
+        if r >= 0.90: return "#f1c40f"
+        return "#e74c3c"
+
+    colors = [_color(r) for r in r_vals]
+
+    # Dynamic figure height: ~0.55 inches per device, min 5
+    fig_h = max(5, n_devs * 0.55 + 1.8)
+    fig, ax = plt.subplots(figsize=(9, fig_h), facecolor="#0f1117")
+    _style_ax(ax)
+
+    y_pos = np.arange(n_devs)
+
+    # Lollipop stems
+    x_min = max(0.5, min(r_vals) - 0.03)
+    for y, r, c in zip(y_pos, r_vals, colors):
+        ax.hlines(y, x_min, r, colors="#333", linewidth=1.2, zorder=2)
+
+    # Dots
+    ax.scatter(r_vals, y_pos, color=colors, s=80, zorder=4)
+
+    # R value labels to the right of each dot
+    for y, r, c in zip(y_pos, r_vals, colors):
+        ax.text(r + 0.002, y, f"{r:.4f}",
+                va="center", ha="left", fontsize=8.5,
+                color=c, fontweight="bold")
+
+    # Reference vertical line at 1.0
+    ax.axvline(1.0, color="#555", lw=1.2, ls="--", zorder=1)
+    ax.text(1.001, n_devs - 0.5, ref_label,
+            color="#888", fontsize=8, va="top", ha="left")
+
+    # Threshold lines
+    for thresh, col, lbl in [(0.95, "#27ae60", "0.95"), (0.90, "#f1c40f", "0.90")]:
+        ax.axvline(thresh, color=col, lw=0.8, ls=":", alpha=0.6, zorder=1)
+        ax.text(thresh, -0.8, lbl, color=col, fontsize=7,
+                ha="center", va="top")
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(names, color="#ddd", fontsize=10)
+    ax.set_xlabel("Correlación de Pearson (R)", color="#ccc", fontsize=11)
+    ax.set_xlim(x_min - 0.01, 1.035)
+    ax.set_ylim(-1, n_devs)
+    ax.tick_params(axis="x", colors="#aaa")
+
+    fig.suptitle(
+        f"Comparativa global  ·  referencia: {ref_label}",
+        color="white", fontsize=13, fontweight="bold",
+    )
+    fig.tight_layout()
+
+    return _fig_to_base64(fig)

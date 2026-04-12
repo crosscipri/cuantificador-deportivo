@@ -22,5 +22,10 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/session-detail/session-detail.component').then(m => m.SessionDetailComponent),
   },
+  {
+    path: 'overview',
+    loadComponent: () =>
+      import('./pages/overview/overview.component').then(m => m.OverviewComponent),
+  },
   { path: '**', redirectTo: 'devices' },
 ];

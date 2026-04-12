@@ -62,6 +62,14 @@ export class ApiService {
     return this.http.delete<{ deleted: boolean }>(`${this.base}/sessions/${id}`);
   }
 
+  // ── Overview ──────────────────────────────────────────────────────────────
+
+  getOverviewChart(): Observable<{ chart: string; device_count: number; total_sessions: number }> {
+    return this.http.get<{ chart: string; device_count: number; total_sessions: number }>(
+      `${this.base}/overview/chart`
+    );
+  }
+
   // ── Aggregate ─────────────────────────────────────────────────────────────
 
   aggregate(sessionIds: string[], trainingType: string): Observable<AggregateResult> {

@@ -15,7 +15,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from analyzer import analyze_session, generate_aggregate_analysis
+from analyzer import analyze_session, generate_aggregate_analysis, generate_overview_chart
 
 load_dotenv()
 
@@ -253,6 +253,61 @@ async def delete_session(session_id: str) -> dict:
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
     return {"deleted": True}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OVERVIEW CHART  (all devices)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/overview/chart")
+async def get_overview_chart() -> dict:
+    """
+    Build a global comparison chart (R + MAE) for every device that has sessions.
+    Returns { chart: base64_png, device_count: int, total_sessions: int }.
+    """
+    devices = [d async for d in db().devices.find()]
+    if not devices:
+        raise HTTPException(status_code=404, detail="No hay dispositivos con sesiones.")
+
+    devices_data = []
+    total_sessions = 0
+
+    for dev in devices:
+        sessions = [
+            s async for s in db().sessions.find(
+                {"device_id": dev["_id"]},
+                {"fc_data": 1},
+            )
+        ]
+        if not sessions:
+            continue
+
+        fc_data_list = [s["fc_data"] for s in sessions if s.get("fc_data")]
+        if not fc_data_list:
+            continue
+
+        devices_data.append({
+            "name":           dev["name"],
+            "reference_name": dev["reference_name"],
+            "fc_data_list":   fc_data_list,
+            "session_count":  len(sessions),
+        })
+        total_sessions += len(sessions)
+
+    if not devices_data:
+        raise HTTPException(status_code=404,
+                            detail="No hay sesiones con datos suficientes.")
+
+    try:
+        chart = generate_overview_chart(devices_data)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    return {
+        "chart":          chart,
+        "device_count":   len(devices_data),
+        "total_sessions": total_sessions,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
