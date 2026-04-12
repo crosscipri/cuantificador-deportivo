@@ -18,6 +18,7 @@ import numpy as np
 from scipy import stats
 from scipy.signal import correlate
 import fitparse
+from datetime import datetime
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
@@ -113,9 +114,37 @@ def _read_gpx(data: bytes) -> pd.Series:
     return _records_to_series(records)
 
 
+def _read_healthkit(data: bytes) -> pd.Series:
+    """Parse Apple Health export XML (HKQuantityTypeIdentifierHeartRate)."""
+    import xml.etree.ElementTree as ET
+    from datetime import timezone as tz
+
+    try:
+        root = ET.fromstring(data)
+    except ET.ParseError:
+        root = ET.fromstring(b"<root>" + data + b"</root>")
+
+    records = []
+    for rec in root.iter("Record"):
+        if rec.get("type") != "HKQuantityTypeIdentifierHeartRate":
+            continue
+        start_str = rec.get("startDate") or rec.get("endDate")
+        value_str  = rec.get("value")
+        if not start_str or not value_str:
+            continue
+        try:
+            bpm = int(float(value_str))
+            dt  = datetime.strptime(start_str, "%Y-%m-%d %H:%M:%S %z")
+            records.append({"time": dt, "hr": bpm})
+        except (ValueError, OverflowError):
+            continue
+
+    return _records_to_series(records)
+
+
 def read_fc_from_bytes(data: bytes, filename: str = "") -> pd.Series:
     """
-    Parse a FIT, TCX or GPX file from raw bytes.
+    Parse a FIT, TCX, GPX or Apple Health XML file from raw bytes.
     Format detected by filename extension, then content sniffing.
     Falls back gracefully between formats.
     """
@@ -126,23 +155,26 @@ def read_fc_from_bytes(data: bytes, filename: str = "") -> pd.Series:
         return _read_tcx(data)
     if ext == "gpx":
         return _read_gpx(data)
+    if ext == "xml":
+        return _read_healthkit(data)
 
     # For .fit (or no extension) try FIT first, fall through on header error
-    fit_error: Exception | None = None
+    fit_error = None
     if ext in ("fit", ""):
         try:
             return _read_fit(data)
         except Exception as e:
             fit_error = e
 
-    # ── Content sniffing — maybe it's XML despite the .fit extension ─────
-    text_start = data[:400].lower()
+    # ── Content sniffing ─────────────────────────────────────────────────
+    text_start = data[:600].lower()
     if b"trainingcenterdatabase" in text_start or b"<tcx" in text_start:
         return _read_tcx(data)
     if b"<gpx" in text_start:
         return _read_gpx(data)
+    if b"hkquantitytypeidentifierheartrate" in text_start:
+        return _read_healthkit(data)
 
-    # Re-raise original FIT error if nothing else matched
     if fit_error:
         raise ValueError(f"No se pudo leer el archivo: {fit_error}")
 

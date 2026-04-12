@@ -39,9 +39,8 @@
         <div class="row-two">
           <mat-form-field appearance="outline">
             <mat-label>Tipo de entrenamiento *</mat-label>
-            <input matInput formControlName="trainingType"
-                   placeholder="Running suave, Intervals…"
-                   [matAutocomplete]="auto">
+            <input matInput formControlName="trainingType" placeholder="Running suave, Intervals…"
+              [matAutocomplete]="auto">
             <mat-icon matPrefix>sports_score</mat-icon>
             <mat-autocomplete #auto="matAutocomplete">
               <mat-option *ngFor="let t of existingTypes" [value]="t">{{ t }}</mat-option>
@@ -57,14 +56,14 @@
         </div>
 
         <div class="drop-zones">
-          <div class="drop-zone" [class.has-file]="deviceFile"
-               (dragover)="onDragOver($event)" (drop)="onDrop($event, 'device')"
-               (click)="devInput.click()">
-            <input #devInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX" hidden
-                   (change)="onDeviceFile($event)">
+          <div class="drop-zone" [class.has-file]="deviceFile" (dragover)="onDragOver($event)"
+            (drop)="onDrop($event, 'device')" (click)="devInput.click()">
+            <input #devInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden
+              (change)="onDeviceFile($event)">
             <mat-icon>{{ deviceFile ? 'check_circle' : 'watch' }}</mat-icon>
             <span class="zone-label">{{ deviceFile ? deviceFile.name : device.name }}</span>
-            <span class="zone-hint">{{ deviceFile ? 'Clic para cambiar' : 'Arrastra o clic (.FIT / .TCX / .GPX)' }}</span>
+            <span class="zone-hint">{{ deviceFile ? 'Clic para cambiar' : 'Arrastra o clic (.FIT / .TCX / .GPX / .XML)'
+              }}</span>
           </div>
 
           <div class="drop-zone-arrow">
@@ -72,14 +71,14 @@
             <span>vs</span>
           </div>
 
-          <div class="drop-zone" [class.has-file]="referenceFile"
-               (dragover)="onDragOver($event)" (drop)="onDrop($event, 'ref')"
-               (click)="refInput.click()">
-            <input #refInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX" hidden
-                   (change)="onReferenceFile($event)">
+          <div class="drop-zone" [class.has-file]="referenceFile" (dragover)="onDragOver($event)"
+            (drop)="onDrop($event, 'ref')" (click)="refInput.click()">
+            <input #refInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden
+              (change)="onReferenceFile($event)">
             <mat-icon>{{ referenceFile ? 'check_circle' : 'monitor_heart' }}</mat-icon>
             <span class="zone-label">{{ referenceFile ? referenceFile.name : device.reference_name }}</span>
-            <span class="zone-hint">{{ referenceFile ? 'Clic para cambiar' : 'Arrastra o clic (.FIT / .TCX / .GPX)' }}</span>
+            <span class="zone-hint">{{ referenceFile ? 'Clic para cambiar' : 'Arrastra o clic (.FIT / .TCX / .GPX)'
+              }}</span>
           </div>
         </div>
       </form>
@@ -106,7 +105,8 @@
       <div class="group-title">
         <mat-icon>{{ group.expanded ? 'expand_less' : 'expand_more' }}</mat-icon>
         <h2>{{ group.type }}</h2>
-        <span class="session-count">{{ group.sessions.length }} sesión{{ group.sessions.length !== 1 ? 'es' : '' }}</span>
+        <span class="session-count">{{ group.sessions.length }} sesión{{ group.sessions.length !== 1 ? 'es' : ''
+          }}</span>
         <ng-container *ngIf="getTypeStats(group.type) as ts">
           <span *ngIf="ts.avg_mae != null" class="badge" [ngClass]="maeBadge(ts.avg_mae!)">
             MAE {{ ts.avg_mae }}
@@ -117,11 +117,11 @@
         </ng-container>
       </div>
       <button mat-flat-button color="accent" class="aggregate-btn"
-              (click)="$event.stopPropagation(); runAggregate(group)"
-              [disabled]="group.loadingAggregate || group.selectedIds.size === 0"
-              matTooltip="Análisis agregado de las sesiones seleccionadas">
+        (click)="$event.stopPropagation(); runAggregate(group)"
+        [disabled]="group.loadingAggregate || group.selectedIds.size === 0"
+        matTooltip="Análisis agregado de las sesiones seleccionadas">
         <mat-spinner *ngIf="group.loadingAggregate" diameter="16"
-                     style="display:inline-block;margin-right:6px"></mat-spinner>
+          style="display:inline-block;margin-right:6px"></mat-spinner>
         <mat-icon *ngIf="!group.loadingAggregate">analytics</mat-icon>
         Análisis agregado ({{ group.selectedIds.size }})
       </button>
@@ -131,10 +131,8 @@
 
       <!-- Session rows -->
       <div class="session-row" *ngFor="let s of group.sessions">
-        <mat-checkbox class="row-check"
-                      [checked]="group.selectedIds.has(s.id)"
-                      (change)="toggleSession(group, s.id)"
-                      (click)="$event.stopPropagation()">
+        <mat-checkbox class="row-check" [checked]="group.selectedIds.has(s.id)" (change)="toggleSession(group, s.id)"
+          (click)="$event.stopPropagation()">
         </mat-checkbox>
 
         <div class="row-info" [routerLink]="['/devices', deviceId, 'sessions', s.id]">
@@ -155,12 +153,10 @@
         </div>
 
         <div class="row-actions">
-          <button mat-icon-button [routerLink]="['/devices', deviceId, 'sessions', s.id]"
-                  matTooltip="Ver detalle">
+          <button mat-icon-button [routerLink]="['/devices', deviceId, 'sessions', s.id]" matTooltip="Ver detalle">
             <mat-icon>open_in_new</mat-icon>
           </button>
-          <button mat-icon-button color="warn" (click)="deleteSession(s, group)"
-                  matTooltip="Eliminar sesión">
+          <button mat-icon-button color="warn" (click)="deleteSession(s, group)" matTooltip="Eliminar sesión">
             <mat-icon>delete_outline</mat-icon>
           </button>
         </div>
@@ -170,12 +166,12 @@
       <div class="aggregate-result" *ngIf="group.aggregate">
         <div class="section-header">
           <h3>Análisis agregado — {{ group.type }}</h3>
-          <span class="agg-meta">{{ group.aggregate.n_sessions }} sesiones · {{ group.aggregate.total_samples | number }} muestras</span>
+          <span class="agg-meta">{{ group.aggregate.n_sessions }} sesiones · {{ group.aggregate.total_samples | number
+            }} muestras</span>
           <div class="divider"></div>
         </div>
         <app-metrics-table [metrics]="group.aggregate.metrics"></app-metrics-table>
-        <app-chart-viewer
-          [chartB64]="group.aggregate.chart"
+        <app-chart-viewer [chartB64]="group.aggregate.chart"
           [title]="'Agregado — ' + group.type + ' — ' + device.name + ' vs ' + device.reference_name"
           [filename]="group.type + '-agregado.png'">
         </app-chart-viewer>

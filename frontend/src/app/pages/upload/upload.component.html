@@ -44,7 +44,7 @@
           <div class="drop-zone" [class.has-file]="deviceFile"
                (dragover)="onDragOver($event)" (drop)="onDrop($event,'device')"
                (click)="devInput.click()">
-            <input #devInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX" hidden
+            <input #devInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden
                    (change)="onDeviceFile($event)">
             <mat-icon>{{ deviceFile ? 'check_circle' : 'watch' }}</mat-icon>
             <span class="zone-label">{{ deviceFile ? deviceFile.name : device.name }}</span>
@@ -59,7 +59,7 @@
           <div class="drop-zone" [class.has-file]="referenceFile"
                (dragover)="onDragOver($event)" (drop)="onDrop($event,'ref')"
                (click)="refInput.click()">
-            <input #refInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX" hidden
+            <input #refInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden
                    (change)="onReferenceFile($event)">
             <mat-icon>{{ referenceFile ? 'check_circle' : 'monitor_heart' }}</mat-icon>
             <span class="zone-label">{{ referenceFile ? referenceFile.name : device.reference_name }}</span>
