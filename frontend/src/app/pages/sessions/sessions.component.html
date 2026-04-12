@@ -1,0 +1,170 @@
+<div class="sessions-page">
+
+  <!-- ── TOOLBAR ──────────────────────────────────────────── -->
+  <div class="page-toolbar">
+    <div class="page-title">
+      <mat-icon>bar_chart</mat-icon>
+      <h1>Mis sesiones</h1>
+      <span class="count-badge" *ngIf="sessions.length">{{ sessions.length }}</span>
+    </div>
+
+    <div class="toolbar-actions">
+      <!-- Filter -->
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Tipo de entrenamiento</mat-label>
+        <mat-select [(ngModel)]="filterType" (ngModelChange)="onFilterChange()">
+          <mat-option value="">Todos</mat-option>
+          <mat-option *ngFor="let t of trainingTypes" [value]="t.name">
+            {{ t.name }} ({{ t.count }})
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Selection actions -->
+      <ng-container *ngIf="selectedIds.size > 0">
+        <button mat-stroked-button (click)="clearSelection()">
+          <mat-icon>deselect</mat-icon>
+          Limpiar ({{ selectedIds.size }})
+        </button>
+        <button mat-flat-button color="accent"
+                [routerLink]="['/aggregate']"
+                [queryParams]="selectedQueryParams">
+          <mat-icon>analytics</mat-icon>
+          Análisis agregado ({{ selectedIds.size }})
+        </button>
+      </ng-container>
+
+      <button mat-flat-button color="primary" routerLink="/upload">
+        <mat-icon>add</mat-icon>
+        Nueva sesión
+      </button>
+    </div>
+  </div>
+
+  <!-- ── LOADING ──────────────────────────────────────────── -->
+  <div class="center-spinner" *ngIf="loading">
+    <mat-spinner diameter="48"></mat-spinner>
+  </div>
+
+  <!-- ── EMPTY ────────────────────────────────────────────── -->
+  <div class="empty-state" *ngIf="!loading && sessions.length === 0">
+    <mat-icon>monitor_heart</mat-icon>
+    <h3>Sin sesiones todavía</h3>
+    <p>Sube tu primer par de archivos FIT para comenzar el análisis de validación.</p>
+    <button mat-flat-button color="primary" routerLink="/upload">
+      <mat-icon>upload_file</mat-icon>
+      Subir primera sesión
+    </button>
+  </div>
+
+  <!-- ── SESSION GROUPS ──────────────────────────────────── -->
+  <ng-container *ngIf="!loading && sessions.length > 0">
+
+    <div class="type-group" *ngFor="let group of groupedSessions">
+
+      <!-- Group header -->
+      <div class="group-header">
+        <mat-icon class="group-icon">sports_score</mat-icon>
+        <h2>{{ group.type }}</h2>
+        <span class="group-count">{{ group.sessions.length }} sesión{{ group.sessions.length !== 1 ? 'es' : '' }}</span>
+        <div class="group-divider"></div>
+        <button mat-button color="accent" *ngIf="group.sessions.length >= 2"
+                [routerLink]="['/aggregate']"
+                [queryParams]="groupQueryParams(group.sessions)">
+          <mat-icon>analytics</mat-icon>
+          Análisis agregado del grupo
+        </button>
+      </div>
+
+      <!-- Session cards -->
+      <div class="sessions-grid">
+        <mat-card class="session-card" *ngFor="let session of group.sessions"
+                  [class.selected]="isSelected(session.id)"
+                  (click)="toggleSelect(session.id)">
+
+          <!-- Selection indicator -->
+          <div class="select-indicator">
+            <mat-checkbox [checked]="isSelected(session.id)"
+                          (click)="$event.stopPropagation()"
+                          (change)="toggleSelect(session.id)">
+            </mat-checkbox>
+          </div>
+
+          <mat-card-content>
+            <!-- Header row -->
+            <div class="card-header">
+              <div class="card-title-group">
+                <h3>{{ session.session_name }}</h3>
+                <span class="card-date">{{ formatDate(session.created_at) }}</span>
+              </div>
+              <div class="card-device-names">
+                <span class="device-tag dev">{{ session.device_name }}</span>
+                <mat-icon class="vs-icon">compare_arrows</mat-icon>
+                <span class="device-tag ref">{{ session.reference_name }}</span>
+              </div>
+            </div>
+
+            <!-- Key metrics -->
+            <div class="metrics-row">
+              <div class="mini-metric" [ngClass]="metricQuality('mae', session.metrics.mae)">
+                <span class="mini-label">MAE</span>
+                <span class="mini-value">{{ session.metrics.mae }}</span>
+                <span class="mini-unit">ppm</span>
+              </div>
+              <div class="mini-metric" [ngClass]="metricQuality('mape', session.metrics.mape)">
+                <span class="mini-label">MAPE</span>
+                <span class="mini-value">{{ session.metrics.mape }}</span>
+                <span class="mini-unit">%</span>
+              </div>
+              <div class="mini-metric" [ngClass]="metricQuality('ccc', session.metrics.ccc)">
+                <span class="mini-label">CCC</span>
+                <span class="mini-value">{{ session.metrics.ccc }}</span>
+              </div>
+              <div class="mini-metric" [ngClass]="metricQuality('r', session.metrics.r)">
+                <span class="mini-label">R</span>
+                <span class="mini-value">{{ session.metrics.r }}</span>
+              </div>
+              <div class="mini-metric neutral">
+                <span class="mini-label">Bias</span>
+                <span class="mini-value">{{ session.metrics.bias > 0 ? '+' : '' }}{{ session.metrics.bias }}</span>
+                <span class="mini-unit">ppm</span>
+              </div>
+              <div class="mini-metric neutral">
+                <span class="mini-label">Duración</span>
+                <span class="mini-value">{{ formatDuration(session.duration_seconds) }}</span>
+              </div>
+            </div>
+
+            <!-- Lag badge -->
+            <div class="lag-row">
+              <span class="lag-badge" [class.lag-ok]="Math.abs(session.lag) <= 5">
+                <mat-icon>timer</mat-icon>
+                Lag {{ session.lag > 0 ? '+' : '' }}{{ session.lag }}s
+              </span>
+              <span class="fcmax-badge">FCmax {{ session.fcmax }} ppm</span>
+            </div>
+          </mat-card-content>
+
+          <mat-card-actions>
+            <button mat-button color="primary"
+                    [routerLink]="['/sessions', session.id]"
+                    (click)="$event.stopPropagation()">
+              <mat-icon>open_in_new</mat-icon>
+              Ver gráficas
+            </button>
+            <span class="spacer"></span>
+            <button mat-icon-button color="warn"
+                    matTooltip="Eliminar sesión"
+                    (click)="$event.stopPropagation(); delete(session)">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </mat-card-actions>
+
+        </mat-card>
+      </div>
+
+    </div>
+
+  </ng-container>
+
+</div>

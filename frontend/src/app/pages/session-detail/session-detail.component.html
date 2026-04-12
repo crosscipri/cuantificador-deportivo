@@ -1,0 +1,174 @@
+<div class="detail-page">
+
+  <!-- Spinner -->
+  <div class="center-spinner" *ngIf="loading"><mat-spinner diameter="48"></mat-spinner></div>
+
+  <!-- Error -->
+  <div class="empty-state" *ngIf="error">
+    <mat-icon>error_outline</mat-icon>
+    <h3>{{ error }}</h3>
+    <button mat-flat-button routerLink="/sessions">Volver a sesiones</button>
+  </div>
+
+  <ng-container *ngIf="session && !loading">
+
+    <!-- ── Breadcrumb & actions ─── -->
+    <div class="page-header">
+      <div class="breadcrumb">
+        <a routerLink="/sessions">
+          <mat-icon>bar_chart</mat-icon> Sesiones
+        </a>
+        <mat-icon class="sep">chevron_right</mat-icon>
+        <span>{{ session.session_name }}</span>
+      </div>
+      <div class="header-actions">
+        <button mat-stroked-button color="warn" (click)="delete()">
+          <mat-icon>delete_outline</mat-icon>
+          Eliminar
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Session info ─── -->
+    <mat-card class="info-card">
+      <mat-card-content>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Sesión</span>
+            <span class="info-value main">{{ session.session_name }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Tipo</span>
+            <span class="info-value">{{ session.training_type }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Dispositivo</span>
+            <span class="info-value device">{{ session.device_name }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Referencia</span>
+            <span class="info-value ref">{{ session.reference_name }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Duración</span>
+            <span class="info-value">{{ formatDuration(session.duration_seconds) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">FCmax</span>
+            <span class="info-value">{{ session.fcmax }} ppm</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Lag temporal</span>
+            <span class="info-value" [class.ok-text]="Math.abs(session.lag) <= 5"
+                  [class.warn-text]="Math.abs(session.lag) > 5">
+              {{ session.lag > 0 ? '+' : '' }}{{ session.lag }}s
+            </span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Fecha</span>
+            <span class="info-value">{{ formatDate(session.created_at) }}</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- ── Metrics ─── -->
+    <div class="section-header" style="margin-top:32px">
+      <h2>Métricas de validación</h2>
+      <div class="divider"></div>
+    </div>
+    <app-metrics-table [metrics]="session.metrics" [lag]="session.lag"></app-metrics-table>
+
+    <!-- ── Temporal chart ─── -->
+    <div class="section-header" style="margin-top:36px">
+      <h2>Comparativa FC vs Referencia</h2>
+      <div class="divider"></div>
+    </div>
+    <app-chart-viewer
+      [chartB64]="session.charts.temporal"
+      [title]="'FC — ' + session.device_name + ' vs ' + session.reference_name"
+      [filename]="session.session_name + '-fc-comparativa.png'">
+    </app-chart-viewer>
+
+    <!-- ── Validation chart ─── -->
+    <div class="section-header" style="margin-top:36px">
+      <h2>Validación científica</h2>
+      <div class="divider"></div>
+      <span class="section-note">Correlación · Bland-Altman · Error por zonas</span>
+    </div>
+    <app-chart-viewer
+      [chartB64]="session.charts.validation"
+      [title]="'Validación — ' + session.device_name + ' vs ' + session.reference_name"
+      [filename]="session.session_name + '-validacion.png'">
+    </app-chart-viewer>
+
+    <!-- ── Zones table ─── -->
+    <div class="section-header" style="margin-top:36px">
+      <h2>Error por zonas de intensidad</h2>
+      <div class="divider"></div>
+    </div>
+    <mat-card>
+      <mat-card-content>
+        <table mat-table [dataSource]="session.zones" class="zones-table">
+
+          <ng-container matColumnDef="zone">
+            <th mat-header-cell *matHeaderCellDef>Zona</th>
+            <td mat-cell *matCellDef="let z">
+              <span class="zone-chip" [ngClass]="zoneCssClass(z.zone)">{{ z.zone }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="range">
+            <th mat-header-cell *matHeaderCellDef>Rango</th>
+            <td mat-cell *matCellDef="let z" class="mono">{{ z.range }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="pct_time">
+            <th mat-header-cell *matHeaderCellDef>% Tiempo</th>
+            <td mat-cell *matCellDef="let z">{{ z.pct_time }}%</td>
+          </ng-container>
+
+          <ng-container matColumnDef="n">
+            <th mat-header-cell *matHeaderCellDef>Muestras</th>
+            <td mat-cell *matCellDef="let z" class="mono">{{ z.n }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="mae">
+            <th mat-header-cell *matHeaderCellDef>MAE (ppm)</th>
+            <td mat-cell *matCellDef="let z">
+              <span *ngIf="z.mae !== null"
+                    [class.good]="z.mae <= 3"
+                    [class.warn]="z.mae > 3 && z.mae <= 5"
+                    [class.bad]="z.mae > 5">{{ z.mae }}</span>
+              <span *ngIf="z.mae === null" class="no-data">—</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="mape">
+            <th mat-header-cell *matHeaderCellDef>MAPE (%)</th>
+            <td mat-cell *matCellDef="let z">
+              <span *ngIf="z.mape !== null"
+                    [class.good]="z.mape <= 5"
+                    [class.warn]="z.mape > 5 && z.mape <= 10"
+                    [class.bad]="z.mape > 10">{{ z.mape }}%</span>
+              <span *ngIf="z.mape === null" class="no-data">—</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="bias">
+            <th mat-header-cell *matHeaderCellDef>Bias (ppm)</th>
+            <td mat-cell *matCellDef="let z" class="mono">
+              <span *ngIf="z.bias !== null">{{ z.bias > 0 ? '+' : '' }}{{ z.bias }}</span>
+              <span *ngIf="z.bias === null" class="no-data">—</span>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="zoneColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: zoneColumns;"></tr>
+        </table>
+      </mat-card-content>
+    </mat-card>
+
+  </ng-container>
+
+</div>

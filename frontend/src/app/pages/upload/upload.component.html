@@ -1,0 +1,146 @@
+<div class="upload-page">
+
+  <!-- ── FORM ─────────────────────────────────────────────── -->
+  <mat-card class="upload-card" *ngIf="!result">
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="header-icon">upload_file</mat-icon>
+      <mat-card-title>Nueva sesión de entrenamiento</mat-card-title>
+      <mat-card-subtitle>Sube los archivos .FIT del dispositivo y la referencia para analizarlos</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="form" class="upload-form">
+
+        <!-- Training type + session name row -->
+        <div class="row-two">
+          <mat-form-field appearance="outline">
+            <mat-label>Tipo de entrenamiento *</mat-label>
+            <input matInput formControlName="trainingType" placeholder="Ej: Running suave"
+                   [matAutocomplete]="auto">
+            <mat-icon matPrefix>sports_score</mat-icon>
+            <mat-autocomplete #auto="matAutocomplete">
+              <mat-option *ngFor="let t of filteredTypes()" [value]="t">{{ t }}</mat-option>
+            </mat-autocomplete>
+            <mat-error>Campo obligatorio</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Nombre de la sesión</mat-label>
+            <input matInput formControlName="sessionName" placeholder="Ej: Rodaje 45 min">
+            <mat-icon matPrefix>label</mat-icon>
+          </mat-form-field>
+        </div>
+
+        <!-- File drop zones -->
+        <div class="drop-zones">
+
+          <!-- Device -->
+          <div class="drop-zone" [class.has-file]="deviceFile"
+               (dragover)="onDragOver($event)" (drop)="onDrop($event, 'device')"
+               (click)="deviceInput.click()">
+            <input #deviceInput type="file" accept=".fit,.FIT" hidden (change)="onDeviceFile($event)">
+            <mat-icon>{{ deviceFile ? 'check_circle' : 'watch' }}</mat-icon>
+            <span class="zone-label">{{ deviceFile ? deviceFile.name : 'Dispositivo a validar' }}</span>
+            <span class="zone-hint">{{ deviceFile ? 'Haz clic para cambiar' : 'Arrastra o haz clic (.FIT)' }}</span>
+          </div>
+
+          <div class="drop-zone-arrow">
+            <mat-icon>compare_arrows</mat-icon>
+            <span>vs</span>
+          </div>
+
+          <!-- Reference -->
+          <div class="drop-zone" [class.has-file]="referenceFile"
+               (dragover)="onDragOver($event)" (drop)="onDrop($event, 'reference')"
+               (click)="refInput.click()">
+            <input #refInput type="file" accept=".fit,.FIT" hidden (change)="onReferenceFile($event)">
+            <mat-icon>{{ referenceFile ? 'check_circle' : 'monitor_heart' }}</mat-icon>
+            <span class="zone-label">{{ referenceFile ? referenceFile.name : 'Referencia (Polar H10…)' }}</span>
+            <span class="zone-hint">{{ referenceFile ? 'Haz clic para cambiar' : 'Arrastra o haz clic (.FIT)' }}</span>
+          </div>
+        </div>
+
+        <!-- Optional names -->
+        <div class="row-two name-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Nombre del dispositivo</mat-label>
+            <input matInput formControlName="deviceName" placeholder="Garmin Fenix 7">
+            <mat-icon matPrefix>edit</mat-icon>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Nombre de la referencia</mat-label>
+            <input matInput formControlName="referenceName" placeholder="Polar H10">
+            <mat-icon matPrefix>edit</mat-icon>
+          </mat-form-field>
+        </div>
+
+      </form>
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button mat-stroked-button routerLink="/sessions">Ver sesiones</button>
+      <button mat-flat-button color="primary" (click)="submit()" [disabled]="!canSubmit() || loading">
+        <mat-icon>analytics</mat-icon>
+        Analizar sesión
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  <!-- ── LOADING ──────────────────────────────────────────── -->
+  <div class="loading-overlay" *ngIf="loading">
+    <mat-spinner diameter="56"></mat-spinner>
+    <p>Analizando archivos FIT…</p>
+    <p class="loading-sub">Calculando métricas de validación y generando gráficas</p>
+  </div>
+
+  <!-- ── RESULTS ──────────────────────────────────────────── -->
+  <ng-container *ngIf="result && !loading">
+
+    <!-- Success bar -->
+    <div class="result-header">
+      <div class="result-title">
+        <mat-icon class="ok-icon">check_circle</mat-icon>
+        <div>
+          <h2>{{ result.session_name }}</h2>
+          <span class="result-sub">{{ result.training_type }} · {{ result.device_name }} vs {{ result.reference_name }}</span>
+        </div>
+      </div>
+      <div class="result-actions">
+        <button mat-stroked-button (click)="reset()">
+          <mat-icon>add</mat-icon>
+          Nueva sesión
+        </button>
+        <button mat-flat-button color="accent" routerLink="/sessions">
+          <mat-icon>bar_chart</mat-icon>
+          Ver todas las sesiones
+        </button>
+      </div>
+    </div>
+
+    <!-- Key metrics row -->
+    <app-metrics-table [metrics]="result.metrics" [lag]="result.lag"></app-metrics-table>
+
+    <!-- Charts -->
+    <div class="section-header" style="margin-top:32px">
+      <h2>Comparativa FC vs Referencia</h2>
+      <div class="divider"></div>
+    </div>
+    <app-chart-viewer
+      [chartB64]="result.charts.temporal"
+      [title]="'Comparativa FC — ' + result.device_name + ' vs ' + result.reference_name"
+      filename="fc-comparativa.png">
+    </app-chart-viewer>
+
+    <div class="section-header" style="margin-top:32px">
+      <h2>Análisis de validación científica</h2>
+      <div class="divider"></div>
+    </div>
+    <app-chart-viewer
+      [chartB64]="result.charts.validation"
+      [title]="'Validación — Correlación · Bland-Altman · Error por zonas'"
+      filename="validacion-cientifica.png">
+    </app-chart-viewer>
+
+  </ng-container>
+
+</div>

@@ -1,0 +1,65 @@
+<div class="metrics-grid">
+
+  <div class="metric-badge" [ngClass]="metricQuality('mae', metrics.mae)">
+    <span class="label">MAE</span>
+    <span class="value">{{ metrics.mae }}</span>
+    <span class="unit">ppm · ≤5 ✓</span>
+  </div>
+
+  <div class="metric-badge" [ngClass]="metricQuality('mape', metrics.mape)">
+    <span class="label">MAPE</span>
+    <span class="value">{{ metrics.mape }}</span>
+    <span class="unit">% · ≤10% ✓</span>
+  </div>
+
+  <div class="metric-badge neutral">
+    <span class="label">RMSE</span>
+    <span class="value">{{ metrics.rmse }}</span>
+    <span class="unit">ppm</span>
+  </div>
+
+  <div class="metric-badge neutral">
+    <span class="label">Bias</span>
+    <span class="value">{{ biasSign }}{{ metrics.bias }}</span>
+    <span class="unit">ppm</span>
+  </div>
+
+  <div class="metric-badge neutral">
+    <span class="label">LoA</span>
+    <span class="value loa">{{ metrics.loa_l }} / {{ metrics.loa_u }}</span>
+    <span class="unit">ppm (−/+)</span>
+  </div>
+
+  <div class="metric-badge" [ngClass]="metricQuality('ccc', metrics.ccc)">
+    <span class="label">CCC</span>
+    <span class="value">{{ metrics.ccc }}</span>
+    <span class="unit">≥0.90 ✓</span>
+  </div>
+
+  <div class="metric-badge" [ngClass]="metricQuality('icc', metrics.icc)">
+    <span class="label">ICC (2,1)</span>
+    <span class="value">{{ metrics.icc }}</span>
+    <span class="unit">≥0.70 ✓</span>
+  </div>
+
+  <div class="metric-badge" [ngClass]="metricQuality('r', metrics.r)">
+    <span class="label">Pearson R</span>
+    <span class="value">{{ metrics.r }}</span>
+    <span class="unit">≥0.90 ✓</span>
+  </div>
+
+  <div class="metric-badge neutral" *ngIf="lag !== null">
+    <span class="label">Lag</span>
+    <span class="value" [class.good-val]="Math.abs(lag) <= 5" [class.bad-val]="Math.abs(lag) > 5">
+      {{ lag > 0 ? '+' : '' }}{{ lag }}
+    </span>
+    <span class="unit">seg · ≤5s ✓</span>
+  </div>
+
+  <div class="metric-badge neutral">
+    <span class="label">n</span>
+    <span class="value">{{ metrics.n | number }}</span>
+    <span class="unit">muestras</span>
+  </div>
+
+</div>

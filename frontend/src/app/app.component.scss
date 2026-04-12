@@ -1,0 +1,87 @@
+.app-toolbar {
+  background: #12151e !important;
+  border-bottom: 1px solid #2a2d3a;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 0 24px;
+
+  .toolbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+
+    .brand-icon {
+      color: #e74c3c;
+      font-size: 26px;
+      height: 26px;
+      width: 26px;
+    }
+
+    .brand-name {
+      font-size: 18px;
+      font-weight: 300;
+      color: #e0e0e0;
+      letter-spacing: 1px;
+
+      strong {
+        font-weight: 700;
+        color: #fff;
+      }
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: #555;
+      margin-left: 4px;
+      letter-spacing: 0.3px;
+    }
+  }
+
+  .toolbar-spacer { flex: 1; }
+
+  .toolbar-nav {
+    display: flex;
+    gap: 4px;
+
+    a {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #888 !important;
+      border-radius: 8px;
+      padding: 6px 14px;
+      transition: color 0.2s, background 0.2s;
+
+      mat-icon { font-size: 18px; height: 18px; width: 18px; }
+
+      &:hover {
+        color: #e0e0e0 !important;
+        background: rgba(255,255,255,.06);
+      }
+
+      &.active-link {
+        color: #64b5f6 !important;
+        background: rgba(100,181,246,.1);
+      }
+    }
+  }
+}
+
+.app-content {
+  min-height: calc(100vh - 60px);
+  padding: 32px 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .app-toolbar .brand-sub { display: none; }
+  .toolbar-nav a span { display: none; }
+  .app-content { padding: 20px 16px; }
+}

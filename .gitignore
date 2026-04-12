@@ -1,0 +1,21 @@
+.DS_Store
+
+# Node / Angular
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+
+# Python
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/*.pyc
+
+# Environment files
+.env
+.env.*
+
+# IDE / OS
+.idea/
+.vscode/

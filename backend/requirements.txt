@@ -1,0 +1,12 @@
+fastapi==0.110.1
+uvicorn[standard]==0.29.0
+pymongo>=4.9,<5.0
+motor==3.7.0
+pydantic==2.7.0
+python-multipart==0.0.9
+fitparse==1.2.0
+pandas==2.2.2
+numpy==1.26.4
+matplotlib==3.8.4
+scipy==1.13.0
+python-dotenv==1.0.1

@@ -1,0 +1,87 @@
+.detail-page { max-width: 1200px; margin: 0 auto; }
+
+.center-spinner { display: flex; justify-content: center; padding: 64px; }
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #888;
+
+    a {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #64b5f6;
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
+      mat-icon { font-size: 16px; height: 16px; width: 16px; }
+    }
+
+    .sep { font-size: 16px; height: 16px; width: 16px; color: #555; }
+    span { color: #ccc; font-weight: 500; }
+  }
+}
+
+.info-card {
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px 32px;
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .info-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #666;
+    font-weight: 500;
+  }
+
+  .info-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: #e0e0e0;
+
+    &.main { font-size: 18px; }
+    &.device { color: #e74c3c; }
+    &.ref    { color: #2980b9; }
+  }
+}
+
+.ok-text   { color: #2ecc71 !important; }
+.warn-text { color: #f1c40f !important; }
+
+.section-note { font-size: 12px; color: #666; }
+
+// Zone table
+.zones-table {
+  width: 100%;
+  background: transparent;
+
+  th { color: #888 !important; font-size: 11px !important; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { color: #ccc; font-size: 13px; border-bottom-color: #2a2d3a !important; }
+  tr:last-child td { border-bottom: none !important; }
+  tr:hover td { background: rgba(255,255,255,.02) !important; }
+
+  .mono { font-family: 'Courier New', monospace; }
+  .no-data { color: #444; }
+  .good { color: #2ecc71; font-weight: 600; }
+  .warn { color: #f1c40f; font-weight: 600; }
+  .bad  { color: #e74c3c; font-weight: 600; }
+}

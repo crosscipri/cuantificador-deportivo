@@ -1,0 +1,165 @@
+/* ──────────────────────────────────────────────────────
+   Global styles — dark scientific theme
+   ────────────────────────────────────────────────────── */
+
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+$hr-primary: mat.define-palette(mat.$blue-palette, 300, 100, 600);
+$hr-accent:  mat.define-palette(mat.$orange-palette, A200, A100, A400);
+$hr-warn:    mat.define-palette(mat.$red-palette);
+
+$hr-theme: mat.define-dark-theme((
+  color: (
+    primary: $hr-primary,
+    accent:  $hr-accent,
+    warn:    $hr-warn,
+  ),
+  typography: mat.define-typography-config($font-family: 'Inter, sans-serif'),
+  density: 0,
+));
+
+@include mat.all-component-themes($hr-theme);
+
+// ── Base ──────────────────────────────────────────────
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: #0f1117;
+  color: #e0e0e0;
+  font-family: 'Inter', sans-serif;
+}
+
+// ── Scrollbar ─────────────────────────────────────────
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #1a1d27; }
+::-webkit-scrollbar-thumb { background: #3a3d4a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4a4d5a; }
+
+// ── Material overrides ────────────────────────────────
+.mat-mdc-card {
+  background: #1a1d27 !important;
+  border: 1px solid #2a2d3a !important;
+  border-radius: 12px !important;
+}
+
+.mat-mdc-dialog-container {
+  background: #1a1d27 !important;
+}
+
+.mat-mdc-snack-bar-container {
+  --mdc-snackbar-container-color: #2a2d3a;
+  --mdc-snackbar-supporting-text-color: #e0e0e0;
+}
+
+// ── Chip zone colours ────────────────────────────────
+.zone-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.zone-z1 { background: rgba(52,152,219,.25); color: #3498db; }
+.zone-z2 { background: rgba(46,204,113,.25); color: #2ecc71; }
+.zone-z3 { background: rgba(241,196,15,.25);  color: #f1c40f; }
+.zone-z4 { background: rgba(230,126,34,.25);  color: #e67e22; }
+.zone-z5 { background: rgba(231,76,60,.25);   color: #e74c3c; }
+
+// ── Metric badge ─────────────────────────────────────
+.metric-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #12151e;
+  border: 1px solid #2a2d3a;
+  min-width: 90px;
+
+  .label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+
+  .value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #e0e0e0;
+    line-height: 1;
+  }
+
+  .unit {
+    font-size: 10px;
+    color: #555;
+    margin-top: 2px;
+  }
+
+  &.good  .value { color: #2ecc71; }
+  &.warn  .value { color: #f1c40f; }
+  &.bad   .value { color: #e74c3c; }
+}
+
+// ── Section header ────────────────────────────────────
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #e0e0e0;
+  }
+
+  .divider {
+    flex: 1;
+    height: 1px;
+    background: #2a2d3a;
+  }
+}
+
+// ── Loading overlay ───────────────────────────────────
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,17,23,.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  z-index: 9999;
+
+  p {
+    color: #aaa;
+    font-size: 15px;
+    margin: 0;
+  }
+}
+
+// ── Empty state ───────────────────────────────────────
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  color: #555;
+  gap: 12px;
+  text-align: center;
+
+  mat-icon { font-size: 56px; height: 56px; width: 56px; }
+  h3 { margin: 0; font-size: 18px; color: #666; }
+  p  { margin: 0; font-size: 14px; max-width: 360px; }
+}
