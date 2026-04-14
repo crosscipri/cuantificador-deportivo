@@ -5,7 +5,7 @@
 
 .upload-card {
   .header-icon {
-    color: #64b5f6;
+    color: #2563eb;
     font-size: 32px;
     height: 32px;
     width: 32px;
@@ -37,7 +37,7 @@
 
 .drop-zone {
   flex: 1;
-  border: 2px dashed #3a3d4a;
+  border: 2px dashed #d1d5db;
   border-radius: 12px;
   padding: 36px 24px;
   display: flex;
@@ -53,34 +53,33 @@
     font-size: 42px;
     height: 42px;
     width: 42px;
-    color: #555;
+    color: #9ca3af;
     transition: color 0.2s;
   }
 
   .zone-label {
     font-size: 14px;
     font-weight: 500;
-    color: #888;
+    color: #374151;
   }
 
   .zone-hint {
     font-size: 11px;
-    color: #555;
+    color: #9ca3af;
   }
 
   &:hover {
-    border-color: #64b5f6;
-    background: rgba(100,181,246,.05);
-    mat-icon { color: #64b5f6; }
-    .zone-label { color: #ccc; }
+    border-color: #2563eb;
+    background: rgba(37,99,235,.04);
+    mat-icon { color: #2563eb; }
   }
 
   &.has-file {
-    border-color: #2ecc71;
-    background: rgba(46,204,113,.06);
-    mat-icon { color: #2ecc71; }
-    .zone-label { color: #e0e0e0; font-weight: 600; }
-    .zone-hint { color: #666; }
+    border-color: #16a34a;
+    background: rgba(22,163,74,.05);
+    mat-icon { color: #16a34a; }
+    .zone-label { color: #111827; font-weight: 600; }
+    .zone-hint { color: #6b7280; }
   }
 }
 
@@ -89,7 +88,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  color: #444;
+  color: #d1d5db;
   font-size: 11px;
   flex-shrink: 0;
 
@@ -111,14 +110,14 @@
     gap: 14px;
 
     .ok-icon {
-      color: #2ecc71;
+      color: #16a34a;
       font-size: 36px;
       height: 36px;
       width: 36px;
     }
 
-    h2 { margin: 0; font-size: 20px; }
-    .result-sub { font-size: 13px; color: #888; }
+    h2 { margin: 0; font-size: 20px; color: #111827; }
+    .result-sub { font-size: 13px; color: #6b7280; }
   }
 
   .result-actions {
@@ -127,7 +126,7 @@
   }
 }
 
-.loading-sub { font-size: 12px; color: #555; margin-top: -8px; }
+.loading-sub { font-size: 12px; color: #9ca3af; margin-top: -8px; }
 
 @media (max-width: 640px) {
   .row-two { grid-template-columns: 1fr; }

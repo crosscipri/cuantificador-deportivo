@@ -11,11 +11,11 @@
   gap: 4px;
   font-size: 0.85rem;
   margin-bottom: 20px;
-  color: #888;
+  color: #9ca3af;
 
-  a { color: #8ab4f8; text-decoration: none; display: flex; align-items: center; gap: 4px;
+  a { color: #2563eb; text-decoration: none; display: flex; align-items: center; gap: 4px;
       &:hover { text-decoration: underline; } }
-  .sep { font-size: 18px; opacity: 0.5; }
+  .sep { font-size: 18px; opacity: 0.4; }
 }
 
 // ── Device header ─────────────────────────────────────────────────────────────
@@ -33,22 +33,22 @@
   align-items: center;
   gap: 16px;
 
-  .dev-icon { font-size: 40px; width: 40px; height: 40px; color: #5b8af5; }
+  .dev-icon { font-size: 40px; width: 40px; height: 40px; color: #2563eb; }
 
-  h1 { margin: 0 0 4px; font-size: 1.7rem; }
+  h1 { margin: 0 0 4px; font-size: 1.7rem; color: #111827; }
 
   .ref-label {
     display: flex;
     align-items: center;
     gap: 4px;
-    color: #888;
+    color: #6b7280;
     font-size: 0.9rem;
     mat-icon { font-size: 16px; width: 16px; height: 16px; }
   }
 }
 
 .device-desc {
-  color: #888;
+  color: #6b7280;
   font-size: 0.88rem;
   margin: 0 0 24px;
 }
@@ -57,7 +57,7 @@
 .upload-card {
   margin-bottom: 32px;
 
-  .header-icon { color: #5b8af5; }
+  .header-icon { color: #2563eb; }
 
   .upload-form { display: flex; flex-direction: column; gap: 16px; padding-top: 8px; }
 
@@ -84,22 +84,22 @@
     justify-content: center;
     gap: 6px;
     padding: 24px 16px;
-    border: 2px dashed #333;
+    border: 2px dashed #d1d5db;
     border-radius: 12px;
     cursor: pointer;
     transition: border-color 0.2s, background 0.2s;
     min-height: 120px;
     text-align: center;
 
-    mat-icon { font-size: 36px; width: 36px; height: 36px; color: #666; }
-    .zone-label { font-size: 0.9rem; color: #ccc; font-weight: 500; }
-    .zone-hint  { font-size: 0.78rem; color: #555; }
+    mat-icon { font-size: 36px; width: 36px; height: 36px; color: #9ca3af; }
+    .zone-label { font-size: 0.9rem; color: #374151; font-weight: 500; }
+    .zone-hint  { font-size: 0.78rem; color: #9ca3af; }
 
-    &:hover { border-color: #5b8af5; background: rgba(91,138,245,0.05); }
+    &:hover { border-color: #2563eb; background: rgba(37,99,235,.04); }
     &.has-file {
-      border-color: #27ae60;
-      background: rgba(39,174,96,0.07);
-      mat-icon { color: #27ae60; }
+      border-color: #16a34a;
+      background: rgba(22,163,74,.05);
+      mat-icon { color: #16a34a; }
     }
   }
 
@@ -108,7 +108,7 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    color: #555;
+    color: #9ca3af;
     font-size: 0.75rem;
     mat-icon { font-size: 28px; width: 28px; height: 28px; }
   }
@@ -120,17 +120,18 @@
   align-items: center;
   gap: 12px;
   padding: 48px 0;
-  color: #555;
+  color: #9ca3af;
   mat-icon { font-size: 40px; width: 40px; height: 40px; opacity: 0.4; }
   p { margin: 0; }
 }
 
 // ── Training groups ───────────────────────────────────────────────────────────
 .training-groups {
-  margin-top: 28px;
-  border: 1px solid #252837;
+  margin-top: 16px;
+  border: 1px solid #e2e5ec;
   border-radius: 12px;
   overflow: hidden;
+  background: #ffffff;
 }
 
 .group-header {
@@ -138,13 +139,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  background: #1a1d27;
+  background: #f8f9fc;
   cursor: pointer;
   user-select: none;
   flex-wrap: wrap;
   gap: 10px;
 
-  &:hover { background: #1e2133; }
+  &:hover { background: #f0f2f8; }
 
   .group-title {
     display: flex;
@@ -152,25 +153,24 @@
     gap: 10px;
     flex-wrap: wrap;
 
-    mat-icon { opacity: 0.6; }
-    h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+    mat-icon { opacity: 0.5; color: #374151; }
+    h2 { margin: 0; font-size: 1.05rem; font-weight: 600; color: #111827; }
 
     .session-count {
       font-size: 0.8rem;
-      color: #666;
-      background: rgba(255,255,255,0.06);
+      color: #6b7280;
+      background: #e5e7eb;
       padding: 2px 8px;
       border-radius: 20px;
     }
   }
 
   .group-avg { display: flex; gap: 6px; }
-
   .aggregate-btn { flex-shrink: 0; font-size: 0.82rem; }
 }
 
 .group-body {
-  background: #12141f;
+  background: #ffffff;
 }
 
 // ── Session rows ──────────────────────────────────────────────────────────────
@@ -179,10 +179,10 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-top: 1px solid #1e2133;
+  border-top: 1px solid #f0f2f5;
   transition: background 0.15s;
 
-  &:hover { background: #161928; }
+  &:hover { background: #f8f9fc; }
 
   .row-check { flex-shrink: 0; }
 
@@ -195,6 +195,7 @@
       display: block;
       font-size: 0.95rem;
       font-weight: 500;
+      color: #111827;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -205,7 +206,7 @@
       align-items: center;
       gap: 8px;
       font-size: 0.78rem;
-      color: #666;
+      color: #9ca3af;
       margin-top: 2px;
       flex-wrap: wrap;
       mat-icon { font-size: 13px; width: 13px; height: 13px; }
@@ -230,17 +231,17 @@
   font-size: 0.75rem;
   font-weight: 600;
 
-  &.good   { background: rgba(39,174,96,0.18);  color: #27ae60; }
-  &.warn   { background: rgba(241,196,15,0.18); color: #f1c40f; }
-  &.orange { background: rgba(230,126,34,0.18); color: #e67e22; }
-  &.bad    { background: rgba(231,76,60,0.18);  color: #e74c3c; }
+  &.good   { background: rgba(22,163,74,.12);  color: #15803d; }
+  &.warn   { background: rgba(217,119,6,.12);  color: #b45309; }
+  &.orange { background: rgba(234,88,12,.12);  color: #c2410c; }
+  &.bad    { background: rgba(220,38,38,.12);  color: #b91c1c; }
 }
 
 // ── Aggregate result ──────────────────────────────────────────────────────────
 .aggregate-result {
   padding: 16px;
-  border-top: 1px solid #1e2133;
-  background: #0f1117;
+  border-top: 1px solid #f0f2f5;
+  background: #fafbfd;
 
   .section-header {
     display: flex;
@@ -248,9 +249,9 @@
     gap: 12px;
     margin-bottom: 16px;
 
-    h3 { margin: 0; font-size: 1rem; }
-    .agg-meta { font-size: 0.8rem; color: #666; }
-    .divider { flex: 1; height: 1px; background: #252837; }
+    h3 { margin: 0; font-size: 1rem; color: #111827; }
+    .agg-meta { font-size: 0.8rem; color: #6b7280; }
+    .divider { flex: 1; height: 1px; background: #e2e5ec; }
   }
 }
 
@@ -261,7 +262,8 @@
   .tab-icon { font-size: 18px; width: 18px; height: 18px; margin-right: 6px; vertical-align: middle; }
   .tab-count {
     margin-left: 6px;
-    background: rgba(255,255,255,.12);
+    background: #e5e7eb;
+    color: #6b7280;
     border-radius: 10px;
     padding: 1px 7px;
     font-size: 11px;
@@ -275,22 +277,23 @@
   gap: 16px;
   padding: 18px 20px;
   border-radius: 12px;
-  margin: 20px 0 8px;
-  background: #12151e;
-  border: 1px solid #2a2d3a;
+  margin: 16px 0 8px;
+  background: #ffffff;
+  border: 1px solid #e2e5ec;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
 
-  &.good   { border-color: rgba(46,204,113,.35);  .score-title mat-icon { color: #2ecc71; } }
-  &.warn   { border-color: rgba(241,196,15,.35);  .score-title mat-icon { color: #f1c40f; } }
-  &.orange { border-color: rgba(230,126,34,.35);  .score-title mat-icon { color: #e67e22; } }
-  &.bad    { border-color: rgba(231,76,60,.35);   .score-title mat-icon { color: #e74c3c; } }
+  &.good   { border-color: rgba(22,163,74,.4);   background: rgba(22,163,74,.03);   .score-title mat-icon { color: #16a34a; } }
+  &.warn   { border-color: rgba(217,119,6,.4);   background: rgba(217,119,6,.03);   .score-title mat-icon { color: #d97706; } }
+  &.orange { border-color: rgba(234,88,12,.4);   background: rgba(234,88,12,.03);   .score-title mat-icon { color: #ea580c; } }
+  &.bad    { border-color: rgba(220,38,38,.4);   background: rgba(220,38,38,.03);   .score-title mat-icon { color: #dc2626; } }
 
   &.no-score {
     flex-direction: row;
     align-items: center;
     gap: 10px;
-    color: #555;
+    color: #9ca3af;
     font-size: 0.9rem;
-    mat-icon { color: #444; }
+    mat-icon { color: #d1d5db; }
   }
 
   .score-title {
@@ -299,19 +302,19 @@
     gap: 8px;
     font-size: 0.9rem;
     font-weight: 600;
-    color: #ccc;
+    color: #374151;
 
     .score-sessions {
       margin-left: auto;
       font-size: 0.78rem;
       font-weight: 400;
-      color: #555;
+      color: #9ca3af;
     }
   }
 
   .score-metrics {
     display: flex;
-    gap: 32px;
+    gap: 40px;
     flex-wrap: wrap;
   }
 
@@ -324,18 +327,18 @@
       font-size: 9px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #555;
+      color: #9ca3af;
       font-weight: 600;
     }
     .sm-value {
-      font-size: 22px;
+      font-size: 24px;
       font-weight: 700;
-      color: #e0e0e0;
+      color: #111827;
       line-height: 1;
     }
     .sm-hint {
       font-size: 10px;
-      color: #444;
+      color: #9ca3af;
     }
   }
 }

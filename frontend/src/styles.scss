@@ -1,16 +1,16 @@
 /* ──────────────────────────────────────────────────────
-   Global styles — dark scientific theme
+   Global styles — light scientific theme
    ────────────────────────────────────────────────────── */
 
 @use '@angular/material' as mat;
 
 @include mat.core();
 
-$hr-primary: mat.define-palette(mat.$blue-palette, 300, 100, 600);
-$hr-accent:  mat.define-palette(mat.$orange-palette, A200, A100, A400);
-$hr-warn:    mat.define-palette(mat.$red-palette);
+$hr-primary: mat.define-palette(mat.$blue-palette, 700, 400, 900);
+$hr-accent:  mat.define-palette(mat.$orange-palette, 700, 400, 900);
+$hr-warn:    mat.define-palette(mat.$red-palette, 700);
 
-$hr-theme: mat.define-dark-theme((
+$hr-theme: mat.define-light-theme((
   color: (
     primary: $hr-primary,
     accent:  $hr-accent,
@@ -28,34 +28,35 @@ $hr-theme: mat.define-dark-theme((
 html, body {
   height: 100%;
   margin: 0;
-  background: #0f1117;
-  color: #e0e0e0;
+  background: #f4f6fa;
+  color: #111827;
   font-family: 'Inter', sans-serif;
 }
 
 // ── Scrollbar ─────────────────────────────────────────
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #1a1d27; }
-::-webkit-scrollbar-thumb { background: #3a3d4a; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #4a4d5a; }
+::-webkit-scrollbar-track { background: #f0f2f5; }
+::-webkit-scrollbar-thumb { background: #c4c9d4; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a0a7b5; }
 
 // ── Material overrides ────────────────────────────────
 .mat-mdc-card {
-  background: #1a1d27 !important;
-  border: 1px solid #2a2d3a !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e5ec !important;
   border-radius: 12px !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06) !important;
 }
 
 .mat-mdc-dialog-container {
-  background: #1a1d27 !important;
+  background: #ffffff !important;
 }
 
 .mat-mdc-snack-bar-container {
-  --mdc-snackbar-container-color: #2a2d3a;
-  --mdc-snackbar-supporting-text-color: #e0e0e0;
+  --mdc-snackbar-container-color: #1e293b;
+  --mdc-snackbar-supporting-text-color: #f1f5f9;
 }
 
-// ── Chip zone colours ────────────────────────────────
+// ── Chip zone colours ─────────────────────────────────
 .zone-chip {
   font-size: 11px;
   font-weight: 600;
@@ -63,11 +64,11 @@ html, body {
   border-radius: 4px;
   display: inline-block;
 }
-.zone-z1 { background: rgba(52,152,219,.25); color: #3498db; }
-.zone-z2 { background: rgba(46,204,113,.25); color: #2ecc71; }
-.zone-z3 { background: rgba(241,196,15,.25);  color: #f1c40f; }
-.zone-z4 { background: rgba(230,126,34,.25);  color: #e67e22; }
-.zone-z5 { background: rgba(231,76,60,.25);   color: #e74c3c; }
+.zone-z1 { background: rgba(37,99,235,.1);   color: #1d4ed8; }
+.zone-z2 { background: rgba(22,163,74,.12);  color: #15803d; }
+.zone-z3 { background: rgba(202,138,4,.14);  color: #92400e; }
+.zone-z4 { background: rgba(234,88,12,.12);  color: #c2410c; }
+.zone-z5 { background: rgba(220,38,38,.12);  color: #b91c1c; }
 
 // ── Metric badge ─────────────────────────────────────
 .metric-badge {
@@ -77,14 +78,14 @@ html, body {
   justify-content: center;
   padding: 12px 16px;
   border-radius: 10px;
-  background: #12151e;
-  border: 1px solid #2a2d3a;
+  background: #f8f9fc;
+  border: 1px solid #e2e5ec;
   min-width: 90px;
 
   .label {
     font-size: 10px;
-    font-weight: 500;
-    color: #777;
+    font-weight: 600;
+    color: #9ca3af;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 4px;
@@ -93,19 +94,20 @@ html, body {
   .value {
     font-size: 20px;
     font-weight: 700;
-    color: #e0e0e0;
+    color: #111827;
     line-height: 1;
   }
 
   .unit {
     font-size: 10px;
-    color: #555;
+    color: #9ca3af;
     margin-top: 2px;
   }
 
-  &.good  .value { color: #2ecc71; }
-  &.warn  .value { color: #f1c40f; }
-  &.bad   .value { color: #e74c3c; }
+  &.good   { border-color: rgba(22,163,74,.3);   background: rgba(22,163,74,.05);   .value { color: #16a34a; } }
+  &.warn   { border-color: rgba(217,119,6,.3);   background: rgba(217,119,6,.05);   .value { color: #d97706; } }
+  &.orange { border-color: rgba(234,88,12,.3);   background: rgba(234,88,12,.05);   .value { color: #ea580c; } }
+  &.bad    { border-color: rgba(220,38,38,.3);   background: rgba(220,38,38,.05);   .value { color: #dc2626; } }
 }
 
 // ── Section header ────────────────────────────────────
@@ -119,13 +121,13 @@ html, body {
     margin: 0;
     font-size: 20px;
     font-weight: 600;
-    color: #e0e0e0;
+    color: #111827;
   }
 
   .divider {
     flex: 1;
     height: 1px;
-    background: #2a2d3a;
+    background: #e2e5ec;
   }
 }
 
@@ -133,7 +135,7 @@ html, body {
 .loading-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15,17,23,.85);
+  background: rgba(248,249,251,.88);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -142,7 +144,7 @@ html, body {
   z-index: 9999;
 
   p {
-    color: #aaa;
+    color: #6b7280;
     font-size: 15px;
     margin: 0;
   }
@@ -155,11 +157,11 @@ html, body {
   align-items: center;
   justify-content: center;
   padding: 64px 24px;
-  color: #555;
+  color: #9ca3af;
   gap: 12px;
   text-align: center;
 
   mat-icon { font-size: 56px; height: 56px; width: 56px; }
-  h3 { margin: 0; font-size: 18px; color: #666; }
+  h3 { margin: 0; font-size: 18px; color: #6b7280; }
   p  { margin: 0; font-size: 14px; max-width: 360px; }
 }

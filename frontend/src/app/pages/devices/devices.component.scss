@@ -11,8 +11,8 @@
   margin-bottom: 32px;
   gap: 16px;
 
-  h1 { margin: 0 0 4px; font-size: 1.8rem; }
-  .subtitle { margin: 0; color: #888; font-size: 0.9rem; }
+  h1 { margin: 0 0 4px; font-size: 1.8rem; color: #111827; }
+  .subtitle { margin: 0; color: #6b7280; font-size: 0.9rem; }
 }
 
 .devices-grid {
@@ -27,14 +27,14 @@
 
   &:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 24px rgba(0,0,0,.1) !important;
   }
 
-  .device-avatar { color: #5b8af5; font-size: 28px; width: 40px; height: 40px; }
+  .device-avatar { color: #2563eb; font-size: 28px; width: 40px; height: 40px; }
 
   .inline-icon { font-size: 14px; vertical-align: middle; margin-right: 2px; opacity: 0.7; }
 
-  .description { font-size: 0.85rem; color: #999; margin: 8px 0 12px; }
+  .description { font-size: 0.85rem; color: #6b7280; margin: 8px 0 12px; }
 
   .stats-row {
     display: flex;
@@ -45,7 +45,7 @@
       align-items: center;
       gap: 4px;
       font-size: 0.85rem;
-      color: #aaa;
+      color: #6b7280;
       mat-icon { font-size: 16px; width: 16px; height: 16px; }
     }
   }
@@ -59,8 +59,8 @@
   .type-chip {
     font-size: 0.78rem !important;
     height: 24px !important;
-    background: rgba(91, 138, 245, 0.15) !important;
-    color: #8ab4f8 !important;
+    background: rgba(37,99,235,.1) !important;
+    color: #1d4ed8 !important;
 
     .chip-count {
       margin-left: 4px;
@@ -71,7 +71,7 @@
 
   .no-sessions {
     font-size: 0.82rem;
-    color: #555;
+    color: #9ca3af;
     font-style: italic;
     margin: 0;
   }
@@ -89,9 +89,9 @@
   align-items: center;
   gap: 12px;
   padding: 80px 0;
-  color: #555;
+  color: #9ca3af;
 
-  mat-icon { font-size: 64px; width: 64px; height: 64px; opacity: 0.4; }
-  h3 { margin: 0; color: #888; }
+  mat-icon { font-size: 64px; width: 64px; height: 64px; opacity: 0.35; }
+  h3 { margin: 0; color: #6b7280; }
   p  { margin: 0; font-size: 0.9rem; }
 }

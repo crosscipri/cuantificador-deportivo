@@ -1,11 +1,12 @@
 .app-toolbar {
-  background: #12151e !important;
-  border-bottom: 1px solid #2a2d3a;
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e5ec;
   height: 60px;
   position: sticky;
   top: 0;
   z-index: 100;
   padding: 0 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
 
   .toolbar-brand {
     display: flex;
@@ -15,7 +16,7 @@
     user-select: none;
 
     .brand-icon {
-      color: #e74c3c;
+      color: #2563eb;
       font-size: 26px;
       height: 26px;
       width: 26px;
@@ -24,18 +25,18 @@
     .brand-name {
       font-size: 18px;
       font-weight: 300;
-      color: #e0e0e0;
+      color: #374151;
       letter-spacing: 1px;
 
       strong {
         font-weight: 700;
-        color: #fff;
+        color: #111827;
       }
     }
 
     .brand-sub {
       font-size: 11px;
-      color: #555;
+      color: #9ca3af;
       margin-left: 4px;
       letter-spacing: 0.3px;
     }
@@ -53,21 +54,22 @@
       gap: 6px;
       font-size: 13px;
       font-weight: 500;
-      color: #888 !important;
+      color: #6b7280 !important;
       border-radius: 8px;
       padding: 6px 14px;
       transition: color 0.2s, background 0.2s;
+      text-decoration: none;
 
       mat-icon { font-size: 18px; height: 18px; width: 18px; }
 
       &:hover {
-        color: #e0e0e0 !important;
-        background: rgba(255,255,255,.06);
+        color: #111827 !important;
+        background: #f3f4f6;
       }
 
       &.active-link {
-        color: #64b5f6 !important;
-        background: rgba(100,181,246,.1);
+        color: #1d4ed8 !important;
+        background: rgba(37,99,235,.08);
       }
     }
   }

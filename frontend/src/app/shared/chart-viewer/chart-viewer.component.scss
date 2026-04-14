@@ -1,23 +1,25 @@
 .chart-container {
-  background: #12151e;
-  border: 1px solid #2a2d3a;
+  background: #ffffff;
+  border: 1px solid #e2e5ec;
   border-radius: 12px;
   overflow: hidden;
   margin-bottom: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
 }
 
 .chart-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid #2a2d3a;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f0f2f5;
   gap: 12px;
+  background: #fafbfd;
 
   .chart-title {
     font-size: 13px;
     font-weight: 500;
-    color: #aaa;
+    color: #6b7280;
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -31,15 +33,15 @@
     flex-shrink: 0;
 
     button[mat-icon-button] {
-      color: #666;
-      &:hover { color: #ccc; }
+      color: #9ca3af;
+      &:hover { color: #374151; }
     }
   }
 }
 
 .chart-body {
   padding: 4px;
-  background: #0f1117;
+  background: #ffffff;
 }
 
 .chart-img {

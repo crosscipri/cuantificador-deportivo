@@ -15,21 +15,23 @@
     align-items: center;
     gap: 6px;
     font-size: 14px;
-    color: #888;
+    color: #9ca3af;
 
     a {
       display: flex;
       align-items: center;
       gap: 4px;
-      color: #64b5f6;
+      color: #2563eb;
       text-decoration: none;
       &:hover { text-decoration: underline; }
       mat-icon { font-size: 16px; height: 16px; width: 16px; }
     }
 
-    .sep { font-size: 16px; height: 16px; width: 16px; color: #555; }
-    span { color: #ccc; font-weight: 500; }
+    .sep { font-size: 16px; height: 16px; width: 16px; color: #d1d5db; }
+    span { color: #374151; font-weight: 500; }
   }
+
+  .header-actions { display: flex; gap: 8px; }
 }
 
 .info-card {
@@ -49,26 +51,29 @@
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #666;
-    font-weight: 500;
+    color: #9ca3af;
+    font-weight: 600;
   }
 
   .info-value {
     font-size: 15px;
     font-weight: 600;
-    color: #e0e0e0;
+    color: #111827;
 
     &.main { font-size: 18px; }
-    &.device { color: #e74c3c; }
-    &.ref    { color: #2980b9; }
+    &.device { color: #dc2626; }
+    &.ref    { color: #1d4ed8; }
   }
 }
 
-.ok-text   { color: #2ecc71 !important; }
-.warn-text { color: #f1c40f !important; }
+.ok-text   { color: #16a34a !important; }
+.warn-text { color: #d97706 !important; }
+
+.section-note { font-size: 12px; color: #9ca3af; }
 
 .edit-card {
-  border: 1px solid rgba(100,181,246,.25) !important;
+  border: 1px solid rgba(37,99,235,.3) !important;
+  background: rgba(37,99,235,.02) !important;
   margin-bottom: 16px;
 }
 
@@ -87,21 +92,19 @@
   }
 }
 
-.section-note { font-size: 12px; color: #666; }
-
 // Zone table
 .zones-table {
   width: 100%;
   background: transparent;
 
-  th { color: #888 !important; font-size: 11px !important; text-transform: uppercase; letter-spacing: 0.5px; }
-  td { color: #ccc; font-size: 13px; border-bottom-color: #2a2d3a !important; }
+  th { color: #6b7280 !important; font-size: 11px !important; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { color: #374151; font-size: 13px; border-bottom-color: #f0f2f5 !important; }
   tr:last-child td { border-bottom: none !important; }
-  tr:hover td { background: rgba(255,255,255,.02) !important; }
+  tr:hover td { background: rgba(0,0,0,.01) !important; }
 
   .mono { font-family: 'Courier New', monospace; }
-  .no-data { color: #444; }
-  .good { color: #2ecc71; font-weight: 600; }
-  .warn { color: #f1c40f; font-weight: 600; }
-  .bad  { color: #e74c3c; font-weight: 600; }
+  .no-data { color: #d1d5db; }
+  .good { color: #16a34a; font-weight: 600; }
+  .warn { color: #d97706; font-weight: 600; }
+  .bad  { color: #dc2626; font-weight: 600; }
 }

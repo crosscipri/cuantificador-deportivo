@@ -292,11 +292,14 @@ def estimate_lag(fc_ref: pd.Series, fc_dev: pd.Series, max_lag: int = 30) -> int
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _style_ax(ax):
-    ax.set_facecolor("#1a1d27")
+    """Light professional axes style."""
+    ax.set_facecolor("#fafbfd")
     for s in ax.spines.values():
-        s.set_color("#444")
-    ax.tick_params(colors="#aaa", labelsize=9)
-    ax.grid(True, color="#2a2d3a", linewidth=0.6, linestyle="--")
+        s.set_color("#d1d5db")
+        s.set_linewidth(0.8)
+    ax.tick_params(colors="#6b7280", labelsize=9, length=3)
+    ax.grid(True, color="#e5e8ef", linewidth=0.7, linestyle="-", alpha=0.9)
+    ax.set_axisbelow(True)
 
 
 def _sec_to_mmss(x, _):
@@ -310,7 +313,7 @@ def _sec_to_mmss(x, _):
 
 def _fig_to_base64(fig) -> str:
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight",
                 facecolor=fig.get_facecolor())
     buf.seek(0)
     b64 = base64.b64encode(buf.read()).decode("utf-8")
@@ -328,49 +331,58 @@ def generate_temporal_chart(
     x_seg: np.ndarray,
 ) -> str:
     """FC time-series comparison chart. Returns base64 PNG."""
-    C_REF = "#2980b9"
-    C_DEV = "#e74c3c"
+    C_REF = "#1d4ed8"   # azul intenso (referencia)
+    C_DEV = "#dc2626"   # rojo intenso (dispositivo)
     SUAV  = 15
     fmt   = FuncFormatter(_sec_to_mmss)
 
     fc1_s = fc_ref.rolling(SUAV, center=True, min_periods=1).mean()
     fc2_s = fc_dev.rolling(SUAV, center=True, min_periods=1).mean()
 
-    fig, ax = plt.subplots(figsize=(15, 5), facecolor="#0f1117")
+    fig, ax = plt.subplots(figsize=(15, 5), facecolor="#ffffff")
+    ax.set_facecolor("#ffffff")
     _style_ax(ax)
 
-    ax.plot(x_seg, fc_ref.values, color=C_REF, alpha=0.15, linewidth=0.4)
-    ax.plot(x_seg, fc_dev.values, color=C_DEV, alpha=0.15, linewidth=0.4)
-    l_ref, = ax.plot(x_seg, fc1_s.values, color=C_REF, linewidth=2,
-                     label=f"{ref_name} (ref.)")
-    l_dev, = ax.plot(x_seg, fc2_s.values, color=C_DEV, linewidth=2,
+    # Raw signal — muy sutil
+    ax.plot(x_seg, fc_ref.values, color=C_REF, alpha=0.10, linewidth=0.5)
+    ax.plot(x_seg, fc_dev.values, color=C_DEV, alpha=0.10, linewidth=0.5)
+
+    # Smoothed lines
+    l_ref, = ax.plot(x_seg, fc1_s.values, color=C_REF, linewidth=2.2,
+                     label=f"{ref_name} (referencia)")
+    l_dev, = ax.plot(x_seg, fc2_s.values, color=C_DEV, linewidth=2.2,
                      label=dev_name)
+
+    # Fill between
     ax.fill_between(x_seg, fc1_s.values, fc2_s.values,
                     where=fc2_s.values >= fc1_s.values,
-                    alpha=0.13, color=C_DEV, interpolate=True)
+                    alpha=0.09, color=C_DEV, interpolate=True)
     ax.fill_between(x_seg, fc1_s.values, fc2_s.values,
                     where=fc2_s.values < fc1_s.values,
-                    alpha=0.13, color=C_REF, interpolate=True)
+                    alpha=0.09, color=C_REF, interpolate=True)
 
+    # FCmax annotation
     for fc_s, c in [(fc1_s, C_REF), (fc2_s, C_DEV)]:
         idx_max = fc_s.idxmax()
         ax.annotate(f"{int(fc_s[idx_max])} ppm",
                     xy=(idx_max, fc_s[idx_max]),
-                    xytext=(0, 12), textcoords="offset points",
-                    color=c, fontsize=8, ha="center",
+                    xytext=(0, 14), textcoords="offset points",
+                    color=c, fontsize=8.5, ha="center", fontweight="600",
                     arrowprops=dict(arrowstyle="-", color=c, lw=0.8))
 
-    ax.set_ylabel("FC (ppm)", color="#ccc", fontsize=11)
-    ax.set_xlabel("Tiempo", color="#ccc", fontsize=11)
+    ax.set_ylabel("FC (ppm)", color="#374151", fontsize=11)
+    ax.set_xlabel("Tiempo", color="#374151", fontsize=11)
     ax.yaxis.set_minor_locator(MultipleLocator(5))
     ax.xaxis.set_major_formatter(fmt)
     ax.legend(handles=[l_ref, l_dev], loc="upper center", ncol=2, fontsize=10,
-              facecolor="#1a1d27", edgecolor="#555", labelcolor="#ddd")
+              facecolor="#ffffff", edgecolor="#e5e7eb", labelcolor="#111827",
+              framealpha=0.9)
 
     fig.suptitle(
-        f"FC (ppm) — {dev_name}  vs  {ref_name}  (referencia)",
-        color="white", fontsize=13, fontweight="bold", y=1.01,
+        f"Frecuencia cardíaca (ppm) — {dev_name}  vs  {ref_name}",
+        color="#111827", fontsize=13, fontweight="bold", y=1.01,
     )
+    fig.patch.set_linewidth(0)
     return _fig_to_base64(fig)
 
 
@@ -394,7 +406,7 @@ def generate_validation_chart(
     x_hi   = max(x_vals.max(), y_vals.max()) + 2
     x_line = np.linspace(x_lo, x_hi, 300)
 
-    fig = plt.figure(figsize=(17, 6), facecolor="#0f1117")
+    fig = plt.figure(figsize=(17, 6), facecolor="#ffffff")
     gs  = gridspec.GridSpec(1, 3, fig, wspace=0.32)
     ax_corr = fig.add_subplot(gs[0])
     ax_ba   = fig.add_subplot(gs[1])
@@ -415,10 +427,10 @@ def generate_validation_chart(
             ax_corr.scatter(x_vals[sel], y_vals[sel],
                             color=COLORES_ZONA[zi], alpha=0.4, s=10, linewidths=0)
 
-    ax_corr.plot(x_line, x_line, color="#e74c3c", lw=1.8, ls="--",
+    ax_corr.plot(x_line, x_line, color="#dc2626", lw=1.8, ls="--",
                  label="y = x  (acuerdo perfecto)")
     ax_corr.plot(x_line, metrics["slope"] * x_line + metrics["intercept"],
-                 color="#f1c40f", lw=2,
+                 color="#d97706", lw=2,
                  label=f"y = {metrics['slope']}x + {metrics['intercept']}")
 
     n      = metrics["n"]
@@ -431,23 +443,23 @@ def generate_validation_chart(
     t95   = stats.t.ppf(0.975, df=n - 2)
     y_fit = metrics["slope"] * x_line + metrics["intercept"]
     ax_corr.fill_between(x_line, y_fit - t95 * se_line, y_fit + t95 * se_line,
-                         color="#f1c40f", alpha=0.12, label="IC 95%")
+                         color="#d97706", alpha=0.12, label="IC 95%")
 
     p_str = f"{metrics['p']:.2e}" if metrics["p"] >= 1e-16 else "< 2.2e-16"
     ax_corr.text(0.05, 0.96,
                  f"R = {metrics['r']}   R² = {round(metrics['r']**2, 3)}\n"
                  f"CCC = {metrics['ccc']}   ICC = {metrics['icc']}\n"
                  f"p {p_str}",
-                 transform=ax_corr.transAxes, fontsize=8.5, color="white", va="top",
-                 bbox=dict(boxstyle="round,pad=0.4", facecolor="#2a2d3a", edgecolor="#555"))
+                 transform=ax_corr.transAxes, fontsize=8.5, color="#111827", va="top",
+                 bbox=dict(boxstyle="round,pad=0.4", facecolor="#f3f4f6", edgecolor="#d1d5db"))
     ax_corr.set_xlim(x_lo, x_hi)
     ax_corr.set_ylim(x_lo, x_hi)
-    ax_corr.set_xlabel(f"{ref_name}  (ppm)", color="#ccc", fontsize=10)
-    ax_corr.set_ylabel(f"{dev_name}  (ppm)", color="#ccc", fontsize=10)
-    ax_corr.set_title("Correlación", color="#ddd", fontsize=11, pad=8)
+    ax_corr.set_xlabel(f"{ref_name}  (ppm)", color="#374151", fontsize=10)
+    ax_corr.set_ylabel(f"{dev_name}  (ppm)", color="#374151", fontsize=10)
+    ax_corr.set_title("Correlación", color="#111827", fontsize=11, pad=8)
     ax_corr.set_aspect("equal")
     ax_corr.legend(loc="lower right", fontsize=7.5,
-                   facecolor="#1a1d27", edgecolor="#555", labelcolor="#ddd")
+                   facecolor="#ffffff", edgecolor="#e5e7eb", labelcolor="#374151")
 
     # ── Bland-Altman ──
     for zi, (_, plo, phi) in enumerate(ZONAS_FC):
@@ -460,21 +472,21 @@ def generate_validation_chart(
                           color=COLORES_ZONA[zi], alpha=0.3, s=8, linewidths=0,
                           label=ZONAS_FC[zi][0].split("(")[0].strip())
 
-    ax_ba.axhline(metrics["bias"], color="#f1c40f", lw=1.8,
+    ax_ba.axhline(metrics["bias"], color="#d97706", lw=1.8,
                   label=f"Bias = {metrics['bias']} ppm")
-    ax_ba.axhline(metrics["loa_u"], color="#e74c3c", lw=1.2, ls="--",
+    ax_ba.axhline(metrics["loa_u"], color="#dc2626", lw=1.2, ls="--",
                   label=f"+LoA = {metrics['loa_u']} ppm")
-    ax_ba.axhline(metrics["loa_l"], color="#2980b9", lw=1.2, ls="--",
+    ax_ba.axhline(metrics["loa_l"], color="#2563eb", lw=1.2, ls="--",
                   label=f"−LoA = {metrics['loa_l']} ppm")
     ax_ba.fill_between([mean_vals.min() - 2, mean_vals.max() + 2],
                        metrics["loa_l"], metrics["loa_u"],
-                       alpha=0.06, color="#f1c40f")
+                       alpha=0.07, color="#d97706")
     ax_ba.set_xlim(mean_vals.min() - 2, mean_vals.max() + 2)
-    ax_ba.set_xlabel("Media de los dos dispositivos (ppm)", color="#ccc", fontsize=9)
-    ax_ba.set_ylabel("Diferencia: dispositivo − referencia (ppm)", color="#ccc", fontsize=9)
-    ax_ba.set_title("Bland-Altman", color="#ddd", fontsize=11, pad=8)
+    ax_ba.set_xlabel("Media de los dos dispositivos (ppm)", color="#374151", fontsize=9)
+    ax_ba.set_ylabel("Diferencia: dispositivo − referencia (ppm)", color="#374151", fontsize=9)
+    ax_ba.set_title("Bland-Altman", color="#111827", fontsize=11, pad=8)
     ax_ba.legend(loc="upper right", fontsize=7,
-                 facecolor="#1a1d27", edgecolor="#555", labelcolor="#ddd")
+                 facecolor="#ffffff", edgecolor="#e5e7eb", labelcolor="#374151")
 
     # ── MAE & MAPE by zone ──
     names_z   = [z["zone"].split("(")[0].strip() for z in zones]
@@ -485,8 +497,8 @@ def generate_validation_chart(
     w         = 0.38
 
     ax2 = ax_zona.twinx()
-    ax2.set_facecolor("#1a1d27")
-    ax2.tick_params(colors="#aaa", labelsize=9)
+    ax2.set_facecolor("#fafbfd")
+    ax2.tick_params(colors="#6b7280", labelsize=9)
 
     for xp, mv, mpv, col, ok in zip(x_pos, mae_vals, mape_vals,
                                      COLORES_ZONA[:len(zones)], has_data):
@@ -497,25 +509,25 @@ def generate_validation_chart(
             ax_zona.text(xp, 0.3, "sin\ndatos", ha="center", va="bottom",
                          fontsize=6.5, color="#666")
 
-    ax2.axhline(10, color="#e74c3c", lw=1, ls="--", alpha=0.7)
-    ax2.text(len(zones) - 0.45, 10.3, "umbral 10%", color="#e74c3c", fontsize=7)
+    ax2.axhline(10, color="#dc2626", lw=1, ls="--", alpha=0.7)
+    ax2.text(len(zones) - 0.45, 10.3, "umbral 10%", color="#dc2626", fontsize=7)
 
     ax_zona.set_xticks(x_pos)
-    ax_zona.set_xticklabels(names_z, rotation=30, ha="right", color="#aaa", fontsize=8)
-    ax_zona.set_ylabel("MAE (ppm)", color="#ccc", fontsize=10)
-    ax2.set_ylabel("MAPE (%)", color="#ccc", fontsize=10)
+    ax_zona.set_xticklabels(names_z, rotation=30, ha="right", color="#374151", fontsize=8)
+    ax_zona.set_ylabel("MAE (ppm)", color="#374151", fontsize=10)
+    ax2.set_ylabel("MAPE (%)", color="#374151", fontsize=10)
     ax_zona.set_title(f"Error por zona  (FCmax = {fcmax} ppm)",
-                      color="#ddd", fontsize=11, pad=8)
+                      color="#111827", fontsize=11, pad=8)
 
-    leg_handles = [Patch(color="#aaa", alpha=0.85, label="MAE (ppm)"),
-                   Patch(color="#aaa", alpha=0.45, label="MAPE (%)")]
+    leg_handles = [Patch(color="#6b7280", alpha=0.85, label="MAE (ppm)"),
+                   Patch(color="#6b7280", alpha=0.45, label="MAPE (%)")]
     ax_zona.legend(handles=leg_handles, loc="upper left", fontsize=8,
-                   facecolor="#1a1d27", edgecolor="#555", labelcolor="#ddd")
+                   facecolor="#ffffff", edgecolor="#e5e7eb", labelcolor="#374151")
 
     title = f"Validación científica — {dev_name}  vs  {ref_name}"
     if title_suffix:
         title += f"  [{title_suffix}]"
-    fig.suptitle(title, color="white", fontsize=13, fontweight="bold", y=1.01)
+    fig.suptitle(title, color="#111827", fontsize=13, fontweight="bold", y=1.01)
 
     return _fig_to_base64(fig)
 
@@ -692,10 +704,10 @@ def generate_overview_chart(devices_data: list) -> str:
     Falls back to concatenated metrics when per-session data is unavailable.
     """
     def _color_r(r: float) -> str:
-        if r >= 0.95: return "#27ae60"
-        if r >= 0.90: return "#f1c40f"
-        if r >= 0.80: return "#e67e22"
-        return "#e74c3c"
+        if r >= 0.95: return "#16a34a"
+        if r >= 0.90: return "#d97706"
+        if r >= 0.80: return "#ea580c"
+        return "#dc2626"
 
     entries = []
     for dev in devices_data:
@@ -752,7 +764,7 @@ def generate_overview_chart(devices_data: list) -> str:
 
     # Dynamic figure height
     fig_h = max(5, n_devs * 0.65 + 2.2)
-    fig, ax = plt.subplots(figsize=(9, fig_h), facecolor="#0f1117")
+    fig, ax = plt.subplots(figsize=(9, fig_h), facecolor="#ffffff")
     _style_ax(ax)
 
     y_pos = np.arange(n_devs)
@@ -760,7 +772,7 @@ def generate_overview_chart(devices_data: list) -> str:
     # Lollipop stems
     x_min = max(0.5, min(r_vals) - 0.05)
     for y, r, c in zip(y_pos, r_vals, colors):
-        ax.hlines(y, x_min, r, colors="#333", linewidth=1.2, zorder=2)
+        ax.hlines(y, x_min, r, colors="#d1d5db", linewidth=1.2, zorder=2)
 
     # Dots
     ax.scatter(r_vals, y_pos, color=colors, s=90, zorder=4)
@@ -779,30 +791,30 @@ def generate_overview_chart(devices_data: list) -> str:
                 color=c, fontweight="bold")
 
     # Reference vertical line at 1.0
-    ax.axvline(1.0, color="#555", lw=1.2, ls="--", zorder=1)
+    ax.axvline(1.0, color="#9ca3af", lw=1.2, ls="--", zorder=1)
     ax.text(1.001, n_devs - 0.5, ref_label,
-            color="#888", fontsize=8, va="top", ha="left")
+            color="#6b7280", fontsize=8, va="top", ha="left")
 
-    # Threshold lines: 0.95 (green), 0.90 (yellow), 0.80 (orange)
+    # Threshold lines: 0.95 (green), 0.90 (amber), 0.80 (orange)
     for thresh, col, lbl in [
-        (0.95, "#27ae60", "0.95"),
-        (0.90, "#f1c40f", "0.90"),
-        (0.80, "#e67e22", "0.80"),
+        (0.95, "#16a34a", "0.95"),
+        (0.90, "#d97706", "0.90"),
+        (0.80, "#ea580c", "0.80"),
     ]:
         ax.axvline(thresh, color=col, lw=0.8, ls=":", alpha=0.6, zorder=1)
         ax.text(thresh, -0.8, lbl, color=col, fontsize=7,
                 ha="center", va="top")
 
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(names, color="#ddd", fontsize=10)
-    ax.set_xlabel("r global ponderado por dificultad de sesión  (★ = ponderado)", color="#ccc", fontsize=10)
+    ax.set_yticklabels(names, color="#111827", fontsize=10)
+    ax.set_xlabel("r global ponderado por dificultad de sesión  (★ = ponderado)", color="#374151", fontsize=10)
     ax.set_xlim(x_min - 0.01, 1.10)
     ax.set_ylim(-1, n_devs)
-    ax.tick_params(axis="x", colors="#aaa")
+    ax.tick_params(axis="x", colors="#6b7280")
 
     fig.suptitle(
         f"Comparativa global  ·  referencia: {ref_label}",
-        color="white", fontsize=13, fontweight="bold",
+        color="#111827", fontsize=13, fontweight="bold",
     )
     fig.tight_layout()
 
