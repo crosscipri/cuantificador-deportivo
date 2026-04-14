@@ -3,11 +3,19 @@
   <div class="page-header">
     <div>
       <h1>Comparativa global</h1>
-      <p class="subtitle">Correlación (R) y error (MAE) de cada dispositivo frente a la referencia</p>
+      <p class="subtitle">r ponderado por dificultad · MAE relativo · bias — solo sesiones del deporte seleccionado</p>
     </div>
     <button mat-stroked-button (click)="load()" [disabled]="loading">
       <mat-icon>refresh</mat-icon> Actualizar
     </button>
+  </div>
+
+  <div class="sport-selector">
+    <mat-button-toggle-group [(ngModel)]="selectedSport" (change)="load()" aria-label="Deporte">
+      <mat-button-toggle *ngFor="let s of sportTypes" [value]="s[0]">
+        {{ s[1] }}
+      </mat-button-toggle>
+    </mat-button-toggle-group>
   </div>
 
   <!-- Loading -->

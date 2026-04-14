@@ -14,9 +14,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSelectModule } from '@angular/material/select';
 
 import { ApiService } from '../../services/api.service';
-import { Device, Session, AggregateResult } from '../../models/session.model';
+import { Device, Session, AggregateResult, SportType, SessionDifficulty,
+         SPORT_TYPE_LABELS, DIFFICULTY_LABELS } from '../../models/session.model';
 import { ChartViewerComponent } from '../../shared/chart-viewer/chart-viewer.component';
 import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.component';
 
@@ -37,7 +39,7 @@ export interface SessionGroup {
     MatCardModule, MatButtonModule, MatIconModule, MatInputModule,
     MatFormFieldModule, MatAutocompleteModule, MatChipsModule,
     MatCheckboxModule, MatProgressSpinnerModule, MatExpansionModule,
-    MatSnackBarModule, MatTooltipModule,
+    MatSnackBarModule, MatTooltipModule, MatSelectModule,
     ChartViewerComponent, MetricsTableComponent,
   ],
   templateUrl: './device-detail.component.html',
@@ -51,12 +53,17 @@ export class DeviceDetailComponent implements OnInit {
 
   showUpload = false;
   uploadForm = this.fb.group({
-    trainingType: ['', Validators.required],
-    sessionName:  [''],
+    sportType:         ['' as SportType,         Validators.required],
+    sessionDifficulty: ['' as SessionDifficulty, Validators.required],
+    trainingType:      ['',                      Validators.required],
+    sessionName:       [''],
   });
   deviceFile:    File | null = null;
   referenceFile: File | null = null;
   uploading = false;
+
+  readonly sportTypes = Object.entries(SPORT_TYPE_LABELS) as [SportType, string][];
+  readonly difficulties = Object.entries(DIFFICULTY_LABELS) as [SessionDifficulty, string][];
 
   constructor(
     private route: ActivatedRoute,
@@ -160,6 +167,8 @@ export class DeviceDetailComponent implements OnInit {
       this.referenceFile!,
       v.trainingType!,
       v.sessionName || '',
+      v.sportType! as SportType,
+      v.sessionDifficulty! as SessionDifficulty,
     ).subscribe({
       next: () => {
         this.snack.open('Sesión analizada y guardada', 'OK', { duration: 3000 });
@@ -240,11 +249,11 @@ export class DeviceDetailComponent implements OnInit {
   }
 
   maeBadge(v: number): string {
-    return v <= 3 ? 'good' : v <= 5 ? 'warn' : 'bad';
+    return v <= 3 ? 'good' : v <= 5 ? 'warn' : v <= 10 ? 'orange' : 'bad';
   }
 
   cccBadge(v: number): string {
-    return v >= 0.95 ? 'good' : v >= 0.9 ? 'warn' : 'bad';
+    return v >= 0.95 ? 'good' : v >= 0.90 ? 'warn' : v >= 0.80 ? 'orange' : 'bad';
   }
 
   lagBadge(v: number): string {

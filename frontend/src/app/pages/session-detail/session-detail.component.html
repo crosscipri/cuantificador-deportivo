@@ -22,15 +22,19 @@
         <span>{{ session.session_name }}</span>
       </div>
       <div class="header-actions">
-        <button mat-stroked-button color="warn" (click)="delete()">
+        <button mat-stroked-button (click)="startEdit()" *ngIf="!editing">
+          <mat-icon>edit</mat-icon>
+          Editar
+        </button>
+        <button mat-stroked-button color="warn" (click)="delete()" *ngIf="!editing">
           <mat-icon>delete_outline</mat-icon>
           Eliminar
         </button>
       </div>
     </div>
 
-    <!-- ── Session info ─── -->
-    <mat-card class="info-card">
+    <!-- ── Session info (view mode) ─── -->
+    <mat-card class="info-card" *ngIf="!editing">
       <mat-card-content>
         <div class="info-grid">
           <div class="info-item">
@@ -38,8 +42,16 @@
             <span class="info-value main">{{ session.session_name }}</span>
           </div>
           <div class="info-item">
-            <span class="info-label">Tipo</span>
+            <span class="info-label">Tipo entrenamiento</span>
             <span class="info-value">{{ session.training_type }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Deporte</span>
+            <span class="info-value">{{ session.sport_type ? sportLabel[session.sport_type] : '—' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Intensidad</span>
+            <span class="info-value">{{ session.session_difficulty ? difficultyLabel[session.session_difficulty] : '—' }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">Dispositivo</span>
@@ -70,6 +82,62 @@
           </div>
         </div>
       </mat-card-content>
+    </mat-card>
+
+    <!-- ── Edit form ─── -->
+    <mat-card class="info-card edit-card" *ngIf="editing">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>edit</mat-icon>
+        <mat-card-title>Editar sesión</mat-card-title>
+        <mat-card-subtitle>Modifica los metadatos de clasificación</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="editForm" class="edit-form">
+          <div class="row-two">
+            <mat-form-field appearance="outline">
+              <mat-label>Deporte *</mat-label>
+              <mat-select formControlName="sport_type">
+                <mat-option *ngFor="let s of sportTypes" [value]="s[0]">{{ s[1] }}</mat-option>
+              </mat-select>
+              <mat-icon matPrefix>directions_run</mat-icon>
+              <mat-error>Campo obligatorio</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Dificultad / Intensidad *</mat-label>
+              <mat-select formControlName="session_difficulty">
+                <mat-option *ngFor="let d of difficulties" [value]="d[0]">{{ d[1] }}</mat-option>
+              </mat-select>
+              <mat-icon matPrefix>speed</mat-icon>
+              <mat-error>Campo obligatorio</mat-error>
+            </mat-form-field>
+          </div>
+
+          <div class="row-two">
+            <mat-form-field appearance="outline">
+              <mat-label>Tipo de entrenamiento *</mat-label>
+              <input matInput formControlName="training_type" placeholder="Rodaje suave, Fondo largo…">
+              <mat-icon matPrefix>sports_score</mat-icon>
+              <mat-error>Campo obligatorio</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Nombre de la sesión</mat-label>
+              <input matInput formControlName="session_name">
+              <mat-icon matPrefix>label</mat-icon>
+            </mat-form-field>
+          </div>
+        </form>
+      </mat-card-content>
+      <mat-card-actions align="end">
+        <button mat-stroked-button (click)="cancelEdit()" [disabled]="saving">Cancelar</button>
+        <button mat-flat-button color="primary" (click)="saveEdit()"
+                [disabled]="editForm.invalid || saving">
+          <mat-spinner *ngIf="saving" diameter="18" style="display:inline-block;margin-right:6px"></mat-spinner>
+          <mat-icon *ngIf="!saving">save</mat-icon>
+          {{ saving ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+      </mat-card-actions>
     </mat-card>
 
     <!-- ── Metrics ─── -->

@@ -230,9 +230,10 @@
   font-size: 0.75rem;
   font-weight: 600;
 
-  &.good { background: rgba(39,174,96,0.18);  color: #27ae60; }
-  &.warn { background: rgba(241,196,15,0.18); color: #f1c40f; }
-  &.bad  { background: rgba(231,76,60,0.18);  color: #e74c3c; }
+  &.good   { background: rgba(39,174,96,0.18);  color: #27ae60; }
+  &.warn   { background: rgba(241,196,15,0.18); color: #f1c40f; }
+  &.orange { background: rgba(230,126,34,0.18); color: #e67e22; }
+  &.bad    { background: rgba(231,76,60,0.18);  color: #e74c3c; }
 }
 
 // ── Aggregate result ──────────────────────────────────────────────────────────

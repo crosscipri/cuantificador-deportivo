@@ -181,15 +181,25 @@ async def delete_device(device_id: str) -> dict:
 # SESSIONS  (scoped to a device)
 # ─────────────────────────────────────────────────────────────────────────────
 
+VALID_SPORT_TYPES       = {"running", "cycling", "gym"}
+VALID_DIFFICULTIES      = {"z2", "tempo", "series"}
+
 @app.post("/api/devices/{device_id}/sessions", status_code=201)
 async def create_session(
-    device_id:      str,
-    device_file:    UploadFile = File(...),
-    reference_file: UploadFile = File(...),
-    training_type:  str = Form(...),
-    session_name:   str = Form(default=""),
+    device_id:          str,
+    device_file:        UploadFile = File(...),
+    reference_file:     UploadFile = File(...),
+    training_type:      str = Form(...),
+    session_name:       str = Form(default=""),
+    sport_type:         str = Form(...),
+    session_difficulty: str = Form(...),
 ) -> dict:
     """Upload a FIT/TCX/GPX pair for a device and persist the analysis."""
+    if sport_type not in VALID_SPORT_TYPES:
+        raise HTTPException(status_code=422, detail=f"sport_type debe ser uno de: {VALID_SPORT_TYPES}")
+    if session_difficulty not in VALID_DIFFICULTIES:
+        raise HTTPException(status_code=422, detail=f"session_difficulty debe ser uno de: {VALID_DIFFICULTIES}")
+
     dev_doc = await db().devices.find_one({"_id": _oid(device_id)})
     if not dev_doc:
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
@@ -210,12 +220,14 @@ async def create_session(
         raise HTTPException(status_code=422, detail=str(exc))
 
     doc: dict[str, Any] = {
-        "device_id":      ObjectId(device_id),
-        "training_type":  training_type.strip(),
-        "session_name":   session_name.strip() or f"Sesión {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-        "device_name":    dev_name,
-        "reference_name": ref_name,
-        "created_at":     datetime.utcnow(),
+        "device_id":          ObjectId(device_id),
+        "training_type":      training_type.strip(),
+        "session_name":       session_name.strip() or f"Sesión {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        "device_name":        dev_name,
+        "reference_name":     ref_name,
+        "sport_type":         sport_type,
+        "session_difficulty": session_difficulty,
+        "created_at":         datetime.utcnow(),
         **result,
     }
     inserted = await db().sessions.insert_one(doc)
@@ -246,6 +258,42 @@ async def get_session(session_id: str) -> dict:
     return _ser(doc)
 
 
+@app.patch("/api/sessions/{session_id}")
+async def update_session(session_id: str, body: dict) -> dict:
+    """Update editable metadata fields of a session."""
+    allowed = {"session_name", "training_type", "sport_type", "session_difficulty"}
+    update: dict[str, Any] = {}
+
+    if "session_name" in body:
+        update["session_name"] = (body["session_name"] or "").strip()
+    if "training_type" in body:
+        v = (body["training_type"] or "").strip()
+        if not v:
+            raise HTTPException(status_code=422, detail="training_type no puede estar vacío")
+        update["training_type"] = v
+    if "sport_type" in body:
+        if body["sport_type"] not in VALID_SPORT_TYPES:
+            raise HTTPException(status_code=422, detail=f"sport_type debe ser uno de: {VALID_SPORT_TYPES}")
+        update["sport_type"] = body["sport_type"]
+    if "session_difficulty" in body:
+        if body["session_difficulty"] not in VALID_DIFFICULTIES:
+            raise HTTPException(status_code=422, detail=f"session_difficulty debe ser uno de: {VALID_DIFFICULTIES}")
+        update["session_difficulty"] = body["session_difficulty"]
+
+    extra = set(body.keys()) - allowed
+    if extra:
+        raise HTTPException(status_code=422, detail=f"Campos no editables: {extra}")
+    if not update:
+        raise HTTPException(status_code=422, detail="No se proporcionó ningún campo para actualizar")
+
+    result = await db().sessions.update_one({"_id": _oid(session_id)}, {"$set": update})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+
+    doc = await db().sessions.find_one({"_id": _oid(session_id)}, {"fc_data": 0})
+    return _ser(doc)
+
+
 @app.delete("/api/sessions/{session_id}")
 async def delete_session(session_id: str) -> dict:
     """Delete a session."""
@@ -260,11 +308,15 @@ async def delete_session(session_id: str) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.get("/api/overview/chart")
-async def get_overview_chart() -> dict:
+async def get_overview_chart(sport_type: str = "running") -> dict:
     """
-    Build a global comparison chart (R + MAE) for every device that has sessions.
+    Build a global comparison chart for every device that has sessions of the
+    given sport_type. Uses difficulty-weighted scoring (MAE_rel, bias, Fisher r).
     Returns { chart: base64_png, device_count: int, total_sessions: int }.
     """
+    if sport_type not in VALID_SPORT_TYPES:
+        raise HTTPException(status_code=422, detail=f"sport_type debe ser uno de: {VALID_SPORT_TYPES}")
+
     devices = [d async for d in db().devices.find()]
     if not devices:
         raise HTTPException(status_code=404, detail="No hay dispositivos con sesiones.")
@@ -275,8 +327,8 @@ async def get_overview_chart() -> dict:
     for dev in devices:
         sessions = [
             s async for s in db().sessions.find(
-                {"device_id": dev["_id"]},
-                {"fc_data": 1},
+                {"device_id": dev["_id"], "sport_type": sport_type},
+                {"fc_data": 1, "metrics": 1, "training_type": 1, "session_difficulty": 1},
             )
         ]
         if not sessions:
@@ -286,10 +338,19 @@ async def get_overview_chart() -> dict:
         if not fc_data_list:
             continue
 
+        sessions_info = [
+            {
+                "session_difficulty": s.get("session_difficulty", ""),
+                "metrics":            s.get("metrics", {}),
+            }
+            for s in sessions if s.get("fc_data")
+        ]
+
         devices_data.append({
             "name":           dev["name"],
             "reference_name": dev["reference_name"],
             "fc_data_list":   fc_data_list,
+            "sessions_info":  sessions_info,
             "session_count":  len(sessions),
         })
         total_sessions += len(sessions)

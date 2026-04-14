@@ -3,18 +3,21 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { FormsModule } from '@angular/forms';
 
 import { ApiService } from '../../services/api.service';
 import { ChartViewerComponent } from '../../shared/chart-viewer/chart-viewer.component';
+import { SportType, SPORT_TYPE_LABELS } from '../../models/session.model';
 
 @Component({
   selector: 'app-overview',
   standalone: true,
   imports: [
-    CommonModule, RouterModule,
-    MatCardModule, MatButtonModule, MatIconModule,
+    CommonModule, RouterModule, FormsModule,
+    MatCardModule, MatButtonModule, MatButtonToggleModule, MatIconModule,
     MatProgressSpinnerModule,
     ChartViewerComponent,
   ],
@@ -28,6 +31,9 @@ export class OverviewComponent implements OnInit {
   totalSessions = 0;
   error = '';
 
+  selectedSport: SportType = 'running';
+  readonly sportTypes = Object.entries(SPORT_TYPE_LABELS) as [SportType, string][];
+
   constructor(private api: ApiService) {}
 
   ngOnInit(): void {
@@ -39,7 +45,7 @@ export class OverviewComponent implements OnInit {
     this.error   = '';
     this.chart   = null;
 
-    this.api.getOverviewChart().subscribe({
+    this.api.getOverviewChart(this.selectedSport).subscribe({
       next: res => {
         this.chart         = res.chart;
         this.deviceCount   = res.device_count;

@@ -618,68 +618,164 @@ def generate_aggregate_analysis(
     }
 
 
+def _session_weight(session_difficulty: str) -> float:
+    """
+    Difficulty weight from the explicit session_difficulty field:
+      'series' → 2.5  (FC volátil, el PPG falla más)
+      'tempo'  → 1.5  (FC sostenida alta)
+      'z2'     → 1.0  (FC estable)
+    """
+    weights = {"series": 2.5, "tempo": 1.5, "z2": 1.0}
+    return weights.get(session_difficulty.lower(), 1.0)
+
+
+def _weighted_global_score(sessions_info: list) -> dict | None:
+    """
+    Compute weighted global metrics from per-session data.
+
+    MAE_global  = Σ(MAE_rel_i × w_i) / Σ(w_i)
+                  where MAE_rel_i = (MAE_i / FC_media_ref_i) × 100
+
+    Bias_global = Σ(bias_i × w_i) / Σ(w_i)   ← signed, direct weighted mean
+
+    r_global    = Fisher z-transform → weighted mean → inverse transform
+    """
+    weights, mae_rels, biases, fisher_zs = [], [], [], []
+
+    for s in sessions_info:
+        m = s.get("metrics") or {}
+        mae      = m.get("mae")
+        fc_media = m.get("media_ref")
+        bias     = m.get("bias")
+        r        = m.get("r")
+
+        if mae is None or fc_media is None or fc_media == 0:
+            continue
+
+        w = _session_weight(s.get("session_difficulty", ""))
+        mae_rel = mae / fc_media * 100
+
+        weights.append(w)
+        mae_rels.append(mae_rel)
+        biases.append(bias if bias is not None else 0.0)
+
+        # Fisher z-transform (clip r to avoid ±∞)
+        r_clip = float(np.clip(r if r is not None else 0.0, -0.9999, 0.9999))
+        fisher_zs.append(0.5 * np.log((1 + r_clip) / (1 - r_clip)))
+
+    if not weights:
+        return None
+
+    W = sum(weights)
+    mae_global  = sum(m * w for m, w in zip(mae_rels,  weights)) / W
+    bias_global = sum(b * w for b, w in zip(biases,    weights)) / W
+    z_mean      = sum(z * w for z, w in zip(fisher_zs, weights)) / W
+    r_global    = float((np.exp(2 * z_mean) - 1) / (np.exp(2 * z_mean) + 1))
+
+    return {
+        "mae_global":  round(mae_global,  2),
+        "bias_global": round(bias_global, 2),
+        "r_global":    round(r_global,    4),
+        "n_weighted":  len(weights),
+        "total_weight": round(W, 1),
+    }
+
+
 def generate_overview_chart(devices_data: list) -> str:
     """
-    Lollipop chart of Pearson R for every device vs its reference.
-    Sorted ascending so the best device is at the top.
+    Lollipop chart comparing every device using weighted global scores:
+      - r_global  : Fisher-weighted Pearson R (accounts for session difficulty)
+      - MAE_global: weighted MAE relative to mean FC (%)
+      - Bias_global: weighted signed bias (bpm)
+
+    Sorted ascending so the best device (highest r_global) appears at the top.
+    Falls back to concatenated metrics when per-session data is unavailable.
     """
-    # ── Build per-device R ────────────────────────────────────────────────
+    def _color_r(r: float) -> str:
+        if r >= 0.95: return "#27ae60"
+        if r >= 0.90: return "#f1c40f"
+        if r >= 0.80: return "#e67e22"
+        return "#e74c3c"
+
     entries = []
     for dev in devices_data:
-        all_ref, all_dev = [], []
-        for fc in dev["fc_data_list"]:
-            all_ref.extend(fc.get("reference", []))
-            all_dev.extend(fc.get("device", []))
-        if len(all_ref) < 10:
-            continue
-        ref_s = pd.Series(all_ref, dtype=float)
-        dev_s = pd.Series(all_dev, dtype=float)
-        m = calculate_metrics(ref_s, dev_s)
+        # ── Try weighted scoring from per-session data ────────────────────
+        score = _weighted_global_score(dev.get("sessions_info", []))
+
+        if score is not None:
+            r_val       = score["r_global"]
+            mae_val     = score["mae_global"]
+            bias_val    = score["bias_global"]
+            n_weighted  = score["n_weighted"]
+            weighted    = True
+        else:
+            # Fallback: concatenate all FC data and compute raw metrics
+            all_ref, all_dev_fc = [], []
+            for fc in dev["fc_data_list"]:
+                all_ref.extend(fc.get("reference", []))
+                all_dev_fc.extend(fc.get("device",    []))
+            if len(all_ref) < 10:
+                continue
+            m        = calculate_metrics(pd.Series(all_ref, dtype=float),
+                                         pd.Series(all_dev_fc, dtype=float))
+            r_val    = m["r"]
+            mae_val  = m["mae"]
+            bias_val = m["bias"]
+            n_weighted = m["n"]
+            weighted = False
+
         entries.append({
-            "name":     dev["name"],
-            "ref_name": dev["reference_name"],
-            "r":        m["r"],
-            "n":        m["n"],
-            "sessions": dev["session_count"],
+            "name":      dev["name"],
+            "ref_name":  dev["reference_name"],
+            "r":         r_val,
+            "mae":       mae_val,
+            "bias":      bias_val,
+            "n":         n_weighted,
+            "sessions":  dev["session_count"],
+            "weighted":  weighted,
         })
 
     if not entries:
         raise ValueError("No hay datos suficientes para generar el gráfico global.")
 
-    # Sort ascending — best (highest R) at top of the chart
+    # Sort ascending — best (highest r) at top
     entries.sort(key=lambda x: x["r"])
 
-    names     = [e["name"]     for e in entries]
-    r_vals    = [e["r"]        for e in entries]
-    ref_label = entries[-1]["ref_name"]   # use the ref from best device
+    names     = [e["name"]  for e in entries]
+    r_vals    = [e["r"]     for e in entries]
+    mae_vals  = [e["mae"]   for e in entries]
+    bias_vals = [e["bias"]  for e in entries]
+    ref_label = entries[-1]["ref_name"]
     n_devs    = len(entries)
 
-    def _color(r):
-        if r >= 0.95: return "#27ae60"
-        if r >= 0.90: return "#f1c40f"
-        return "#e74c3c"
+    colors = [_color_r(r) for r in r_vals]
 
-    colors = [_color(r) for r in r_vals]
-
-    # Dynamic figure height: ~0.55 inches per device, min 5
-    fig_h = max(5, n_devs * 0.55 + 1.8)
+    # Dynamic figure height
+    fig_h = max(5, n_devs * 0.65 + 2.2)
     fig, ax = plt.subplots(figsize=(9, fig_h), facecolor="#0f1117")
     _style_ax(ax)
 
     y_pos = np.arange(n_devs)
 
     # Lollipop stems
-    x_min = max(0.5, min(r_vals) - 0.03)
+    x_min = max(0.5, min(r_vals) - 0.05)
     for y, r, c in zip(y_pos, r_vals, colors):
         ax.hlines(y, x_min, r, colors="#333", linewidth=1.2, zorder=2)
 
     # Dots
-    ax.scatter(r_vals, y_pos, color=colors, s=80, zorder=4)
+    ax.scatter(r_vals, y_pos, color=colors, s=90, zorder=4)
 
-    # R value labels to the right of each dot
-    for y, r, c in zip(y_pos, r_vals, colors):
-        ax.text(r + 0.002, y, f"{r:.4f}",
-                va="center", ha="left", fontsize=8.5,
+    # Labels: r_global + MAE% + bias
+    for y, r, mae, bias, c, e in zip(y_pos, r_vals, mae_vals, bias_vals, colors, entries):
+        weighted_tag = "★" if e["weighted"] else ""
+        bias_sign    = "+" if bias > 0 else ""
+        label = (
+            f" {r:.4f}{weighted_tag}   "
+            f"MAE {mae:.1f}{'%' if e['weighted'] else ' bpm'}   "
+            f"bias {bias_sign}{bias:.1f} bpm"
+        )
+        ax.text(r + 0.002, y, label,
+                va="center", ha="left", fontsize=7.5,
                 color=c, fontweight="bold")
 
     # Reference vertical line at 1.0
@@ -687,16 +783,20 @@ def generate_overview_chart(devices_data: list) -> str:
     ax.text(1.001, n_devs - 0.5, ref_label,
             color="#888", fontsize=8, va="top", ha="left")
 
-    # Threshold lines
-    for thresh, col, lbl in [(0.95, "#27ae60", "0.95"), (0.90, "#f1c40f", "0.90")]:
+    # Threshold lines: 0.95 (green), 0.90 (yellow), 0.80 (orange)
+    for thresh, col, lbl in [
+        (0.95, "#27ae60", "0.95"),
+        (0.90, "#f1c40f", "0.90"),
+        (0.80, "#e67e22", "0.80"),
+    ]:
         ax.axvline(thresh, color=col, lw=0.8, ls=":", alpha=0.6, zorder=1)
         ax.text(thresh, -0.8, lbl, color=col, fontsize=7,
                 ha="center", va="top")
 
     ax.set_yticks(y_pos)
     ax.set_yticklabels(names, color="#ddd", fontsize=10)
-    ax.set_xlabel("Correlación de Pearson (R)", color="#ccc", fontsize=11)
-    ax.set_xlim(x_min - 0.01, 1.035)
+    ax.set_xlabel("r global ponderado por dificultad de sesión  (★ = ponderado)", color="#ccc", fontsize=10)
+    ax.set_xlim(x_min - 0.01, 1.10)
     ax.set_ylim(-1, n_devs)
     ax.tick_params(axis="x", colors="#aaa")
 

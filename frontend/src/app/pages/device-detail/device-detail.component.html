@@ -38,8 +38,28 @@
       <form [formGroup]="uploadForm" class="upload-form">
         <div class="row-two">
           <mat-form-field appearance="outline">
+            <mat-label>Deporte *</mat-label>
+            <mat-select formControlName="sportType">
+              <mat-option *ngFor="let s of sportTypes" [value]="s[0]">{{ s[1] }}</mat-option>
+            </mat-select>
+            <mat-icon matPrefix>directions_run</mat-icon>
+            <mat-error>Campo obligatorio</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Dificultad / Intensidad *</mat-label>
+            <mat-select formControlName="sessionDifficulty">
+              <mat-option *ngFor="let d of difficulties" [value]="d[0]">{{ d[1] }}</mat-option>
+            </mat-select>
+            <mat-icon matPrefix>speed</mat-icon>
+            <mat-error>Campo obligatorio</mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="row-two">
+          <mat-form-field appearance="outline">
             <mat-label>Tipo de entrenamiento *</mat-label>
-            <input matInput formControlName="trainingType" placeholder="Running suave, Intervals…"
+            <input matInput formControlName="trainingType" placeholder="Rodaje suave, Fondo largo…"
               [matAutocomplete]="auto">
             <mat-icon matPrefix>sports_score</mat-icon>
             <mat-autocomplete #auto="matAutocomplete">

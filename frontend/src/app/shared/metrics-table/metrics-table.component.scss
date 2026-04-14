@@ -42,9 +42,10 @@
       text-align: center;
     }
 
-    &.good { border-color: rgba(46,204,113,.3);  .value { color: #2ecc71; } }
-    &.warn { border-color: rgba(241,196,15,.3);  .value { color: #f1c40f; } }
-    &.bad  { border-color: rgba(231,76,60,.3);   .value { color: #e74c3c; } }
+    &.good   { border-color: rgba(46,204,113,.3);  .value { color: #2ecc71; } }
+    &.warn   { border-color: rgba(241,196,15,.3);  .value { color: #f1c40f; } }
+    &.orange { border-color: rgba(230,126,34,.3);  .value { color: #e67e22; } }
+    &.bad    { border-color: rgba(231,76,60,.3);   .value { color: #e74c3c; } }
 
     .good-val { color: #2ecc71 !important; }
     .bad-val  { color: #e74c3c !important; }

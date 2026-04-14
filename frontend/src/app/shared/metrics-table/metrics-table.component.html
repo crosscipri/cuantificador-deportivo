@@ -3,13 +3,13 @@
   <div class="metric-badge" [ngClass]="metricQuality('mae', metrics.mae)">
     <span class="label">MAE</span>
     <span class="value">{{ metrics.mae }}</span>
-    <span class="unit">ppm · ≤5 ✓</span>
+    <span class="unit">ppm · ≤3 ✓</span>
   </div>
 
   <div class="metric-badge" [ngClass]="metricQuality('mape', metrics.mape)">
     <span class="label">MAPE</span>
     <span class="value">{{ metrics.mape }}</span>
-    <span class="unit">% · ≤10% ✓</span>
+    <span class="unit">% · ≤5% ✓</span>
   </div>
 
   <div class="metric-badge neutral">
@@ -18,34 +18,34 @@
     <span class="unit">ppm</span>
   </div>
 
-  <div class="metric-badge neutral">
+  <div class="metric-badge" [ngClass]="metricQuality('bias_abs', Math.abs(metrics.bias))">
     <span class="label">Bias</span>
     <span class="value">{{ biasSign }}{{ metrics.bias }}</span>
-    <span class="unit">ppm</span>
+    <span class="unit">ppm · |b|≤1 ✓</span>
   </div>
 
-  <div class="metric-badge neutral">
-    <span class="label">LoA</span>
+  <div class="metric-badge" [ngClass]="metricQuality('loa_semiancho', Math.max(Math.abs(metrics.loa_l), Math.abs(metrics.loa_u)))">
+    <span class="label">LoA ±</span>
     <span class="value loa">{{ metrics.loa_l }} / {{ metrics.loa_u }}</span>
-    <span class="unit">ppm (−/+)</span>
+    <span class="unit">ppm · ±≤6 ✓</span>
   </div>
 
   <div class="metric-badge" [ngClass]="metricQuality('ccc', metrics.ccc)">
     <span class="label">CCC</span>
     <span class="value">{{ metrics.ccc }}</span>
-    <span class="unit">≥0.90 ✓</span>
+    <span class="unit">≥0.95 ✓</span>
   </div>
 
   <div class="metric-badge" [ngClass]="metricQuality('icc', metrics.icc)">
     <span class="label">ICC (2,1)</span>
     <span class="value">{{ metrics.icc }}</span>
-    <span class="unit">≥0.70 ✓</span>
+    <span class="unit">≥0.90 ✓</span>
   </div>
 
   <div class="metric-badge" [ngClass]="metricQuality('r', metrics.r)">
     <span class="label">Pearson R</span>
     <span class="value">{{ metrics.r }}</span>
-    <span class="unit">≥0.90 ✓</span>
+    <span class="unit">≥0.95 ✓</span>
   </div>
 
   <div class="metric-badge neutral" *ngIf="lag !== null">

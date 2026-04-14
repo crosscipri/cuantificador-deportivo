@@ -8,11 +8,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { ApiService } from '../../services/api.service';
-import { Device, Session } from '../../models/session.model';
+import { Device, Session, SportType, SessionDifficulty,
+         SPORT_TYPE_LABELS, DIFFICULTY_LABELS } from '../../models/session.model';
 import { ChartViewerComponent } from '../../shared/chart-viewer/chart-viewer.component';
 import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.component';
 
@@ -29,6 +31,7 @@ import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.
     MatInputModule,
     MatFormFieldModule,
     MatAutocompleteModule,
+    MatSelectModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
     ChartViewerComponent,
@@ -42,9 +45,14 @@ export class UploadComponent implements OnInit {
   deviceId = '';
 
   form = this.fb.group({
-    trainingType: ['', Validators.required],
-    sessionName:  [''],
+    sportType:         ['' as SportType,         Validators.required],
+    sessionDifficulty: ['' as SessionDifficulty, Validators.required],
+    trainingType:      ['',                      Validators.required],
+    sessionName:       [''],
   });
+
+  readonly sportTypes   = Object.entries(SPORT_TYPE_LABELS)  as [SportType, string][];
+  readonly difficulties = Object.entries(DIFFICULTY_LABELS)  as [SessionDifficulty, string][];
 
   deviceFile:    File | null = null;
   referenceFile: File | null = null;
@@ -112,6 +120,8 @@ export class UploadComponent implements OnInit {
       this.referenceFile!,
       v.trainingType!,
       v.sessionName || '',
+      v.sportType! as SportType,
+      v.sessionDifficulty! as SessionDifficulty,
     ).subscribe({
       next: session => {
         this.result  = session;

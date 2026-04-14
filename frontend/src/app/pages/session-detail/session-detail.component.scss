@@ -67,6 +67,26 @@
 .ok-text   { color: #2ecc71 !important; }
 .warn-text { color: #f1c40f !important; }
 
+.edit-card {
+  border: 1px solid rgba(100,181,246,.25) !important;
+  margin-bottom: 16px;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+
+  .row-two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+
+    @media (max-width: 600px) { grid-template-columns: 1fr; }
+  }
+}
+
 .section-note { font-size: 12px; color: #666; }
 
 // Zone table

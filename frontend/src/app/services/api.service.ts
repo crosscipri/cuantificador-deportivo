@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AggregateResult, Device, Session } from '../models/session.model';
+import { AggregateResult, Device, Session, SportType, SessionDifficulty } from '../models/session.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -45,17 +45,30 @@ export class ApiService {
     referenceFile: File,
     trainingType: string,
     sessionName: string,
+    sportType: SportType,
+    sessionDifficulty: SessionDifficulty,
   ): Observable<Session> {
     const fd = new FormData();
-    fd.append('device_file',    deviceFile);
-    fd.append('reference_file', referenceFile);
-    fd.append('training_type',  trainingType);
-    fd.append('session_name',   sessionName);
+    fd.append('device_file',        deviceFile);
+    fd.append('reference_file',     referenceFile);
+    fd.append('training_type',      trainingType);
+    fd.append('session_name',       sessionName);
+    fd.append('sport_type',         sportType);
+    fd.append('session_difficulty', sessionDifficulty);
     return this.http.post<Session>(`${this.base}/devices/${deviceId}/sessions`, fd);
   }
 
   getSession(id: string): Observable<Session> {
     return this.http.get<Session>(`${this.base}/sessions/${id}`);
+  }
+
+  updateSession(id: string, patch: {
+    session_name?:       string;
+    training_type?:      string;
+    sport_type?:         SportType;
+    session_difficulty?: SessionDifficulty;
+  }): Observable<Session> {
+    return this.http.patch<Session>(`${this.base}/sessions/${id}`, patch);
   }
 
   deleteSession(id: string): Observable<{ deleted: boolean }> {
@@ -64,9 +77,10 @@ export class ApiService {
 
   // ── Overview ──────────────────────────────────────────────────────────────
 
-  getOverviewChart(): Observable<{ chart: string; device_count: number; total_sessions: number }> {
+  getOverviewChart(sportType: SportType = 'running'): Observable<{ chart: string; device_count: number; total_sessions: number }> {
+    const params = new HttpParams().set('sport_type', sportType);
     return this.http.get<{ chart: string; device_count: number; total_sessions: number }>(
-      `${this.base}/overview/chart`
+      `${this.base}/overview/chart`, { params }
     );
   }
 
