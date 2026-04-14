@@ -114,91 +114,140 @@
     </mat-card-actions>
   </mat-card>
 
-  <!-- ── SESSIONS BY TRAINING TYPE ───────────────────────────────────────── -->
-  <div class="empty-sessions" *ngIf="groups.length === 0">
-    <mat-icon>bar_chart</mat-icon>
-    <p>No hay sesiones todavía. Sube la primera con el botón "Nueva sesión".</p>
-  </div>
+  <!-- ── SPORT TABS ─────────────────────────────────────────────────────── -->
+  <mat-tab-group class="sport-tabs" animationDuration="200ms">
 
-  <div class="training-groups" *ngFor="let group of groups">
-    <div class="group-header" (click)="group.expanded = !group.expanded">
-      <div class="group-title">
-        <mat-icon>{{ group.expanded ? 'expand_less' : 'expand_more' }}</mat-icon>
-        <h2>{{ group.type }}</h2>
-        <span class="session-count">{{ group.sessions.length }} sesión{{ group.sessions.length !== 1 ? 'es' : ''
-          }}</span>
-        <ng-container *ngIf="getTypeStats(group.type) as ts">
-          <span *ngIf="ts.avg_mae != null" class="badge" [ngClass]="maeBadge(ts.avg_mae!)">
-            MAE {{ ts.avg_mae }}
-          </span>
-          <span *ngIf="ts.avg_ccc != null" class="badge" [ngClass]="cccBadge(ts.avg_ccc!)">
-            CCC {{ ts.avg_ccc }}
-          </span>
-        </ng-container>
+    <mat-tab *ngFor="let tab of sportTabs">
+
+      <!-- Tab label with icon -->
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon">{{ tab.icon }}</mat-icon>
+        {{ tab.label }}
+        <span class="tab-count" *ngIf="tab.groups.length > 0">
+          {{ tab.groups.length }}
+        </span>
+      </ng-template>
+
+      <!-- ── GLOBAL SCORE CARD ── -->
+      <div class="score-card" *ngIf="tab.score; else noScore" [ngClass]="tab.scoreQuality!">
+        <div class="score-title">
+          <mat-icon>emoji_events</mat-icon>
+          Score global — {{ tab.label }}
+          <span class="score-sessions">{{ tab.score.n_sessions }} sesion{{ tab.score.n_sessions !== 1 ? 'es' : '' }} con datos completos</span>
+        </div>
+        <div class="score-metrics">
+          <div class="score-metric">
+            <span class="sm-label">r global</span>
+            <span class="sm-value">{{ tab.score.r_global | number:'1.4-4' }}</span>
+            <span class="sm-hint">Fisher-ponderado</span>
+          </div>
+          <div class="score-metric">
+            <span class="sm-label">MAE relativo</span>
+            <span class="sm-value">{{ tab.score.mae_global | number:'1.2-2' }}%</span>
+            <span class="sm-hint">MAE / FC_media × 100</span>
+          </div>
+          <div class="score-metric">
+            <span class="sm-label">Bias global</span>
+            <span class="sm-value">{{ biasSign(tab.score.bias_global) }}{{ tab.score.bias_global | number:'1.1-1' }} bpm</span>
+            <span class="sm-hint">{{ tab.score.bias_global > 0 ? 'sobreestima' : tab.score.bias_global < 0 ? 'subestima' : 'sin bias' }}</span>
+          </div>
+        </div>
       </div>
-      <button mat-flat-button color="accent" class="aggregate-btn"
-        (click)="$event.stopPropagation(); runAggregate(group)"
-        [disabled]="group.loadingAggregate || group.selectedIds.size === 0"
-        matTooltip="Análisis agregado de las sesiones seleccionadas">
-        <mat-spinner *ngIf="group.loadingAggregate" diameter="16"
-          style="display:inline-block;margin-right:6px"></mat-spinner>
-        <mat-icon *ngIf="!group.loadingAggregate">analytics</mat-icon>
-        Análisis agregado ({{ group.selectedIds.size }})
-      </button>
-    </div>
 
-    <div class="group-body" *ngIf="group.expanded">
-
-      <!-- Session rows -->
-      <div class="session-row" *ngFor="let s of group.sessions">
-        <mat-checkbox class="row-check" [checked]="group.selectedIds.has(s.id)" (change)="toggleSession(group, s.id)"
-          (click)="$event.stopPropagation()">
-        </mat-checkbox>
-
-        <div class="row-info" [routerLink]="['/devices', deviceId, 'sessions', s.id]">
-          <span class="row-name">{{ s.session_name }}</span>
-          <span class="row-meta">
-            <mat-icon>calendar_today</mat-icon> {{ formatDate(s.created_at) }}
-            <mat-icon>timer</mat-icon> {{ formatDuration(s.duration_seconds) }}
-            <mat-icon>favorite</mat-icon> {{ s.fcmax }} ppm
-          </span>
+      <ng-template #noScore>
+        <div class="score-card no-score">
+          <mat-icon>info_outline</mat-icon>
+          <span>Sin score — edita las sesiones para asignar deporte e intensidad</span>
         </div>
+      </ng-template>
 
-        <div class="row-badges">
-          <span class="badge" [ngClass]="maeBadge(s.metrics.mae)">MAE {{ s.metrics.mae }}</span>
-          <span class="badge" [ngClass]="cccBadge(s.metrics.ccc)">CCC {{ s.metrics.ccc }}</span>
-          <span class="badge" [ngClass]="lagBadge(s.lag)">
-            Lag {{ s.lag > 0 ? '+' : '' }}{{ s.lag }}s
-          </span>
-        </div>
+      <!-- ── EMPTY STATE ── -->
+      <div class="empty-sessions" *ngIf="tab.groups.length === 0">
+        <mat-icon>bar_chart</mat-icon>
+        <p>No hay sesiones de {{ tab.label }}. Sube una nueva sesión y selecciona este deporte.</p>
+      </div>
 
-        <div class="row-actions">
-          <button mat-icon-button [routerLink]="['/devices', deviceId, 'sessions', s.id]" matTooltip="Ver detalle">
-            <mat-icon>open_in_new</mat-icon>
+      <!-- ── TRAINING GROUPS ── -->
+      <div class="training-groups" *ngFor="let group of tab.groups">
+        <div class="group-header" (click)="group.expanded = !group.expanded">
+          <div class="group-title">
+            <mat-icon>{{ group.expanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+            <h2>{{ group.type }}</h2>
+            <span class="session-count">{{ group.sessions.length }} sesión{{ group.sessions.length !== 1 ? 'es' : '' }}</span>
+            <ng-container *ngIf="getTypeStats(group.type) as ts">
+              <span *ngIf="ts.avg_mae != null" class="badge" [ngClass]="maeBadge(ts.avg_mae!)">
+                MAE {{ ts.avg_mae }}
+              </span>
+              <span *ngIf="ts.avg_ccc != null" class="badge" [ngClass]="cccBadge(ts.avg_ccc!)">
+                CCC {{ ts.avg_ccc }}
+              </span>
+            </ng-container>
+          </div>
+          <button mat-flat-button color="accent" class="aggregate-btn"
+            (click)="$event.stopPropagation(); runAggregate(group)"
+            [disabled]="group.loadingAggregate || group.selectedIds.size === 0"
+            matTooltip="Análisis agregado de las sesiones seleccionadas">
+            <mat-spinner *ngIf="group.loadingAggregate" diameter="16"
+              style="display:inline-block;margin-right:6px"></mat-spinner>
+            <mat-icon *ngIf="!group.loadingAggregate">analytics</mat-icon>
+            Análisis agregado ({{ group.selectedIds.size }})
           </button>
-          <button mat-icon-button color="warn" (click)="deleteSession(s, group)" matTooltip="Eliminar sesión">
-            <mat-icon>delete_outline</mat-icon>
-          </button>
+        </div>
+
+        <div class="group-body" *ngIf="group.expanded">
+
+          <!-- Session rows -->
+          <div class="session-row" *ngFor="let s of group.sessions">
+            <mat-checkbox class="row-check" [checked]="group.selectedIds.has(s.id)"
+              (change)="toggleSession(group, s.id)" (click)="$event.stopPropagation()">
+            </mat-checkbox>
+
+            <div class="row-info" [routerLink]="['/devices', deviceId, 'sessions', s.id]">
+              <span class="row-name">{{ s.session_name }}</span>
+              <span class="row-meta">
+                <mat-icon>calendar_today</mat-icon> {{ formatDate(s.created_at) }}
+                <mat-icon>timer</mat-icon> {{ formatDuration(s.duration_seconds) }}
+                <mat-icon>favorite</mat-icon> {{ s.fcmax }} ppm
+              </span>
+            </div>
+
+            <div class="row-badges">
+              <span class="badge" [ngClass]="maeBadge(s.metrics.mae)">MAE {{ s.metrics.mae }}</span>
+              <span class="badge" [ngClass]="cccBadge(s.metrics.ccc)">CCC {{ s.metrics.ccc }}</span>
+              <span class="badge" [ngClass]="lagBadge(s.lag)">
+                Lag {{ s.lag > 0 ? '+' : '' }}{{ s.lag }}s
+              </span>
+            </div>
+
+            <div class="row-actions">
+              <button mat-icon-button [routerLink]="['/devices', deviceId, 'sessions', s.id]" matTooltip="Ver detalle">
+                <mat-icon>open_in_new</mat-icon>
+              </button>
+              <button mat-icon-button color="warn" (click)="deleteSession(s, group)" matTooltip="Eliminar sesión">
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Aggregate result -->
+          <div class="aggregate-result" *ngIf="group.aggregate">
+            <div class="section-header">
+              <h3>Análisis agregado — {{ group.type }}</h3>
+              <span class="agg-meta">{{ group.aggregate.n_sessions }} sesiones · {{ group.aggregate.total_samples | number }} muestras</span>
+              <div class="divider"></div>
+            </div>
+            <app-metrics-table [metrics]="group.aggregate.metrics"></app-metrics-table>
+            <app-chart-viewer [chartB64]="group.aggregate.chart"
+              [title]="'Agregado — ' + group.type + ' — ' + device.name + ' vs ' + device.reference_name"
+              [filename]="group.type + '-agregado.png'">
+            </app-chart-viewer>
+          </div>
+
         </div>
       </div>
 
-      <!-- Aggregate result -->
-      <div class="aggregate-result" *ngIf="group.aggregate">
-        <div class="section-header">
-          <h3>Análisis agregado — {{ group.type }}</h3>
-          <span class="agg-meta">{{ group.aggregate.n_sessions }} sesiones · {{ group.aggregate.total_samples | number
-            }} muestras</span>
-          <div class="divider"></div>
-        </div>
-        <app-metrics-table [metrics]="group.aggregate.metrics"></app-metrics-table>
-        <app-chart-viewer [chartB64]="group.aggregate.chart"
-          [title]="'Agregado — ' + group.type + ' — ' + device.name + ' vs ' + device.reference_name"
-          [filename]="group.type + '-agregado.png'">
-        </app-chart-viewer>
-      </div>
-
-    </div>
-  </div>
+    </mat-tab>
+  </mat-tab-group>
 
 </div>
 

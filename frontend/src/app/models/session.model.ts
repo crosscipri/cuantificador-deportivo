@@ -93,6 +93,63 @@ export interface AggregateResult {
 
 export type MetricQuality = 'good' | 'warn' | 'orange' | 'bad';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// WEIGHTED GLOBAL SCORE
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface WeightedScore {
+  mae_global:  number;   // MAE relativo ponderado (%)
+  bias_global: number;   // bias ponderado con signo (bpm)
+  r_global:    number;   // correlación Fisher-ponderada
+  n_sessions:  number;   // sesiones con datos completos
+}
+
+const DIFFICULTY_WEIGHTS: Record<SessionDifficulty, number> = {
+  z2:     1.0,
+  tempo:  1.5,
+  series: 2.5,
+};
+
+export function computeWeightedScore(sessions: Session[]): WeightedScore | null {
+  const valid = sessions.filter(s =>
+    s.session_difficulty &&
+    s.metrics?.mae  != null &&
+    s.metrics?.media_ref != null && s.metrics.media_ref > 0 &&
+    s.metrics?.bias != null &&
+    s.metrics?.r    != null,
+  );
+  if (valid.length === 0) return null;
+
+  let W = 0, maeSum = 0, biasSum = 0, zSum = 0;
+
+  for (const s of valid) {
+    const w      = DIFFICULTY_WEIGHTS[s.session_difficulty] ?? 1.0;
+    const maeRel = s.metrics.mae / s.metrics.media_ref * 100;
+    const rClip  = Math.min(Math.max(s.metrics.r, -0.9999), 0.9999);
+    const z      = 0.5 * Math.log((1 + rClip) / (1 - rClip));
+
+    W       += w;
+    maeSum  += maeRel * w;
+    biasSum += s.metrics.bias * w;
+    zSum    += z * w;
+  }
+
+  const zMean   = zSum / W;
+  const rGlobal = (Math.exp(2 * zMean) - 1) / (Math.exp(2 * zMean) + 1);
+
+  return {
+    mae_global:  Math.round(maeSum  / W * 100) / 100,
+    bias_global: Math.round(biasSum / W * 100) / 100,
+    r_global:    Math.round(rGlobal * 10000)   / 10000,
+    n_sessions:  valid.length,
+  };
+}
+
+/** Calidad del score global por deporte basada en r_global */
+export function scoreQuality(score: WeightedScore): MetricQuality {
+  return metricQuality('r', score.r_global);
+}
+
 /**
  * Returns a 4-level CSS class for a metric badge.
  *

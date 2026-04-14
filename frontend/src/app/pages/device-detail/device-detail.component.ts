@@ -15,10 +15,13 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTabsModule } from '@angular/material/tabs';
 
 import { ApiService } from '../../services/api.service';
 import { Device, Session, AggregateResult, SportType, SessionDifficulty,
-         SPORT_TYPE_LABELS, DIFFICULTY_LABELS } from '../../models/session.model';
+         SPORT_TYPE_LABELS, DIFFICULTY_LABELS,
+         WeightedScore, computeWeightedScore, scoreQuality,
+         MetricQuality } from '../../models/session.model';
 import { ChartViewerComponent } from '../../shared/chart-viewer/chart-viewer.component';
 import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.component';
 
@@ -31,6 +34,21 @@ export interface SessionGroup {
   loadingAggregate: boolean;
 }
 
+export interface SportTab {
+  sportType: SportType;
+  label: string;
+  icon: string;
+  groups: SessionGroup[];
+  score: WeightedScore | null;
+  scoreQuality: MetricQuality | null;
+}
+
+const SPORT_ICONS: Record<SportType, string> = {
+  running: 'directions_run',
+  cycling: 'directions_bike',
+  gym:     'fitness_center',
+};
+
 @Component({
   selector: 'app-device-detail',
   standalone: true,
@@ -39,7 +57,7 @@ export interface SessionGroup {
     MatCardModule, MatButtonModule, MatIconModule, MatInputModule,
     MatFormFieldModule, MatAutocompleteModule, MatChipsModule,
     MatCheckboxModule, MatProgressSpinnerModule, MatExpansionModule,
-    MatSnackBarModule, MatTooltipModule, MatSelectModule,
+    MatSnackBarModule, MatTooltipModule, MatSelectModule, MatTabsModule,
     ChartViewerComponent, MetricsTableComponent,
   ],
   templateUrl: './device-detail.component.html',
@@ -48,7 +66,7 @@ export interface SessionGroup {
 export class DeviceDetailComponent implements OnInit {
   device: Device | null = null;
   deviceId = '';
-  groups: SessionGroup[] = [];
+  sportTabs: SportTab[] = [];
   loading = true;
 
   showUpload = false;
@@ -93,30 +111,53 @@ export class DeviceDetailComponent implements OnInit {
   loadSessions(): void {
     this.api.listDeviceSessions(this.deviceId).subscribe({
       next: sessions => {
-        this.buildGroups(sessions);
+        this.buildSportTabs(sessions);
         this.loading = false;
       },
       error: () => { this.loading = false; },
     });
   }
 
-  buildGroups(sessions: Session[]): void {
-    const map = new Map<string, Session[]>();
-    for (const s of sessions) {
-      if (!map.has(s.training_type)) map.set(s.training_type, []);
-      map.get(s.training_type)!.push(s);
+  buildSportTabs(sessions: Session[]): void {
+    const sportOrder: SportType[] = ['running', 'cycling', 'gym'];
+
+    // Preserve existing group state across reloads
+    const existingGroupMap = new Map<string, SessionGroup>();
+    for (const tab of this.sportTabs) {
+      for (const g of tab.groups) existingGroupMap.set(`${tab.sportType}::${g.type}`, g);
     }
-    // Preserve existing group state (expanded, selectedIds, aggregate) on reload
-    const existingMap = new Map(this.groups.map(g => [g.type, g]));
-    this.groups = Array.from(map.entries()).map(([type, sList]) => {
-      const prev = existingMap.get(type);
+
+    this.sportTabs = sportOrder.map(sport => {
+      const sportSessions = sessions.filter(s => s.sport_type === sport);
+
+      // Group by training_type within this sport
+      const typeMap = new Map<string, Session[]>();
+      for (const s of sportSessions) {
+        if (!typeMap.has(s.training_type)) typeMap.set(s.training_type, []);
+        typeMap.get(s.training_type)!.push(s);
+      }
+
+      const groups: SessionGroup[] = Array.from(typeMap.entries()).map(([type, sList]) => {
+        const key  = `${sport}::${type}`;
+        const prev = existingGroupMap.get(key);
+        return {
+          type,
+          sessions:         sList,
+          expanded:         prev?.expanded         ?? true,
+          selectedIds:      prev?.selectedIds       ?? new Set(sList.map(s => s.id)),
+          aggregate:        prev?.aggregate         ?? null,
+          loadingAggregate: prev?.loadingAggregate  ?? false,
+        };
+      });
+
+      const score = computeWeightedScore(sportSessions);
       return {
-        type,
-        sessions: sList,
-        expanded:         prev?.expanded         ?? true,
-        selectedIds:      prev?.selectedIds       ?? new Set(sList.map(s => s.id)),
-        aggregate:        prev?.aggregate         ?? null,
-        loadingAggregate: prev?.loadingAggregate  ?? false,
+        sportType:    sport,
+        label:        SPORT_TYPE_LABELS[sport],
+        icon:         SPORT_ICONS[sport],
+        groups,
+        score,
+        scoreQuality: score ? scoreQuality(score) : null,
       };
     });
   }
@@ -260,7 +301,13 @@ export class DeviceDetailComponent implements OnInit {
     return Math.abs(v) <= 5 ? 'good' : Math.abs(v) <= 10 ? 'warn' : 'bad';
   }
 
+  get allGroups(): SessionGroup[] {
+    return this.sportTabs.flatMap(t => t.groups);
+  }
+
   getTypeStats(typeName: string) {
     return this.device?.training_types.find(t => t.name === typeName) ?? null;
   }
+
+  biasSign(v: number): string { return v > 0 ? '+' : ''; }
 }

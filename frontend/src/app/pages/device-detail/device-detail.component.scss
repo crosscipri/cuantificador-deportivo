@@ -254,6 +254,92 @@
   }
 }
 
+// ── Sport tabs ────────────────────────────────────────────────────────────────
+.sport-tabs {
+  margin-top: 24px;
+
+  .tab-icon { font-size: 18px; width: 18px; height: 18px; margin-right: 6px; vertical-align: middle; }
+  .tab-count {
+    margin-left: 6px;
+    background: rgba(255,255,255,.12);
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 11px;
+  }
+}
+
+// ── Global score card ─────────────────────────────────────────────────────────
+.score-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  margin: 20px 0 8px;
+  background: #12151e;
+  border: 1px solid #2a2d3a;
+
+  &.good   { border-color: rgba(46,204,113,.35);  .score-title mat-icon { color: #2ecc71; } }
+  &.warn   { border-color: rgba(241,196,15,.35);  .score-title mat-icon { color: #f1c40f; } }
+  &.orange { border-color: rgba(230,126,34,.35);  .score-title mat-icon { color: #e67e22; } }
+  &.bad    { border-color: rgba(231,76,60,.35);   .score-title mat-icon { color: #e74c3c; } }
+
+  &.no-score {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    color: #555;
+    font-size: 0.9rem;
+    mat-icon { color: #444; }
+  }
+
+  .score-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #ccc;
+
+    .score-sessions {
+      margin-left: auto;
+      font-size: 0.78rem;
+      font-weight: 400;
+      color: #555;
+    }
+  }
+
+  .score-metrics {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .score-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    .sm-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #555;
+      font-weight: 600;
+    }
+    .sm-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #e0e0e0;
+      line-height: 1;
+    }
+    .sm-hint {
+      font-size: 10px;
+      color: #444;
+    }
+  }
+}
+
 // ── Spinner ───────────────────────────────────────────────────────────────────
 .center-spinner {
   display: flex;
