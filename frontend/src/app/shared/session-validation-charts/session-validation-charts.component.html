@@ -1,0 +1,24 @@
+<mat-tab-group class="validation-tabs" animationDuration="150ms">
+
+  <!-- ── Correlación ─────────────────────────────────────────────── -->
+  <mat-tab label="Correlación">
+    <div class="chart-canvas-wrap">
+      <canvas baseChart [data]="corrData" [options]="corrOptions" type="scatter"></canvas>
+    </div>
+  </mat-tab>
+
+  <!-- ── Bland-Altman ────────────────────────────────────────────── -->
+  <mat-tab label="Bland-Altman">
+    <div class="chart-canvas-wrap">
+      <canvas baseChart [data]="baData" [options]="baOptions" type="scatter"></canvas>
+    </div>
+  </mat-tab>
+
+  <!-- ── Error por zonas ─────────────────────────────────────────── -->
+  <mat-tab label="Error por zonas">
+    <div class="chart-canvas-wrap">
+      <canvas baseChart [data]="zoneData" [options]="zoneOptions" type="bar"></canvas>
+    </div>
+  </mat-tab>
+
+</mat-tab-group>

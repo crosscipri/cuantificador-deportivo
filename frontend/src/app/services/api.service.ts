@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AggregateResult, Device, Session, SportType, SessionDifficulty } from '../models/session.model';
+import { AggregateResult, Device, Session, SportType, SessionDifficulty, OverviewEntry } from '../models/session.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -82,6 +82,11 @@ export class ApiService {
     return this.http.get<{ chart: string; device_count: number; total_sessions: number }>(
       `${this.base}/overview/chart`, { params }
     );
+  }
+
+  getOverviewData(sportType: SportType = 'running'): Observable<OverviewEntry[]> {
+    const params = new HttpParams().set('sport_type', sportType);
+    return this.http.get<OverviewEntry[]>(`${this.base}/overview/data`, { params });
   }
 
   // ── Aggregate ─────────────────────────────────────────────────────────────

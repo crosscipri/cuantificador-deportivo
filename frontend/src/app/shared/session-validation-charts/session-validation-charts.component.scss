@@ -1,0 +1,22 @@
+.validation-tabs {
+  background: #ffffff;
+  border: 1px solid #e2e5ec;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+
+  ::ng-deep .mat-mdc-tab-header {
+    background: #fafbfd;
+    border-bottom: 1px solid #f0f2f5;
+  }
+
+  ::ng-deep .mat-mdc-tab-body-wrapper {
+    padding: 0;
+  }
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  height: 420px;
+  padding: 16px 16px 12px;
+}

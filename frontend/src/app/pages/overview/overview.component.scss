@@ -15,15 +15,14 @@
   .subtitle { margin: 0; color: #6b7280; font-size: 0.9rem; }
 }
 
-.sport-selector {
-  margin-bottom: 24px;
-}
+.sport-selector { margin-bottom: 24px; }
 
 .stats-row {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 20px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .stat-chip {
@@ -33,15 +32,42 @@
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
   border-radius: 20px;
-  padding: 6px 14px;
-  font-size: 13px;
+  padding: 5px 13px;
+  font-size: 12px;
   color: #374151;
 
-  mat-icon { font-size: 16px; height: 16px; width: 16px; color: #6b7280; }
+  mat-icon { font-size: 15px; height: 15px; width: 15px; color: #6b7280; }
 }
 
-.chart-wrapper {
-  margin-top: 4px;
+.legend-chip {
+  gap: 5px;
+  .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  &.good   .dot { background: #16a34a; }
+  &.warn   .dot { background: #d97706; }
+  &.orange .dot { background: #ea580c; }
+  &.bad    .dot { background: #dc2626; }
+}
+
+.chart-card {
+  box-shadow: 0 1px 4px rgba(0,0,0,.05) !important;
+  border: 1px solid #e2e5ec !important;
+  border-radius: 12px !important;
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.chart-hint {
+  margin: 12px 0 0;
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: center;
 }
 
 .empty-state {

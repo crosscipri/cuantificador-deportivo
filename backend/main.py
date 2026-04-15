@@ -15,7 +15,8 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from analyzer import analyze_session, generate_aggregate_analysis, generate_overview_chart
+from analyzer import (analyze_session, generate_aggregate_analysis,
+                      generate_overview_chart, _weighted_global_score)
 
 load_dotenv()
 
@@ -251,11 +252,11 @@ async def list_device_sessions(
 
 @app.get("/api/sessions/{session_id}")
 async def get_session(session_id: str) -> dict:
-    """Get a single session with full chart data."""
-    doc = await db().sessions.find_one({"_id": _oid(session_id)}, {"fc_data": 0})
+    """Get a single session with full chart data and raw FC time-series."""
+    doc = await db().sessions.find_one({"_id": _oid(session_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
-    return _ser(doc)
+    return _ser(doc, keep_fc=True)
 
 
 @app.patch("/api/sessions/{session_id}")
@@ -369,6 +370,48 @@ async def get_overview_chart(sport_type: str = "running") -> dict:
         "device_count":   len(devices_data),
         "total_sessions": total_sessions,
     }
+
+
+@app.get("/api/overview/data")
+async def get_overview_data(sport_type: str = "running") -> list[dict]:
+    """
+    Structured per-device weighted scores for the given sport_type.
+    Used by the frontend to render an interactive ng2-charts comparison chart.
+    Returns list sorted descending by r_global.
+    """
+    if sport_type not in VALID_SPORT_TYPES:
+        raise HTTPException(status_code=422,
+                            detail=f"sport_type debe ser uno de: {VALID_SPORT_TYPES}")
+
+    devices = [d async for d in db().devices.find().sort("created_at", -1)]
+    result = []
+
+    for dev in devices:
+        sessions = [
+            s async for s in db().sessions.find(
+                {"device_id": dev["_id"], "sport_type": sport_type},
+                {"metrics": 1, "session_difficulty": 1, "_id": 0},
+            )
+        ]
+        if not sessions:
+            continue
+
+        score = _weighted_global_score(sessions)
+        if score is None:
+            continue
+
+        result.append({
+            "name":           dev["name"],
+            "reference_name": dev["reference_name"],
+            "r_global":       score["r_global"],
+            "mae_global":     score["mae_global"],
+            "bias_global":    score["bias_global"],
+            "session_count":  score["n_weighted"],
+            "total_weight":   score["total_weight"],
+        })
+
+    result.sort(key=lambda x: x["r_global"], reverse=True)
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────

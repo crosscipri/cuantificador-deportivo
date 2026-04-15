@@ -18,6 +18,8 @@ import { Session, metricQuality, SportType, SessionDifficulty,
          SPORT_TYPE_LABELS, DIFFICULTY_LABELS } from '../../models/session.model';
 import { ChartViewerComponent } from '../../shared/chart-viewer/chart-viewer.component';
 import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.component';
+import { FcTemporalChartComponent } from '../../shared/fc-temporal-chart/fc-temporal-chart.component';
+import { SessionValidationChartsComponent } from '../../shared/session-validation-charts/session-validation-charts.component';
 
 @Component({
   selector: 'app-session-detail',
@@ -38,6 +40,8 @@ import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.
     MatSelectModule,
     ChartViewerComponent,
     MetricsTableComponent,
+    FcTemporalChartComponent,
+    SessionValidationChartsComponent,
   ],
   templateUrl: './session-detail.component.html',
   styleUrls: ['./session-detail.component.scss'],

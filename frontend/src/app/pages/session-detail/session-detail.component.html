@@ -152,23 +152,37 @@
       <h2>Comparativa FC vs Referencia</h2>
       <div class="divider"></div>
     </div>
-    <app-chart-viewer
-      [chartB64]="session.charts.temporal"
-      [title]="'FC — ' + session.device_name + ' vs ' + session.reference_name"
-      [filename]="session.session_name + '-fc-comparativa.png'">
-    </app-chart-viewer>
+    <app-fc-temporal-chart
+      *ngIf="session.fc_data; else temporalPng"
+      [fcData]="session.fc_data!"
+      [refName]="session.reference_name"
+      [devName]="session.device_name">
+    </app-fc-temporal-chart>
+    <ng-template #temporalPng>
+      <app-chart-viewer
+        [chartB64]="session.charts.temporal"
+        [title]="'FC — ' + session.device_name + ' vs ' + session.reference_name"
+        [filename]="session.session_name + '-fc-comparativa.png'">
+      </app-chart-viewer>
+    </ng-template>
 
-    <!-- ── Validation chart ─── -->
+    <!-- ── Validation charts ─── -->
     <div class="section-header" style="margin-top:36px">
       <h2>Validación científica</h2>
       <div class="divider"></div>
       <span class="section-note">Correlación · Bland-Altman · Error por zonas</span>
     </div>
-    <app-chart-viewer
-      [chartB64]="session.charts.validation"
-      [title]="'Validación — ' + session.device_name + ' vs ' + session.reference_name"
-      [filename]="session.session_name + '-validacion.png'">
-    </app-chart-viewer>
+    <app-session-validation-charts
+      *ngIf="session.fc_data || session.zones?.length; else validationPng"
+      [session]="session">
+    </app-session-validation-charts>
+    <ng-template #validationPng>
+      <app-chart-viewer
+        [chartB64]="session.charts.validation"
+        [title]="'Validación — ' + session.device_name + ' vs ' + session.reference_name"
+        [filename]="session.session_name + '-validacion.png'">
+      </app-chart-viewer>
+    </ng-template>
 
     <!-- ── Zones table ─── -->
     <div class="section-header" style="margin-top:36px">

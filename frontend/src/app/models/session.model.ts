@@ -31,6 +31,23 @@ export interface Charts {
   validation: string; // base64 PNG
 }
 
+export interface FcData {
+  reference: number[];
+  device:    number[];
+  time:      number[];  // seconds from session start
+  step:      number;    // downsampling step applied by backend
+}
+
+export interface OverviewEntry {
+  name:           string;
+  reference_name: string;
+  r_global:       number;
+  mae_global:     number;
+  bias_global:    number;
+  session_count:  number;
+  total_weight:   number;
+}
+
 export interface TrainingTypeSummary {
   name: string;
   count: number;
@@ -80,6 +97,7 @@ export interface Session {
   fcmax: number;
   duration_seconds: number;
   charts: Charts;
+  fc_data?: FcData;  // only present in GET /api/sessions/:id
 }
 
 export interface AggregateResult {
