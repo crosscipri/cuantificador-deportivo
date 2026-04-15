@@ -38,15 +38,25 @@ COLORES_ZONA = ["#3498db", "#2ecc71", "#f1c40f", "#e67e22", "#e74c3c"]
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _records_to_series(records: list) -> pd.Series:
-    """Convert a list of {time, hr} dicts to a HR Series indexed by seconds."""
+    """
+    Convert a list of {time, hr} dicts to a HR Series.
+    Index = absolute UTC epoch-seconds so that two series recorded at different
+    wall-clock start times are still aligned correctly when passed to align().
+    """
     if not records:
         raise ValueError("No se encontraron datos de FC en el archivo.")
     df = pd.DataFrame(records)
     df["time"] = pd.to_datetime(df["time"], utc=True)
     df = df.sort_values("time")
-    df["seconds"] = (df["time"] - df["time"].iloc[0]).dt.total_seconds().astype(int)
+    # Epoch-second index (absolute wall-clock, UTC)
+    df["epoch_sec"] = (df["time"].astype(np.int64) // 1_000_000_000).astype(int)
     df["hr"] = pd.to_numeric(df["hr"], errors="coerce")
-    series = df.dropna(subset=["hr"]).set_index("seconds")["hr"]
+    # If multiple readings fall on the same second, keep the mean
+    series = (
+        df.dropna(subset=["hr"])
+          .groupby("epoch_sec")["hr"]
+          .mean()
+    )
     if series.empty:
         raise ValueError("El archivo no contiene datos de FC válidos.")
     return series
@@ -186,13 +196,33 @@ def read_fc_from_bytes(data: bytes, filename: str = "") -> pd.Series:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def align(fc1: pd.Series, fc2: pd.Series):
-    """Return (fc1_aligned, fc2_aligned, x_seg, t_min) over the common time range."""
+    """
+    Align two HR series by absolute UTC epoch-second index.
+
+    Both series must be indexed by epoch-seconds (as produced by _records_to_series).
+    The common window is the intersection of both recording intervals, ensuring
+    that fc1[i] and fc2[i] truly correspond to the SAME wall-clock second.
+
+    Returns:
+        a1, a2  — aligned series with 0-based relative index (seconds elapsed)
+        x_seg   — relative second array [0, 1, 2, …] for display / storage
+        t_min   — absolute epoch-second of the window start (for reference)
+    """
     t_min = int(max(fc1.index.min(), fc2.index.min()))
     t_max = int(min(fc1.index.max(), fc2.index.max()))
-    idx = range(t_min, t_max + 1)
-    a1 = fc1.reindex(idx).interpolate()
-    a2 = fc2.reindex(idx).interpolate()
-    return a1, a2, np.array(idx), t_min
+    if t_min >= t_max:
+        raise ValueError(
+            "Los dos archivos no tienen ventana temporal en común. "
+            "Comprueba que ambas grabaciones corresponden a la misma sesión."
+        )
+    abs_idx = np.arange(t_min, t_max + 1)
+    a1 = fc1.reindex(abs_idx).interpolate()
+    a2 = fc2.reindex(abs_idx).interpolate()
+    # Shift index to relative seconds (0-based) for all downstream consumers
+    rel_idx = np.arange(len(abs_idx))
+    a1 = a1.set_axis(rel_idx)
+    a2 = a2.set_axis(rel_idx)
+    return a1, a2, rel_idx, t_min
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -54,7 +54,6 @@ export class SessionDetailComponent implements OnInit {
   metricQuality = metricQuality;
 
   readonly zoneColumns = ['zone', 'range', 'pct_time', 'n', 'mae', 'mape', 'bias'];
-  Math = Math;
 
   editing  = false;
   saving   = false;

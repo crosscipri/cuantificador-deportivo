@@ -66,17 +66,6 @@
             <span class="info-value">{{ formatDuration(session.duration_seconds) }}</span>
           </div>
           <div class="info-item">
-            <span class="info-label">FCmax</span>
-            <span class="info-value">{{ session.fcmax }} ppm</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Lag temporal</span>
-            <span class="info-value" [class.ok-text]="Math.abs(session.lag) <= 5"
-                  [class.warn-text]="Math.abs(session.lag) > 5">
-              {{ session.lag > 0 ? '+' : '' }}{{ session.lag }}s
-            </span>
-          </div>
-          <div class="info-item">
             <span class="info-label">Fecha</span>
             <span class="info-value">{{ formatDate(session.created_at) }}</span>
           </div>
