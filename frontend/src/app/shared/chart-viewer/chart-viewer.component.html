@@ -1,20 +1,69 @@
-<div class="chart-container" *ngIf="chartB64">
+<!-- ── Inline card ──────────────────────────────────────────────────────── -->
+<div class="chart-card" *ngIf="chartB64">
   <div class="chart-toolbar">
     <span class="chart-title">{{ title }}</span>
     <div class="chart-actions">
-      <button mat-icon-button matTooltip="Ver en pantalla completa" (click)="openFull()">
+      <button mat-icon-button matTooltip="Ampliar" (click)="openLightbox()">
         <mat-icon>open_in_full</mat-icon>
       </button>
-      <button mat-icon-button matTooltip="Exportar como PNG" (click)="download()">
+      <button mat-icon-button matTooltip="Descargar PNG" (click)="download()">
         <mat-icon>download</mat-icon>
-      </button>
-      <button mat-flat-button color="primary" (click)="download()">
-        <mat-icon>download</mat-icon>
-        Exportar PNG
       </button>
     </div>
   </div>
-  <div class="chart-body">
+
+  <div class="chart-preview" (click)="openLightbox()">
     <img [src]="imgSrc" [alt]="title" class="chart-img">
+    <div class="hover-overlay">
+      <mat-icon>zoom_in</mat-icon>
+    </div>
+  </div>
+</div>
+
+<!-- ── Lightbox ──────────────────────────────────────────────────────────── -->
+<div class="lightbox-backdrop" *ngIf="lightboxOpen()" (click)="closeLightbox()">
+  <div class="lightbox-panel" (click)="$event.stopPropagation()">
+
+    <!-- Top bar -->
+    <div class="lb-toolbar">
+      <span class="lb-title">{{ title }}</span>
+      <div class="lb-controls">
+        <button mat-icon-button matTooltip="Reducir" (click)="zoomOut()">
+          <mat-icon>remove</mat-icon>
+        </button>
+        <button class="zoom-badge" mat-button (click)="resetView()" matTooltip="Restablecer vista">
+          {{ (zoom() * 100).toFixed(0) }}%
+        </button>
+        <button mat-icon-button matTooltip="Ampliar" (click)="zoomIn()">
+          <mat-icon>add</mat-icon>
+        </button>
+        <div class="lb-divider"></div>
+        <button mat-icon-button matTooltip="Descargar PNG" (click)="download()">
+          <mat-icon>download</mat-icon>
+        </button>
+        <button mat-icon-button matTooltip="Cerrar (Esc)" (click)="closeLightbox()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Image canvas -->
+    <div class="lb-canvas"
+         (wheel)="onWheel($event)"
+         (mousedown)="onMouseDown($event)"
+         [class.dragging]="_dragging"
+         [class.zoomable]="zoom() <= 1">
+      <img #lightboxImg
+           [src]="imgSrc"
+           [alt]="title"
+           class="lb-img"
+           [style.transform]="transformStyle"
+           draggable="false">
+    </div>
+
+    <!-- Bottom hint -->
+    <div class="lb-hint">
+      Rueda del ratón para hacer zoom · Arrastra para mover · ESC para cerrar
+    </div>
   </div>
 </div>

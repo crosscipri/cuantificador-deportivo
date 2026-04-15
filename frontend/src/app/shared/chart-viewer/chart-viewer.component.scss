@@ -1,25 +1,31 @@
-.chart-container {
+// ── Inline card ─────────────────────────────────────────────────────────────
+.chart-card {
   background: #ffffff;
   border: 1px solid #e2e5ec;
   border-radius: 12px;
   overflow: hidden;
   margin-bottom: 8px;
   box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  transition: box-shadow 0.2s;
+
+  &:hover { box-shadow: 0 4px 16px rgba(0,0,0,.09); }
 }
 
 .chart-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 8px 12px 8px 16px;
   border-bottom: 1px solid #f0f2f5;
-  gap: 12px;
   background: #fafbfd;
+  gap: 12px;
 
   .chart-title {
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 600;
     color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -29,24 +35,181 @@
   .chart-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     flex-shrink: 0;
 
     button[mat-icon-button] {
+      width: 32px;
+      height: 32px;
       color: #9ca3af;
       &:hover { color: #374151; }
     }
   }
 }
 
-.chart-body {
-  padding: 4px;
+.chart-preview {
+  position: relative;
+  cursor: zoom-in;
+  overflow: hidden;
   background: #ffffff;
+
+  .chart-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 0.25s ease, filter 0.25s ease;
+  }
+
+  .hover-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s;
+
+    mat-icon {
+      font-size: 40px;
+      height: 40px;
+      width: 40px;
+      color: #ffffff;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,.4));
+    }
+  }
+
+  &:hover {
+    .chart-img { transform: scale(1.005); filter: brightness(0.97); }
+    .hover-overlay { opacity: 1; background: rgba(0,0,0,.08); }
+  }
 }
 
-.chart-img {
-  width: 100%;
-  height: auto;
-  display: block;
-  border-radius: 6px;
+// ── Lightbox ────────────────────────────────────────────────────────────────
+.lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(15, 17, 26, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  animation: lb-fade-in 0.18s ease;
+}
+
+@keyframes lb-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.lightbox-panel {
+  display: flex;
+  flex-direction: column;
+  width: 96vw;
+  height: 92vh;
+  max-width: 1600px;
+  background: #1a1d27;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 32px 80px rgba(0,0,0,.6);
+  animation: lb-slide-in 0.18s ease;
+}
+
+@keyframes lb-slide-in {
+  from { transform: scale(0.97) translateY(8px); opacity: 0; }
+  to   { transform: scale(1)    translateY(0);   opacity: 1; }
+}
+
+// Toolbar
+.lb-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 8px 20px;
+  background: #12141e;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  flex-shrink: 0;
+  gap: 12px;
+
+  .lb-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: #9ca3af;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lb-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+
+    button[mat-icon-button] {
+      width: 36px;
+      height: 36px;
+      color: #6b7280;
+      &:hover { color: #e5e7eb; background: rgba(255,255,255,.06); }
+    }
+  }
+
+  .zoom-badge {
+    min-width: 52px;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: #9ca3af;
+    background: rgba(255,255,255,.06);
+    border-radius: 6px;
+    line-height: 28px;
+    &:hover { color: #e5e7eb; background: rgba(255,255,255,.1); }
+  }
+
+  .lb-divider {
+    width: 1px;
+    height: 22px;
+    background: rgba(255,255,255,.08);
+    margin: 0 6px;
+  }
+}
+
+// Canvas
+.lb-canvas {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-in;
+  user-select: none;
+
+  &.dragging { cursor: grabbing !important; }
+  &:not(.zoomable):not(.dragging) { cursor: grab; }
+}
+
+.lb-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transform-origin: center center;
+  transition: transform 0.08s ease;
+  pointer-events: none;
+  border-radius: 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+
+// Hint bar
+.lb-hint {
+  padding: 7px 20px;
+  font-size: 11px;
+  color: #4b5563;
+  background: #12141e;
+  border-top: 1px solid rgba(255,255,255,.04);
+  text-align: center;
+  flex-shrink: 0;
+  letter-spacing: 0.1px;
 }
