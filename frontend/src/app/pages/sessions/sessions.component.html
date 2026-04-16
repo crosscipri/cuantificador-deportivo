@@ -135,12 +135,7 @@
               </div>
             </div>
 
-            <!-- Lag badge -->
             <div class="lag-row">
-              <span class="lag-badge" [class.lag-ok]="Math.abs(session.lag) <= 5">
-                <mat-icon>timer</mat-icon>
-                Lag {{ session.lag > 0 ? '+' : '' }}{{ session.lag }}s
-              </span>
               <span class="fcmax-badge">FCmax {{ session.fcmax }} ppm</span>
             </div>
           </mat-card-content>

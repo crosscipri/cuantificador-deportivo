@@ -11,7 +11,6 @@ import { Metrics, metricQuality } from '../../models/session.model';
 })
 export class MetricsTableComponent {
   @Input() metrics!: Metrics;
-  @Input() lag: number | null = null;
 
   metricQuality = metricQuality;
   Math = Math;

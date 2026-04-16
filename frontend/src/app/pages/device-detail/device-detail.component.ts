@@ -293,12 +293,8 @@ export class DeviceDetailComponent implements OnInit {
     return v <= 3 ? 'good' : v <= 5 ? 'warn' : v <= 10 ? 'orange' : 'bad';
   }
 
-  cccBadge(v: number): string {
+  rBadge(v: number): string {
     return v >= 0.95 ? 'good' : v >= 0.90 ? 'warn' : v >= 0.80 ? 'orange' : 'bad';
-  }
-
-  lagBadge(v: number): string {
-    return Math.abs(v) <= 5 ? 'good' : Math.abs(v) <= 10 ? 'warn' : 'bad';
   }
 
   get allGroups(): SessionGroup[] {

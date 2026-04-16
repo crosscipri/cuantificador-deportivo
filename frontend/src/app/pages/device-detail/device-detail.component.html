@@ -213,10 +213,7 @@
 
             <div class="row-badges">
               <span class="badge" [ngClass]="maeBadge(s.metrics.mae)">MAE {{ s.metrics.mae }}</span>
-              <span class="badge" [ngClass]="cccBadge(s.metrics.ccc)">CCC {{ s.metrics.ccc }}</span>
-              <span class="badge" [ngClass]="lagBadge(s.lag)">
-                Lag {{ s.lag > 0 ? '+' : '' }}{{ s.lag }}s
-              </span>
+              <span class="badge" [ngClass]="rBadge(s.metrics.r)">r {{ s.metrics.r }}</span>
             </div>
 
             <div class="row-actions">
