@@ -52,11 +52,12 @@
 
     <mat-card class="chart-card">
       <mat-card-content>
-        <div class="chart-canvas-wrap" [style.height.px]="Math.max(220, entries.length * 52 + 80)">
+        <div class="chart-canvas-wrap">
           <canvas baseChart
             [data]="chartData"
             [options]="chartOptions"
-            type="bar">
+            [plugins]="chartPlugins"
+            type="scatter">
           </canvas>
         </div>
         <p class="chart-hint">

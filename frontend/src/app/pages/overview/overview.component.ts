@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
 import { BaseChartDirective } from 'ng2-charts';
-import type { ChartData, ChartOptions } from 'chart.js';
+import type { ChartOptions } from 'chart.js';
 
 import { ApiService } from '../../services/api.service';
 import { OverviewEntry, SportType, SPORT_TYPE_LABELS } from '../../models/session.model';
@@ -39,10 +39,10 @@ export class OverviewComponent implements OnInit {
   selectedSport: SportType = 'running';
   readonly sportTypes = Object.entries(SPORT_TYPE_LABELS) as [SportType, string][];
 
-  readonly Math = Math;
   entries: OverviewEntry[] = [];
-  chartData:    ChartData<'bar'>    = { labels: [], datasets: [] };
-  chartOptions: ChartOptions<'bar'> = {};
+  chartData:    any = { datasets: [] };
+  chartOptions: ChartOptions<'scatter'> = {};
+  chartPlugins: any[] = [];
 
   constructor(private api: ApiService) {}
 
@@ -67,44 +67,93 @@ export class OverviewComponent implements OnInit {
   }
 
   private _buildChart(entries: OverviewEntry[]): void {
-    const labels = entries.map(e => e.name);
-    const rVals  = entries.map(e => e.r_global);
-    const bgColors = rVals.map(r => colorForR(r));
+    if (!entries.length) return;
+
+    // Ascending sort → worst at left (index 0), best at right (index n-1)
+    const sorted = [...entries].sort((a, b) => a.r_global - b.r_global);
+    const n      = sorted.length;
+    const yMin   = Math.max(0.3, Math.min(...sorted.map(e => e.r_global)) - 0.04);
+
+    // ── One dataset per device: vertical stem + dot at top ───────────────────
+    const deviceDatasets = sorted.map((e, i) => {
+      const c = colorForR(e.r_global);
+      return {
+        label:   e.name,
+        data:    [{ x: i, y: yMin }, { x: i, y: e.r_global }],
+        showLine: true,
+        borderColor:          c,
+        borderWidth:          2,
+        pointRadius:          [0, 8],
+        pointHoverRadius:     [0, 10],
+        pointBackgroundColor: [c, c],
+        pointBorderColor:     ['transparent', '#ffffff'],
+        pointBorderWidth:     [0, 2],
+      };
+    });
+
+    // ── Threshold horizontal lines ────────────────────────────────────────────
+    const hLine = (y: number, color: string) => ({
+      label:       '',
+      data:        [{ x: -0.5, y }, { x: n - 0.5, y }],
+      showLine:    true,
+      borderColor: color,
+      borderWidth: 1,
+      borderDash:  [4, 3],
+      pointRadius: 0,
+      tooltip:     { enabled: false } as any,
+    });
 
     this.chartData = {
-      labels,
-      datasets: [{
-        label: 'r global',
-        data: rVals,
-        backgroundColor: bgColors,
-        borderColor:     bgColors.map(c => c.replace('0.80', '1')),
-        borderWidth: 0,
-        borderRadius: 4,
-        barThickness: 28,
-      }],
-    };
+      datasets: [
+        ...deviceDatasets,
+        hLine(0.95, 'rgba(22,163,74,0.5)'),
+        hLine(0.90, 'rgba(217,119,6,0.5)'),
+        hLine(0.80, 'rgba(234,88,12,0.5)'),
+      ],
+    } as any;
 
-    const maxR = Math.max(...rVals, 0.8);
-    const stored = entries; // reference for tooltip closure
+    // ── Inline plugin: device name above each dot ────────────────────────────
+    this.chartPlugins = [{
+      id: 'dotLabels',
+      afterDatasetsDraw(chart: any) {
+        const ctx: CanvasRenderingContext2D = chart.ctx;
+        ctx.save();
+        ctx.font = '500 11px Inter, system-ui, sans-serif';
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'bottom';
+        sorted.forEach((entry, i) => {
+          const meta = chart.getDatasetMeta(i);
+          if (!meta?.data?.length) return;
+          const dot = meta.data[1];   // second point = the filled circle
+          if (!dot) return;
+          const c = colorForR(entry.r_global);
+          ctx.fillStyle = c;
+          ctx.fillText(entry.name, dot.x, dot.y - 10);
+        });
+        ctx.restore();
+      },
+    }];
 
+    // ── Options ───────────────────────────────────────────────────────────────
+    const stored = sorted;
     this.chartOptions = {
-      indexAxis: 'y',
-      responsive: true,
+      responsive:          true,
       maintainAspectRatio: false,
-      animation: { duration: 400 },
+      animation:           { duration: 350 },
       plugins: {
         legend: { display: false },
         tooltip: {
+          filter:          (item: any) => item.dataIndex === 1 && item.datasetIndex < n,
           backgroundColor: '#ffffff',
-          borderColor: '#e2e5ec',
-          borderWidth: 1,
-          titleColor: '#111827',
-          bodyColor: '#374151',
-          padding: 12,
+          borderColor:     '#e2e5ec',
+          borderWidth:     1,
+          titleColor:      '#111827',
+          bodyColor:       '#374151',
+          padding:         12,
           callbacks: {
-            title: (items) => stored[items[0].dataIndex]?.name ?? '',
-            label: (item) => {
-              const e = stored[item.dataIndex];
+            title: (items: any[]) => stored[items[0].datasetIndex]?.name ?? '',
+            label: (item: any) => {
+              const e = stored[item.datasetIndex];
               if (!e) return '';
               const sign = e.bias_global > 0 ? '+' : '';
               return [
@@ -119,21 +168,37 @@ export class OverviewComponent implements OnInit {
       },
       scales: {
         x: {
-          min: Math.max(0.5, Math.min(...rVals) - 0.05),
-          max: Math.min(1.0, maxR + 0.02),
+          type:  'linear',
+          min:   -0.5,
+          max:   n - 0.5,
           ticks: {
-            callback: (v) => Number(v).toFixed(2),
-            color: '#6b7280', font: { size: 11 },
+            stepSize:  1,
+            callback:  (val: any) => stored[val as number]?.name ?? '',
+            color:     '#111827',
+            font:      { size: 12, weight: 600 },
           },
-          grid: { color: '#e5e8ef' },
-          title: { display: true, text: 'Correlación de Pearson r (ponderada por dificultad)', color: '#6b7280', font: { size: 11 } },
-        },
-        y: {
-          ticks: { color: '#111827', font: { size: 13, weight: 600 } },
           grid: { display: false },
         },
+        y: {
+          type:  'linear',
+          min:   yMin,
+          max:   1.005,
+          ticks: {
+            callback:      (v: any) => Number(v).toFixed(2),
+            color:         '#6b7280',
+            font:          { size: 11 },
+            maxTicksLimit: 8,
+          },
+          grid:  { color: '#e5e8ef' },
+          title: {
+            display: true,
+            text:    'Correlación (r) — ponderada por dificultad de sesión',
+            color:   '#6b7280',
+            font:    { size: 11 },
+          },
+        },
       },
-    };
+    } as any;
   }
 
   get refLabel(): string {

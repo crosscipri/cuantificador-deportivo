@@ -178,9 +178,6 @@
               <span *ngIf="ts.avg_mae != null" class="badge" [ngClass]="maeBadge(ts.avg_mae!)">
                 MAE {{ ts.avg_mae }}
               </span>
-              <span *ngIf="ts.avg_ccc != null" class="badge" [ngClass]="cccBadge(ts.avg_ccc!)">
-                CCC {{ ts.avg_ccc }}
-              </span>
             </ng-container>
           </div>
           <button mat-flat-button color="accent" class="aggregate-btn"
