@@ -62,6 +62,45 @@
   position: relative;
   width: 100%;
   height: 420px;
+
+  // ngx-charts overrides
+  ::ng-deep {
+    .ngx-charts { font-family: inherit; }
+    .refline-label { font-size: 10px !important; }
+    .bar { transition: opacity 0.15s; }
+    .bar:hover { opacity: 0.85; }
+    .x.axis .tick text { font-size: 11px; font-weight: 600; fill: #111827; }
+    .y.axis .tick text { font-size: 10px; fill: #6b7280; }
+    .axis-label text { font-size: 11px !important; fill: #6b7280 !important; }
+    .gridline-path { stroke: #e5e8ef !important; }
+  }
+}
+
+// Custom tooltip
+.ngx-tooltip-custom {
+  padding: 12px 14px;
+  min-width: 180px;
+
+  .tt-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #f3f4f6;
+    padding-bottom: 6px;
+  }
+
+  .tt-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 12px;
+    color: #374151;
+    margin-top: 4px;
+  }
+
+  .tt-key { color: #6b7280; }
+  .tt-val { font-weight: 500; font-variant-numeric: tabular-nums; }
 }
 
 .chart-hint {

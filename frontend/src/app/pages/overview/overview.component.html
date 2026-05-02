@@ -53,15 +53,38 @@
     <mat-card class="chart-card">
       <mat-card-content>
         <div class="chart-canvas-wrap">
-          <canvas baseChart
-            [data]="chartData"
-            [options]="chartOptions"
-            [plugins]="chartPlugins"
-            type="scatter">
-          </canvas>
+          <ngx-charts-bar-vertical
+            [results]="ngxChartData"
+            [customColors]="ngxCustomColors"
+            [yScaleMin]="ngxYMin"
+            [yScaleMax]="1.005"
+            [referenceLines]="ngxRefLines"
+            [showRefLines]="true"
+            [showRefLabels]="true"
+            [xAxis]="true"
+            [yAxis]="true"
+            [showYAxisLabel]="true"
+            yAxisLabel="Correlación (r) — ponderada por dificultad"
+            [animations]="true"
+            [roundEdges]="false"
+            [gradient]="false"
+            [trimXAxisTicks]="false">
+
+            <!-- Custom tooltip -->
+            <ng-template #tooltipTemplate let-model="model">
+              <div class="ngx-tooltip-custom" *ngIf="tooltipEntry(model.name) as e">
+                <div class="tt-title">{{ e.name }}</div>
+                <div class="tt-row"><span class="tt-key">r global</span><span class="tt-val">{{ e.r_global | number:'1.4-4' }}</span></div>
+                <div class="tt-row"><span class="tt-key">MAE</span><span class="tt-val">{{ e.mae_global | number:'1.1-1' }} %</span></div>
+                <div class="tt-row"><span class="tt-key">Bias</span><span class="tt-val">{{ e.bias_global > 0 ? '+' : '' }}{{ e.bias_global | number:'1.1-1' }} bpm</span></div>
+                <div class="tt-row"><span class="tt-key">Sesiones</span><span class="tt-val">{{ e.session_count }}</span></div>
+              </div>
+            </ng-template>
+
+          </ngx-charts-bar-vertical>
         </div>
         <p class="chart-hint">
-          Pasa el ratón sobre cada barra para ver MAE, bias y sesiones · Ordenado de mejor a peor r global
+          Pasa el ratón sobre cada barra para ver MAE, bias y sesiones · Ordenado de peor a mejor r global
         </p>
       </mat-card-content>
     </mat-card>
