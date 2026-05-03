@@ -75,6 +75,10 @@ export class ApiService {
     return this.http.delete<{ deleted: boolean }>(`${this.base}/sessions/${id}`);
   }
 
+  reanalyzeSession(id: string): Observable<Session> {
+    return this.http.post<Session>(`${this.base}/sessions/${id}/reanalyze`, {});
+  }
+
   // ── Overview ──────────────────────────────────────────────────────────────
 
   getOverviewChart(sportType: SportType = 'running'): Observable<{ chart: string; device_count: number; total_sessions: number }> {

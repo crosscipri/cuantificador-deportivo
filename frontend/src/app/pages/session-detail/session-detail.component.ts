@@ -12,6 +12,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { ApiService } from '../../services/api.service';
 import { Session, metricQuality, SportType, SessionDifficulty,
@@ -42,6 +43,7 @@ import { SessionValidationChartsComponent } from '../../shared/session-validatio
     MetricsTableComponent,
     FcTemporalChartComponent,
     SessionValidationChartsComponent,
+    MatTooltipModule,
   ],
   templateUrl: './session-detail.component.html',
   styleUrls: ['./session-detail.component.scss'],
@@ -55,8 +57,9 @@ export class SessionDetailComponent implements OnInit {
 
   readonly zoneColumns = ['zone', 'range', 'pct_time', 'n', 'mae', 'mape', 'bias'];
 
-  editing  = false;
-  saving   = false;
+  editing     = false;
+  saving      = false;
+  reanalyzing = false;
   editForm = this.fb.group({
     session_name:       [''],
     training_type:      ['', Validators.required],
@@ -121,6 +124,22 @@ export class SessionDetailComponent implements OnInit {
       error: err => {
         this.saving = false;
         this.snack.open(err.error?.detail || 'Error al guardar', 'Cerrar', { duration: 4000 });
+      },
+    });
+  }
+
+  reanalyze(): void {
+    if (!this.session) return;
+    this.reanalyzing = true;
+    this.api.reanalyzeSession(this.session.id).subscribe({
+      next: updated => {
+        this.session     = updated;
+        this.reanalyzing = false;
+        this.snack.open('Actividad recalculada correctamente', 'OK', { duration: 3000 });
+      },
+      error: err => {
+        this.reanalyzing = false;
+        this.snack.open(err.error?.detail || 'Error al recalcular', 'Cerrar', { duration: 5000 });
       },
     });
   }

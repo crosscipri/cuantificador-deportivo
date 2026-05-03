@@ -9,10 +9,11 @@ import os
 from datetime import datetime
 from typing import Any, Optional
 
-from bson import ObjectId
+from bson import Binary, ObjectId
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from analyzer import (analyze_session, generate_aggregate_analysis,
@@ -76,6 +77,9 @@ def _ser(doc: dict, *, keep_fc: bool = False) -> dict:
         doc["created_at"] = doc["created_at"].isoformat()
     if not keep_fc:
         doc.pop("fc_data", None)
+    # Never expose raw binary file bytes in API responses
+    doc.pop("device_file_bytes", None)
+    doc.pop("reference_file_bytes", None)
     return doc
 
 
@@ -221,14 +225,18 @@ async def create_session(
         raise HTTPException(status_code=422, detail=str(exc))
 
     doc: dict[str, Any] = {
-        "device_id":          ObjectId(device_id),
-        "training_type":      training_type.strip(),
-        "session_name":       session_name.strip() or f"Sesión {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-        "device_name":        dev_name,
-        "reference_name":     ref_name,
-        "sport_type":         sport_type,
-        "session_difficulty": session_difficulty,
-        "created_at":         datetime.utcnow(),
+        "device_id":              ObjectId(device_id),
+        "training_type":          training_type.strip(),
+        "session_name":           session_name.strip() or f"Sesión {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        "device_name":            dev_name,
+        "reference_name":         ref_name,
+        "sport_type":             sport_type,
+        "session_difficulty":     session_difficulty,
+        "created_at":             datetime.utcnow(),
+        "device_file_bytes":      Binary(device_bytes),
+        "device_file_name":       device_file.filename or "",
+        "reference_file_bytes":   Binary(reference_bytes),
+        "reference_file_name":    reference_file.filename or "",
         **result,
     }
     inserted = await db().sessions.insert_one(doc)
@@ -302,6 +310,68 @@ async def delete_session(session_id: str) -> dict:
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
     return {"deleted": True}
+
+
+@app.post("/api/sessions/{session_id}/reanalyze", status_code=200)
+async def reanalyze_session(session_id: str) -> dict:
+    """Re-run the analysis for a session using the stored raw files."""
+    doc = await db().sessions.find_one({"_id": _oid(session_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+
+    device_bytes: bytes | None    = doc.get("device_file_bytes")
+    reference_bytes: bytes | None = doc.get("reference_file_bytes")
+
+    if not device_bytes or not reference_bytes:
+        raise HTTPException(
+            status_code=422,
+            detail="Esta sesión no tiene los ficheros originales almacenados. "
+                   "Crea la sesión de nuevo para habilitar el recálculo.",
+        )
+
+    try:
+        result = analyze_session(
+            bytes(device_bytes),
+            bytes(reference_bytes),
+            doc["device_name"],
+            doc["reference_name"],
+            device_filename=doc.get("device_file_name", ""),
+            reference_filename=doc.get("reference_file_name", ""),
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    await db().sessions.update_one({"_id": _oid(session_id)}, {"$set": result})
+
+    updated = await db().sessions.find_one({"_id": _oid(session_id)})
+    return _ser(updated, keep_fc=True)
+
+
+@app.get("/api/sessions/{session_id}/files/{file_type}")
+async def download_session_file(session_id: str, file_type: str) -> Response:
+    """Download the original raw file stored for a session.
+    file_type must be 'device' or 'reference'.
+    """
+    if file_type not in ("device", "reference"):
+        raise HTTPException(status_code=400, detail="file_type debe ser 'device' o 'reference'")
+
+    doc = await db().sessions.find_one(
+        {"_id": _oid(session_id)},
+        {f"{file_type}_file_bytes": 1, f"{file_type}_file_name": 1},
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+
+    raw: bytes | None = doc.get(f"{file_type}_file_bytes")
+    if not raw:
+        raise HTTPException(status_code=404, detail="Fichero original no disponible para esta sesión")
+
+    filename: str = doc.get(f"{file_type}_file_name") or f"{file_type}.bin"
+    return Response(
+        content=bytes(raw),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

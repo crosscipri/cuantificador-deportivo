@@ -22,11 +22,18 @@
         <span>{{ session.session_name }}</span>
       </div>
       <div class="header-actions">
-        <button mat-stroked-button (click)="startEdit()" *ngIf="!editing">
+        <button mat-stroked-button (click)="reanalyze()" *ngIf="!editing"
+                [disabled]="reanalyzing"
+                matTooltip="Vuelve a procesar los ficheros guardados en la base de datos">
+          <mat-spinner *ngIf="reanalyzing" diameter="16" style="display:inline-block;margin-right:6px"></mat-spinner>
+          <mat-icon *ngIf="!reanalyzing">refresh</mat-icon>
+          {{ reanalyzing ? 'Recalculando…' : 'Refrescar actividad' }}
+        </button>
+        <button mat-stroked-button (click)="startEdit()" *ngIf="!editing" [disabled]="reanalyzing">
           <mat-icon>edit</mat-icon>
           Editar
         </button>
-        <button mat-stroked-button color="warn" (click)="delete()" *ngIf="!editing">
+        <button mat-stroked-button color="warn" (click)="delete()" *ngIf="!editing" [disabled]="reanalyzing">
           <mat-icon>delete_outline</mat-icon>
           Eliminar
         </button>
