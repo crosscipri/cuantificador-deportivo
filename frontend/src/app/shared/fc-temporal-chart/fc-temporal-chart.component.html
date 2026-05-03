@@ -1,4 +1,16 @@
-<div class="chart-card">
+<div class="chart-card" [class.fullscreen]="fullscreen">
+  <div class="chart-toolbar">
+    <span class="chart-title">FC Dispositivo vs Referencia</span>
+    <div class="chart-actions">
+      <button mat-icon-button (click)="download()" matTooltip="Descargar PNG">
+        <mat-icon>download</mat-icon>
+      </button>
+      <button mat-icon-button (click)="toggleFullscreen()"
+              [matTooltip]="fullscreen ? 'Salir de pantalla completa (Esc)' : 'Ampliar'">
+        <mat-icon>{{ fullscreen ? 'close_fullscreen' : 'open_in_full' }}</mat-icon>
+      </button>
+    </div>
+  </div>
   <div class="chart-canvas-wrap">
     <canvas baseChart
       [data]="chartData"

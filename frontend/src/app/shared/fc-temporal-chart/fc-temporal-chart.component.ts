@@ -1,5 +1,8 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { Component, Input, OnChanges, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { BaseChartDirective } from 'ng2-charts';
 import type { ChartConfiguration, ChartOptions } from 'chart.js';
 import { FcData } from '../../models/session.model';
@@ -15,7 +18,7 @@ function secToMmss(sec: number): string {
 @Component({
   selector: 'app-fc-temporal-chart',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective],
+  imports: [CommonModule, MatButtonModule, MatIconModule, MatTooltipModule, BaseChartDirective],
   templateUrl: './fc-temporal-chart.component.html',
   styleUrls: ['./fc-temporal-chart.component.scss'],
 })
@@ -24,7 +27,10 @@ export class FcTemporalChartComponent implements OnChanges {
   @Input() refName = 'Referencia';
   @Input() devName = 'Dispositivo';
 
+  @ViewChild(BaseChartDirective) chartRef?: BaseChartDirective;
+
   chartData: ChartConfiguration<'line'>['data'] = { datasets: [] };
+  fullscreen = false;
 
   readonly chartOptions: ChartOptions<'line'> = {
     responsive: true,
@@ -99,5 +105,26 @@ export class FcTemporalChartComponent implements OnChanges {
         },
       ],
     };
+  }
+
+  toggleFullscreen(): void {
+    this.fullscreen = !this.fullscreen;
+    document.body.style.overflow = this.fullscreen ? 'hidden' : '';
+    // Allow chart to resize after layout change
+    setTimeout(() => this.chartRef?.chart?.resize(), 50);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.fullscreen) this.toggleFullscreen();
+  }
+
+  download(): void {
+    const canvas = this.chartRef?.chart?.canvas;
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = `${this.devName}-vs-${this.refName}-fc-temporal.png`;
+    a.click();
   }
 }

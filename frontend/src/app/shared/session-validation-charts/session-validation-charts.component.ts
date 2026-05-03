@@ -1,6 +1,9 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { Component, Input, OnChanges, ViewChildren, QueryList, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { BaseChartDirective } from 'ng2-charts';
 import type { ChartOptions } from 'chart.js';
 import { Session, FcData, Metrics, Zone } from '../../models/session.model';
@@ -11,6 +14,8 @@ const ZONE_RANGES: [number, number][] = [
 ];
 const ZONE_LABELS = ['Z1', 'Z2 Aeróbico', 'Z3 Tempo', 'Z4 Subumbral', 'Z5 Máximo'];
 const ZONE_COLORS = ['#3b82f6', '#22c55e', '#eab308', '#f97316', '#ef4444'];
+
+const TAB_FILENAMES = ['correlacion', 'bland-altman', 'error-zonas'];
 
 function zoneIndex(ref: number): number {
   for (let i = 0; i < ZONE_RANGES.length; i++) {
@@ -32,12 +37,17 @@ function subsample<T>(arr: T[], max = 1000): T[] {
 @Component({
   selector: 'app-session-validation-charts',
   standalone: true,
-  imports: [CommonModule, MatTabsModule, BaseChartDirective],
+  imports: [CommonModule, MatTabsModule, MatButtonModule, MatIconModule, MatTooltipModule, BaseChartDirective],
   templateUrl: './session-validation-charts.component.html',
   styleUrls: ['./session-validation-charts.component.scss'],
 })
 export class SessionValidationChartsComponent implements OnChanges {
   @Input() session!: Session;
+
+  @ViewChildren(BaseChartDirective) charts!: QueryList<BaseChartDirective>;
+
+  activeTab  = 0;
+  fullscreen = false;
 
   // ── Correlation ──────────────────────────────────────────────────────────
   corrData: any = { datasets: [] };
@@ -60,6 +70,29 @@ export class SessionValidationChartsComponent implements OnChanges {
       this._buildBA(fc, this.session.metrics);
     }
     this._buildZone(this.session.zones, this.session.fcmax);
+  }
+
+  toggleFullscreen(): void {
+    this.fullscreen = !this.fullscreen;
+    document.body.style.overflow = this.fullscreen ? 'hidden' : '';
+    setTimeout(() => this.charts.forEach(c => c.chart?.resize()), 50);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.fullscreen) this.toggleFullscreen();
+  }
+
+  download(): void {
+    const chartList = this.charts.toArray();
+    const canvas = chartList[this.activeTab]?.chart?.canvas;
+    if (!canvas) return;
+    const session = this.session;
+    const name = `${session?.device_name ?? 'session'}-${TAB_FILENAMES[this.activeTab]}.png`;
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = name;
+    a.click();
   }
 
   // ── Build correlation scatter ──────────────────────────────────────────────

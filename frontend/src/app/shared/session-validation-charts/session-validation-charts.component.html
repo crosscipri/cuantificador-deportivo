@@ -1,24 +1,42 @@
-<mat-tab-group class="validation-tabs" animationDuration="150ms">
+<div class="validation-wrap" [class.fullscreen]="fullscreen">
 
-  <!-- ── Correlación ─────────────────────────────────────────────── -->
-  <mat-tab label="Correlación">
-    <div class="chart-canvas-wrap">
-      <canvas baseChart [data]="corrData" [options]="corrOptions" type="scatter"></canvas>
+  <div class="chart-toolbar">
+    <span class="chart-title">Validación científica</span>
+    <div class="chart-actions">
+      <button mat-icon-button (click)="download()" matTooltip="Descargar gráfica actual (PNG)">
+        <mat-icon>download</mat-icon>
+      </button>
+      <button mat-icon-button (click)="toggleFullscreen()"
+              [matTooltip]="fullscreen ? 'Salir de pantalla completa (Esc)' : 'Ampliar'">
+        <mat-icon>{{ fullscreen ? 'close_fullscreen' : 'open_in_full' }}</mat-icon>
+      </button>
     </div>
-  </mat-tab>
+  </div>
 
-  <!-- ── Bland-Altman ────────────────────────────────────────────── -->
-  <mat-tab label="Bland-Altman">
-    <div class="chart-canvas-wrap">
-      <canvas baseChart [data]="baData" [options]="baOptions" type="scatter"></canvas>
-    </div>
-  </mat-tab>
+  <mat-tab-group class="validation-tabs" animationDuration="150ms"
+                 (selectedIndexChange)="activeTab = $event">
 
-  <!-- ── Error por zonas ─────────────────────────────────────────── -->
-  <mat-tab label="Error por zonas">
-    <div class="chart-canvas-wrap">
-      <canvas baseChart [data]="zoneData" [options]="zoneOptions" type="bar"></canvas>
-    </div>
-  </mat-tab>
+    <!-- ── Correlación ─────────────────────────────────────────────── -->
+    <mat-tab label="Correlación">
+      <div class="chart-canvas-wrap">
+        <canvas baseChart [data]="corrData" [options]="corrOptions" type="scatter"></canvas>
+      </div>
+    </mat-tab>
 
-</mat-tab-group>
+    <!-- ── Bland-Altman ────────────────────────────────────────────── -->
+    <mat-tab label="Bland-Altman">
+      <div class="chart-canvas-wrap">
+        <canvas baseChart [data]="baData" [options]="baOptions" type="scatter"></canvas>
+      </div>
+    </mat-tab>
+
+    <!-- ── Error por zonas ─────────────────────────────────────────── -->
+    <mat-tab label="Error por zonas">
+      <div class="chart-canvas-wrap">
+        <canvas baseChart [data]="zoneData" [options]="zoneOptions" type="bar"></canvas>
+      </div>
+    </mat-tab>
+
+  </mat-tab-group>
+
+</div>
