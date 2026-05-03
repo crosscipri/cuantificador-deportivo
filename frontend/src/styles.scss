@@ -1,141 +1,292 @@
-/* ──────────────────────────────────────────────────────
-   Global styles — light scientific theme
-   ────────────────────────────────────────────────────── */
+/* ─── El Cuantificador — Global Styles ─────────────────────────────
+   Clinical / medical aesthetic. Light only.
+   ────────────────────────────────────────────────────────────────── */
 
 @use '@angular/material' as mat;
-
 @include mat.core();
 
-$hr-primary: mat.define-palette(mat.$blue-palette, 700, 400, 900);
-$hr-accent:  mat.define-palette(mat.$orange-palette, 700, 400, 900);
-$hr-warn:    mat.define-palette(mat.$red-palette, 700);
+// ── Material theme — clinical blue ────────────────────────────────
+$ec-primary: mat.define-palette(mat.$blue-palette, 700, 400, 900);
+$ec-accent:  mat.define-palette(mat.$blue-palette, 500, 300, 700);
+$ec-warn:    mat.define-palette(mat.$red-palette, 700);
 
-$hr-theme: mat.define-light-theme((
-  color: (
-    primary: $hr-primary,
-    accent:  $hr-accent,
-    warn:    $hr-warn,
-  ),
-  typography: mat.define-typography-config($font-family: 'Inter, sans-serif'),
+$ec-theme: mat.define-light-theme((
+  color: (primary: $ec-primary, accent: $ec-accent, warn: $ec-warn),
+  typography: mat.define-typography-config($font-family: "'Inter Tight', 'Inter', system-ui, sans-serif"),
   density: 0,
 ));
+@include mat.all-component-themes($ec-theme);
 
-@include mat.all-component-themes($hr-theme);
+// ── Design tokens ─────────────────────────────────────────────────
+:root {
+  --bg:        oklch(98.8% 0.004 85);
+  --bg-sunk:   oklch(96.5% 0.005 85);
+  --surface:   #ffffff;
+  --surface-2: oklch(98% 0.004 85);
 
-// ── Base ──────────────────────────────────────────────
+  --ink:   oklch(22% 0.012 250);
+  --ink-2: oklch(38% 0.012 250);
+  --ink-3: oklch(55% 0.012 250);
+  --ink-4: oklch(72% 0.012 250);
+
+  --line:        oklch(92% 0.008 250);
+  --line-2:      oklch(86% 0.008 250);
+  --line-strong: oklch(78% 0.012 250);
+
+  --accent:      oklch(52% 0.14 240);
+  --accent-2:    oklch(62% 0.14 240);
+  --accent-soft: oklch(95% 0.04 240);
+  --accent-ink:  oklch(30% 0.12 240);
+
+  --good:        oklch(58% 0.13 155);
+  --good-soft:   oklch(96% 0.04 155);
+  --good-ink:    oklch(35% 0.12 155);
+
+  --warn:        oklch(70% 0.13 75);
+  --warn-soft:   oklch(96% 0.05 75);
+  --warn-ink:    oklch(45% 0.12 75);
+
+  --orange:      oklch(65% 0.16 45);
+  --orange-soft: oklch(96% 0.05 45);
+  --orange-ink:  oklch(45% 0.15 45);
+
+  --bad:         oklch(58% 0.18 25);
+  --bad-soft:    oklch(96% 0.05 25);
+  --bad-ink:     oklch(40% 0.16 25);
+
+  --z1: oklch(60% 0.10 240); --z1-soft: oklch(96% 0.03 240);
+  --z2: oklch(58% 0.13 155); --z2-soft: oklch(96% 0.04 155);
+  --z3: oklch(70% 0.13 75);  --z3-soft: oklch(96% 0.05 75);
+  --z4: oklch(65% 0.16 45);  --z4-soft: oklch(96% 0.05 45);
+  --z5: oklch(58% 0.18 25);  --z5-soft: oklch(96% 0.05 25);
+
+  --r-xs: 4px; --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+
+  --shadow-sm: 0 1px 0 oklch(85% 0.01 250 / 0.4), 0 1px 2px oklch(20% 0.01 250 / 0.04);
+  --shadow-md: 0 1px 0 oklch(85% 0.01 250 / 0.5), 0 4px 12px oklch(20% 0.01 250 / 0.06);
+  --shadow-lg: 0 1px 0 oklch(85% 0.01 250 / 0.5), 0 16px 40px oklch(20% 0.01 250 / 0.08);
+
+  --font-sans:    'Inter Tight', 'Inter', -apple-system, system-ui, sans-serif;
+  --font-display: 'Newsreader', 'Source Serif 4', Georgia, serif;
+  --font-mono:    'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+// ── Base reset ────────────────────────────────────────────────────
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
   height: 100%;
   margin: 0;
-  background: #f4f6fa;
-  color: #111827;
-  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'ss01', 'cv11';
 }
 
-// ── Scrollbar ─────────────────────────────────────────
+.num, td.num, .mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+// ── Scrollbar ─────────────────────────────────────────────────────
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f0f2f5; }
-::-webkit-scrollbar-thumb { background: #c4c9d4; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #a0a7b5; }
+::-webkit-scrollbar-track { background: var(--bg-sunk); }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-4); }
 
-// ── Material overrides ────────────────────────────────
+// ── Material overrides ────────────────────────────────────────────
 .mat-mdc-card {
-  background: #ffffff !important;
-  border: 1px solid #e2e5ec !important;
-  border-radius: 12px !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,.06) !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--r-md) !important;
+  box-shadow: var(--shadow-sm) !important;
 }
-
-.mat-mdc-dialog-container {
-  background: #ffffff !important;
-}
-
+.mat-mdc-dialog-container { background: var(--surface) !important; }
 .mat-mdc-snack-bar-container {
-  --mdc-snackbar-container-color: #1e293b;
-  --mdc-snackbar-supporting-text-color: #f1f5f9;
+  --mdc-snackbar-container-color: var(--ink);
+  --mdc-snackbar-supporting-text-color: var(--bg);
 }
 
-// ── Chip zone colours ─────────────────────────────────
-.zone-chip {
-  font-size: 11px;
+// ── Eyebrow ───────────────────────────────────────────────────────
+.eyebrow {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
-  display: inline-block;
+  color: var(--ink-3);
+  font-family: var(--font-sans);
 }
-.zone-z1 { background: rgba(37,99,235,.1);   color: #1d4ed8; }
-.zone-z2 { background: rgba(22,163,74,.12);  color: #15803d; }
-.zone-z3 { background: rgba(202,138,4,.14);  color: #92400e; }
-.zone-z4 { background: rgba(234,88,12,.12);  color: #c2410c; }
-.zone-z5 { background: rgba(220,38,38,.12);  color: #b91c1c; }
 
-// ── Metric badge ─────────────────────────────────────
+// ── Verdict block ──────────────────────────────────────────────────
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+
+  &.good   { border-left-color: var(--good); }
+  &.warn   { border-left-color: var(--warn); }
+  &.orange { border-left-color: var(--orange); }
+  &.bad    { border-left-color: var(--bad); }
+
+  .v-meta {
+    font-size: 10px;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+  }
+  .v-text {
+    font-family: var(--font-display);
+    font-size: 16px;
+    line-height: 1.45;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    margin: 0;
+
+    strong { font-weight: 500; }
+    span   { color: var(--ink-2); }
+  }
+}
+
+// ── Section header (§ style) ───────────────────────────────────────
+.section-header {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+  margin-top: 32px;
+
+  .section-inner {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .section-num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-4);
+  }
+  h2 {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .section-sub {
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+  .divider {
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+    margin-bottom: 4px;
+  }
+  .section-note {
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+}
+
+// ── Zone chips ─────────────────────────────────────────────────────
+.zone-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--r-xs);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+.zone-z1 { background: var(--z1-soft); color: var(--z1); }
+.zone-z2 { background: var(--z2-soft); color: var(--good-ink); }
+.zone-z3 { background: var(--z3-soft); color: var(--warn-ink); }
+.zone-z4 { background: var(--z4-soft); color: var(--orange-ink); }
+.zone-z5 { background: var(--z5-soft); color: var(--bad-ink); }
+
+// ── Metric badge ──────────────────────────────────────────────────
 .metric-badge {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 12px 16px;
-  border-radius: 10px;
-  background: #f8f9fc;
-  border: 1px solid #e2e5ec;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   min-width: 90px;
 
   .label {
     font-size: 10px;
     font-weight: 600;
-    color: #9ca3af;
+    color: var(--ink-3);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.08em;
     margin-bottom: 4px;
   }
-
   .value {
     font-size: 20px;
-    font-weight: 700;
-    color: #111827;
-    line-height: 1;
-  }
-
-  .unit {
-    font-size: 10px;
-    color: #9ca3af;
-    margin-top: 2px;
-  }
-
-  &.good   { border-color: rgba(22,163,74,.3);   background: rgba(22,163,74,.05);   .value { color: #16a34a; } }
-  &.warn   { border-color: rgba(217,119,6,.3);   background: rgba(217,119,6,.05);   .value { color: #d97706; } }
-  &.orange { border-color: rgba(234,88,12,.3);   background: rgba(234,88,12,.05);   .value { color: #ea580c; } }
-  &.bad    { border-color: rgba(220,38,38,.3);   background: rgba(220,38,38,.05);   .value { color: #dc2626; } }
-}
-
-// ── Section header ────────────────────────────────────
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-
-  h2 {
-    margin: 0;
-    font-size: 20px;
     font-weight: 600;
-    color: #111827;
+    color: var(--ink);
+    line-height: 1;
+    font-family: var(--font-mono);
   }
+  .unit { font-size: 10px; color: var(--ink-3); margin-top: 2px; }
 
-  .divider {
-    flex: 1;
-    height: 1px;
-    background: #e2e5ec;
-  }
+  &.good   { border-color: oklch(85% 0.06 155); background: var(--good-soft);   .value { color: var(--good-ink); } }
+  &.warn   { border-color: oklch(85% 0.06 75);  background: var(--warn-soft);   .value { color: var(--warn-ink); } }
+  &.orange { border-color: oklch(85% 0.07 45);  background: var(--orange-soft); .value { color: var(--orange-ink); } }
+  &.bad    { border-color: oklch(85% 0.07 25);  background: var(--bad-soft);    .value { color: var(--bad-ink); } }
 }
 
-// ── Loading overlay ───────────────────────────────────
+// ── Empty / loading states ─────────────────────────────────────────
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  gap: 16px;
+  color: var(--ink-3);
+  text-align: center;
+
+  mat-icon { font-size: 56px; height: 56px; width: 56px; opacity: 0.35; }
+  h3 { margin: 0; font-size: 18px; color: var(--ink-2); font-weight: 500; }
+  p  { margin: 0; font-size: 14px; max-width: 360px; }
+}
+
+.center-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 80px 0;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+// ── Loading overlay ───────────────────────────────────────────────
 .loading-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(248,249,251,.88);
+  background: oklch(98.8% 0.004 85 / 0.88);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -143,25 +294,5 @@ html, body {
   gap: 20px;
   z-index: 9999;
 
-  p {
-    color: #6b7280;
-    font-size: 15px;
-    margin: 0;
-  }
-}
-
-// ── Empty state ───────────────────────────────────────
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 64px 24px;
-  color: #9ca3af;
-  gap: 12px;
-  text-align: center;
-
-  mat-icon { font-size: 56px; height: 56px; width: 56px; }
-  h3 { margin: 0; font-size: 18px; color: #6b7280; }
-  p  { margin: 0; font-size: 14px; max-width: 360px; }
+  p { color: var(--ink-3); font-size: 15px; margin: 0; }
 }

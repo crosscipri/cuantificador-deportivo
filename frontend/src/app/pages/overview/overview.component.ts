@@ -11,31 +11,46 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { OverviewEntry, SportType, SPORT_TYPE_LABELS } from '../../models/session.model';
 
-// ── Colour thresholds ─────────────────────────────────────────────────────────
-function colorForR(r: number): string {
-  if (r >= 0.95) return '#16a34a';
-  if (r >= 0.90) return '#d97706';
-  if (r >= 0.80) return '#ea580c';
-  return '#dc2626';
+// ── Colour thresholds ─────────────────────────────────────────────
+export function colorForR(r: number): string {
+  if (r >= 0.95) return 'var(--good)';
+  if (r >= 0.90) return 'var(--warn)';
+  if (r >= 0.80) return 'var(--orange)';
+  return 'var(--bad)';
+}
+export function qualityR(r: number): string {
+  if (r >= 0.95) return 'good';
+  if (r >= 0.90) return 'warn';
+  if (r >= 0.80) return 'orange';
+  return 'bad';
+}
+export function qualityMAE(m: number): string {
+  if (m <= 3)  return 'good';
+  if (m <= 5)  return 'warn';
+  if (m <= 10) return 'orange';
+  return 'bad';
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────
 export interface LollipopItem {
   entry:   OverviewEntry;
   color:   string;
-  cx:      number;   // dot x pixel
-  cy:      number;   // dot y pixel
-  x0:      number;   // line start x pixel (chart origin)
-  labelX:  number;   // r-value label x
+  quality: string;
+  cx:      number;
+  cy:      number;
+  x0:      number;
+  labelX:  number;
 }
 
-// ── SVG layout constants ──────────────────────────────────────────────────────
-const ML = 190; // margin left  (device name area)
-const MR =  58; // margin right (r label + padding)
-const MT =  24; // margin top
-const MB =  52; // margin bottom (x-axis)
-const RH =  38; // row height
-const SW = 860; // SVG width (viewBox)
+export type VizMode = 'lollipop' | 'bars' | 'table';
+
+// ── SVG layout constants (design spec: rowH=56, ML=220, MR=90) ────
+const ML = 220; // margin left  (device name area)
+const MR =  90; // margin right (r label + padding)
+const MT =  30; // margin top
+const MB =  44; // margin bottom (x-axis)
+const RH =  56; // row height
+const SW = 860; // SVG viewBox width
 
 @Component({
   selector: 'app-overview',
@@ -57,16 +72,19 @@ export class OverviewComponent implements OnInit {
 
   entries: OverviewEntry[] = [];
 
-  // ── Chart state ─────────────────────────────────────────────────────────
-  items:     LollipopItem[] = [];
-  svgHeight  = 0;
-  xMin       = 0.3;
-  xMax       = 1.02;
-  xTicks:    number[] = [];
-  refLines:  { r: number; label: string; x: number }[] = [];
-  chartW     = SW - ML - MR;
+  // ── Chart state ──────────────────────────────────────────────────
+  items:    LollipopItem[] = [];
+  svgHeight = 0;
+  xMin      = 0.7;
+  xMax      = 1.0;
+  xTicks:   number[] = [];
+  refLines: { r: number; label: string; x: number }[] = [];
+  chartW    = SW - ML - MR;
 
-  // ── Tooltip ──────────────────────────────────────────────────────────────
+  // ── Viz switcher ─────────────────────────────────────────────────
+  viz: VizMode = 'lollipop';
+
+  // ── Tooltip ──────────────────────────────────────────────────────
   hovered: LollipopItem | null = null;
   tooltipX = 0;
   tooltipY = 0;
@@ -93,14 +111,14 @@ export class OverviewComponent implements OnInit {
     });
   }
 
-  // ── Private ───────────────────────────────────────────────────────────────
+  // ── Private ───────────────────────────────────────────────────────
   private _build(entries: OverviewEntry[]): void {
     if (!entries.length) return;
 
     const sorted = [...entries].sort((a, b) => a.r_global - b.r_global); // worst → best
 
     const minR = Math.min(...sorted.map(e => e.r_global));
-    this.xMin  = Math.max(0.25, Math.floor((minR - 0.05) * 20) / 20);
+    this.xMin  = Math.max(0.50, Math.floor((minR - 0.05) * 20) / 20);
     this.xMax  = 1.02;
 
     const range = this.xMax - this.xMin;
@@ -110,7 +128,7 @@ export class OverviewComponent implements OnInit {
     let t = Math.ceil(this.xMin * 20) / 20;
     while (t <= 1.0 + 1e-9) { this.xTicks.push(+t.toFixed(2)); t = +(t + 0.05).toFixed(2); }
 
-    // Reference lines
+    // Reference lines at 0.80, 0.90, 0.95
     this.refLines = [
       { r: 0.80, label: '0.80', x: this._xPx(0.80, range) },
       { r: 0.90, label: '0.90', x: this._xPx(0.90, range) },
@@ -119,19 +137,19 @@ export class OverviewComponent implements OnInit {
 
     this.svgHeight = sorted.length * RH + MT + MB;
 
-    const x0 = this._xPx(this.xMin, range); // chart left edge (always 0 px)
+    const x0 = this._xPx(this.xMin, range);
 
     this.items = sorted.map((entry, i) => {
-      // i=0 → bottom row, i=n-1 → top row
       const cy  = MT + (sorted.length - 1 - i) * RH + RH / 2;
       const cx  = this._xPx(entry.r_global, range);
       return {
         entry,
-        color:  colorForR(entry.r_global),
+        color:   colorForR(entry.r_global),
+        quality: qualityR(entry.r_global),
         cx,
         cy,
         x0,
-        labelX: cx + 9,
+        labelX: cx + 14,
       };
     });
   }
@@ -142,16 +160,30 @@ export class OverviewComponent implements OnInit {
 
   xTickPx(r: number): number { return this._xPx(r); }
 
-  // ── Tooltip handlers ──────────────────────────────────────────────────────
-  onLollipopEnter(event: MouseEvent, item: LollipopItem): void {
-    this.hovered  = item;
-    this._positionTooltip(event);
+  /** Sorted best-first (for bars + table views) */
+  get itemsBestFirst(): LollipopItem[] {
+    return [...this.items].reverse();
   }
 
+  /** Bar width as % (0–100) for the bars view */
+  barWidth(r: number): number {
+    const range = this.xMax - this.xMin;
+    return Math.max(0, (r - this.xMin) / range * 100);
+  }
+
+  /** Verdict for the #1 device */
+  get topItem(): LollipopItem | null {
+    return this.items.length ? this.items[this.items.length - 1] : null;
+  }
+
+  // ── Tooltip handlers ──────────────────────────────────────────────
+  onLollipopEnter(event: MouseEvent, item: LollipopItem): void {
+    this.hovered = item;
+    this._positionTooltip(event);
+  }
   onLollipopMove(event: MouseEvent): void {
     if (this.hovered) this._positionTooltip(event);
   }
-
   onLollipopLeave(): void { this.hovered = null; }
 
   private _positionTooltip(event: MouseEvent): void {
@@ -162,4 +194,6 @@ export class OverviewComponent implements OnInit {
 
   get refLabel(): string { return this.entries[0]?.reference_name ?? ''; }
   biasSign(v: number): string { return v > 0 ? '+' : ''; }
+  qualityMAEClass(v: number): string { return qualityMAE(v); }
+  qualityRClass(v: number): string { return qualityR(v); }
 }

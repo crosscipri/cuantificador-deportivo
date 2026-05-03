@@ -346,4 +346,55 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
   }
 
   biasSign(v: number): string { return v > 0 ? '+' : ''; }
+
+  // ── Custom tab state (replaces mat-tab-group) ──────────────────────
+  activeTabIndex = 0;
+
+  get activeSportTab(): SportTab | null {
+    return this.sportTabs[this.activeTabIndex] ?? null;
+  }
+
+  countSessions(tab: SportTab): number {
+    return tab.groups.reduce((sum, g) => sum + g.sessions.length, 0);
+  }
+
+  /** Natural-language verdict first sentence based on quality */
+  verdictStrong(score: WeightedScore): string {
+    const q = scoreQuality(score);
+    if (q === 'good')   return `Excelente precisión — r = ${score.r_global.toFixed(3)}.`;
+    if (q === 'warn')   return `Buena correlación — r = ${score.r_global.toFixed(3)}.`;
+    if (q === 'orange') return `Correlación moderada — r = ${score.r_global.toFixed(3)}.`;
+    return `Correlación baja — r = ${score.r_global.toFixed(3)}.`;
+  }
+
+  /** CSS class for a score metric value */
+  scoreQuality(value: number, kind: 'r' | 'mae'): string {
+    if (kind === 'r') {
+      if (value >= 0.95) return 'q-good';
+      if (value >= 0.90) return 'q-warn';
+      if (value >= 0.80) return 'q-orange';
+      return 'q-bad';
+    }
+    if (value <= 3)  return 'q-good';
+    if (value <= 5)  return 'q-warn';
+    if (value <= 10) return 'q-orange';
+    return 'q-bad';
+  }
+
+  /** Summary badges shown collapsed in group header */
+  groupBadges(group: SessionGroup): { label: string; value: string; quality: string }[] {
+    if (!group.sessions.length) return [];
+    const rs  = group.sessions.map(s => s.metrics?.r   ?? 0).filter(Boolean);
+    const maes = group.sessions.map(s => s.metrics?.mae ?? 0).filter(Boolean);
+    if (!rs.length) return [];
+    const avgR   = rs.reduce((a, b) => a + b, 0) / rs.length;
+    const avgMae = maes.length ? maes.reduce((a, b) => a + b, 0) / maes.length : null;
+    const badges: { label: string; value: string; quality: string }[] = [
+      { label: 'r', value: avgR.toFixed(3), quality: this.rBadge(avgR) },
+    ];
+    if (avgMae !== null) {
+      badges.push({ label: 'MAE', value: avgMae.toFixed(1), quality: this.maeBadge(avgMae) });
+    }
+    return badges;
+  }
 }

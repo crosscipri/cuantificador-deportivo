@@ -1,23 +1,26 @@
-<mat-toolbar class="app-toolbar">
-  <div class="toolbar-brand" routerLink="/devices">
-    <mat-icon class="brand-icon">favorite</mat-icon>
-    <span class="brand-name">HR <strong>Analyzer</strong></span>
-    <span class="brand-sub">Validador Científico de FC</span>
-  </div>
+<header class="ec-topbar">
+  <a class="brand-mark" routerLink="/devices">
+    <svg class="brand-glyph" viewBox="0 0 28 28" width="28" height="28" aria-hidden="true">
+      <circle cx="14" cy="14" r="12.5" fill="none" stroke="var(--ink)" stroke-width="1.4"/>
+      <path d="M5 14 L9 14 L11 9 L14 19 L17 11 L19 14 L23 14"
+            fill="none" stroke="var(--accent)" stroke-width="1.6"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="22" cy="22" r="2.2" fill="var(--ink)"/>
+    </svg>
+    <span class="brand-name">El&nbsp;<em>Cuantificador</em></span>
+  </a>
 
-  <span class="toolbar-spacer"></span>
+  <span class="topbar-sep"></span>
 
-  <nav class="toolbar-nav">
-    <a mat-button routerLink="/devices" routerLinkActive="active-link">
-      <mat-icon>devices</mat-icon>
-      <span>Dispositivos</span>
-    </a>
-    <a mat-button routerLink="/overview" routerLinkActive="active-link">
-      <mat-icon>leaderboard</mat-icon>
-      <span>Comparativa global</span>
-    </a>
+  <nav class="topbar-nav">
+    <a routerLink="/devices"  routerLinkActive="active">Dispositivos</a>
+    <a routerLink="/overview" routerLinkActive="active">Comparativa global</a>
   </nav>
-</mat-toolbar>
+
+  <span class="topbar-spacer"></span>
+  <span class="topbar-version">v0.4 · local</span>
+  <span class="topbar-avatar">EC</span>
+</header>
 
 <main class="app-content">
   <router-outlet></router-outlet>

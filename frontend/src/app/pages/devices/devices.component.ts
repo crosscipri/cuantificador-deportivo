@@ -131,4 +131,24 @@ export class DevicesComponent implements OnInit {
       error: () => this.snack.open('Error al eliminar', 'Cerrar', { duration: 3000 }),
     });
   }
+
+  /** Return 2-char uppercase initials from device name */
+  initials(name: string): string {
+    const words = name.trim().split(/\s+/);
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
+
+  /** Return formatted date of most recent session */
+  lastDate(dev: Device): string {
+    if (!dev.training_types.length) return '—';
+    const latest = dev.training_types
+      .map(t => t.last_date)
+      .filter(Boolean)
+      .sort()
+      .pop();
+    if (!latest) return '—';
+    const d = new Date(latest);
+    return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+  }
 }
