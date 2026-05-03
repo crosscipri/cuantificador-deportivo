@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
@@ -7,14 +7,16 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Subscription } from 'rxjs';
 
 import { ApiService } from '../../services/api.service';
 import { Device, Session, SportType, SessionDifficulty,
-         SPORT_TYPE_LABELS, DIFFICULTY_LABELS } from '../../models/session.model';
+         SPORT_TYPE_LABELS, DIFFICULTY_LABELS,
+         TRAINING_TYPES_BY_SPORT, SPORT_HAS_DIFFICULTY, GYM_DIFFICULTY,
+} from '../../models/session.model';
 import { ChartViewerComponent } from '../../shared/chart-viewer/chart-viewer.component';
 import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.component';
 
@@ -22,25 +24,16 @@ import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.
   selector: 'app-upload',
   standalone: true,
   imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    RouterModule,
-    MatCardModule,
-    MatButtonModule,
-    MatIconModule,
-    MatInputModule,
-    MatFormFieldModule,
-    MatAutocompleteModule,
-    MatSelectModule,
-    MatSnackBarModule,
-    MatProgressSpinnerModule,
-    ChartViewerComponent,
-    MetricsTableComponent,
+    CommonModule, ReactiveFormsModule, RouterModule,
+    MatCardModule, MatButtonModule, MatIconModule,
+    MatInputModule, MatFormFieldModule, MatSelectModule,
+    MatSnackBarModule, MatProgressSpinnerModule,
+    ChartViewerComponent, MetricsTableComponent,
   ],
   templateUrl: './upload.component.html',
   styleUrls: ['./upload.component.scss'],
 })
-export class UploadComponent implements OnInit {
+export class UploadComponent implements OnInit, OnDestroy {
   device: Device | null = null;
   deviceId = '';
 
@@ -51,14 +44,15 @@ export class UploadComponent implements OnInit {
     sessionName:       [''],
   });
 
-  readonly sportTypes   = Object.entries(SPORT_TYPE_LABELS)  as [SportType, string][];
-  readonly difficulties = Object.entries(DIFFICULTY_LABELS)  as [SessionDifficulty, string][];
+  readonly sportTypes   = Object.entries(SPORT_TYPE_LABELS) as [SportType, string][];
+  readonly difficulties = Object.entries(DIFFICULTY_LABELS) as [SessionDifficulty, string][];
 
   deviceFile:    File | null = null;
   referenceFile: File | null = null;
-
   loading = false;
   result: Session | null = null;
+
+  private sportSub!: Subscription;
 
   constructor(
     private fb: FormBuilder,
@@ -67,6 +61,20 @@ export class UploadComponent implements OnInit {
     private router: Router,
     private snack: MatSnackBar,
   ) {}
+
+  get isGym(): boolean {
+    return this.form.get('sportType')?.value === 'gym';
+  }
+
+  get hasDifficulty(): boolean {
+    const sport = this.form.get('sportType')?.value as SportType;
+    return sport ? SPORT_HAS_DIFFICULTY[sport] : true;
+  }
+
+  get availableTrainingTypes(): string[] {
+    const sport = this.form.get('sportType')?.value as SportType;
+    return sport ? TRAINING_TYPES_BY_SPORT[sport] : [];
+  }
 
   ngOnInit(): void {
     this.deviceId = this.route.snapshot.paramMap.get('deviceId') || '';
@@ -78,7 +86,18 @@ export class UploadComponent implements OnInit {
     } else {
       this.router.navigate(['/devices']);
     }
+
+    this.sportSub = this.form.get('sportType')!.valueChanges.subscribe(sport => {
+      this.form.get('trainingType')!.reset('');
+      if (sport === 'gym') {
+        this.form.get('sessionDifficulty')!.setValue(GYM_DIFFICULTY);
+      } else {
+        this.form.get('sessionDifficulty')!.reset(null);
+      }
+    });
   }
+
+  ngOnDestroy(): void { this.sportSub?.unsubscribe(); }
 
   onDeviceFile(e: Event): void {
     const f = (e.target as HTMLInputElement).files?.[0];
@@ -104,10 +123,6 @@ export class UploadComponent implements OnInit {
     return this.form.valid && !!this.deviceFile && !!this.referenceFile && !this.loading;
   }
 
-  get existingTypes(): string[] {
-    return (this.device?.training_types ?? []).map(t => t.name);
-  }
-
   submit(): void {
     if (!this.canSubmit() || !this.device) return;
     const v = this.form.value;
@@ -130,8 +145,7 @@ export class UploadComponent implements OnInit {
       },
       error: err => {
         this.loading = false;
-        const msg = err.error?.detail || 'Error al procesar los archivos';
-        this.snack.open(msg, 'Cerrar', { duration: 5000 });
+        this.snack.open(err.error?.detail || 'Error al procesar los archivos', 'Cerrar', { duration: 5000 });
       },
     });
   }

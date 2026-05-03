@@ -46,7 +46,7 @@
             <mat-error>Campo obligatorio</mat-error>
           </mat-form-field>
 
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="outline" *ngIf="uploadHasDifficulty">
             <mat-label>Dificultad / Intensidad *</mat-label>
             <mat-select formControlName="sessionDifficulty">
               <mat-option *ngFor="let d of difficulties" [value]="d[0]">{{ d[1] }}</mat-option>
@@ -59,12 +59,11 @@
         <div class="row-two">
           <mat-form-field appearance="outline">
             <mat-label>Tipo de entrenamiento *</mat-label>
-            <input matInput formControlName="trainingType" placeholder="Rodaje suave, Fondo largo…"
-              [matAutocomplete]="auto">
+            <mat-select formControlName="trainingType">
+              <mat-option *ngFor="let t of uploadAvailableTrainingTypes" [value]="t">{{ t }}</mat-option>
+            </mat-select>
             <mat-icon matPrefix>sports_score</mat-icon>
-            <mat-autocomplete #auto="matAutocomplete">
-              <mat-option *ngFor="let t of existingTypes" [value]="t">{{ t }}</mat-option>
-            </mat-autocomplete>
+            <mat-hint *ngIf="!uploadForm.get('sportType')?.value">Selecciona primero el deporte</mat-hint>
             <mat-error>Campo obligatorio</mat-error>
           </mat-form-field>
 
@@ -132,8 +131,9 @@
       <div class="score-card" *ngIf="tab.score; else noScore" [ngClass]="tab.scoreQuality!">
         <div class="score-title">
           <mat-icon>emoji_events</mat-icon>
-          Score global — {{ tab.label }}
-          <span class="score-sessions">{{ tab.score.n_sessions }} sesion{{ tab.score.n_sessions !== 1 ? 'es' : '' }} con datos completos</span>
+          Puntuación global — {{ tab.label }}
+          <span class="score-sessions">{{ tab.score.n_sessions }} sesion{{ tab.score.n_sessions !== 1 ? 'es' : '' }} con
+            datos completos</span>
         </div>
         <div class="score-metrics">
           <div class="score-metric">
@@ -148,8 +148,10 @@
           </div>
           <div class="score-metric">
             <span class="sm-label">Bias global</span>
-            <span class="sm-value">{{ biasSign(tab.score.bias_global) }}{{ tab.score.bias_global | number:'1.1-1' }} bpm</span>
-            <span class="sm-hint">{{ tab.score.bias_global > 0 ? 'sobreestima' : tab.score.bias_global < 0 ? 'subestima' : 'sin bias' }}</span>
+            <span class="sm-value">{{ biasSign(tab.score.bias_global) }}{{ tab.score.bias_global | number:'1.1-1' }}
+              bpm</span>
+            <span class="sm-hint">{{ tab.score.bias_global > 0 ? 'sobreestima' : tab.score.bias_global < 0 ? 'subestima'
+                : 'sin bias' }}</span>
           </div>
         </div>
       </div>
@@ -172,13 +174,8 @@
         <div class="group-header" (click)="group.expanded = !group.expanded">
           <div class="group-title">
             <mat-icon>{{ group.expanded ? 'expand_less' : 'expand_more' }}</mat-icon>
-            <h2>{{ group.type }}</h2>
+            <h2>{{ groupLabel(tab.sportType, group.type) }}</h2>
             <span class="session-count">{{ group.sessions.length }} sesión{{ group.sessions.length !== 1 ? 'es' : '' }}</span>
-            <ng-container *ngIf="getTypeStats(group.type) as ts">
-              <span *ngIf="ts.avg_mae != null" class="badge" [ngClass]="maeBadge(ts.avg_mae!)">
-                MAE {{ ts.avg_mae }}
-              </span>
-            </ng-container>
           </div>
           <button mat-flat-button color="accent" class="aggregate-btn"
             (click)="$event.stopPropagation(); runAggregate(group)"
@@ -226,7 +223,7 @@
           <!-- Aggregate result -->
           <div class="aggregate-result" *ngIf="group.aggregate">
             <div class="section-header">
-              <h3>Análisis agregado — {{ group.type }}</h3>
+              <h3>Análisis agregado — {{ groupLabel(tab.sportType, group.type) }}</h3>
               <span class="agg-meta">{{ group.aggregate.n_sessions }} sesiones · {{ group.aggregate.total_samples | number }} muestras</span>
               <div class="divider"></div>
             </div>

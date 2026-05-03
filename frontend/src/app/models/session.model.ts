@@ -81,6 +81,45 @@ export const DIFFICULTY_LABELS: Record<SessionDifficulty, string> = {
   series: 'Series / Intervalos',
 };
 
+/** Default difficulty assigned automatically to gym sessions (no selector shown). */
+export const GYM_DIFFICULTY: SessionDifficulty = 'z2';
+
+/** Sports that require the user to pick a difficulty. Gym uses GYM_DIFFICULTY by default. */
+export const SPORT_HAS_DIFFICULTY: Record<SportType, boolean> = {
+  running: true,
+  cycling: true,
+  gym:     false,
+};
+
+export const TRAINING_TYPES_BY_SPORT: Record<SportType, string[]> = {
+  running: [
+    'Regenerativo',
+    'Rodaje suave',
+    'Fondo largo',
+    'Progresivo',
+    'Tempo / Umbral',
+    'Fartlek',
+    'Series cortas',
+    'Series largas',
+    'Cross / Trail',
+  ],
+  cycling: [
+    'Rodaje suave',
+    'Fondo largo',
+    'Sweet spot',
+    'Tempo / Umbral',
+    'Subida',
+    'Intervalos VO2max',
+    'Sprints / Potencia',
+  ],
+  gym: [
+    'Cardio máquina',
+    'HIIT',
+    'Circuito funcional',
+    'Fuerza + cardio',
+  ],
+};
+
 export interface Session {
   id: string;
   device_id: string;

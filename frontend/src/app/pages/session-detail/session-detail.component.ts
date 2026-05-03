@@ -16,7 +16,9 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { ApiService } from '../../services/api.service';
 import { Session, metricQuality, SportType, SessionDifficulty,
-         SPORT_TYPE_LABELS, DIFFICULTY_LABELS } from '../../models/session.model';
+         SPORT_TYPE_LABELS, DIFFICULTY_LABELS,
+         TRAINING_TYPES_BY_SPORT, SPORT_HAS_DIFFICULTY, GYM_DIFFICULTY,
+} from '../../models/session.model';
 import { ChartViewerComponent } from '../../shared/chart-viewer/chart-viewer.component';
 import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.component';
 import { FcTemporalChartComponent } from '../../shared/fc-temporal-chart/fc-temporal-chart.component';
@@ -70,8 +72,18 @@ export class SessionDetailComponent implements OnInit {
   readonly sportTypes   = Object.entries(SPORT_TYPE_LABELS) as [SportType, string][];
   readonly difficulties = Object.entries(DIFFICULTY_LABELS) as [SessionDifficulty, string][];
 
-  readonly sportLabel       = SPORT_TYPE_LABELS;
-  readonly difficultyLabel  = DIFFICULTY_LABELS;
+  readonly sportLabel      = SPORT_TYPE_LABELS;
+  readonly difficultyLabel = DIFFICULTY_LABELS;
+
+  get editHasDifficulty(): boolean {
+    const sport = this.editForm.get('sport_type')?.value as SportType;
+    return sport ? SPORT_HAS_DIFFICULTY[sport] : true;
+  }
+
+  get editAvailableTrainingTypes(): string[] {
+    const sport = this.editForm.get('sport_type')?.value as SportType;
+    return sport ? TRAINING_TYPES_BY_SPORT[sport] : [];
+  }
 
   constructor(
     private route: ActivatedRoute,
@@ -99,6 +111,14 @@ export class SessionDetailComponent implements OnInit {
       session_difficulty: this.session.session_difficulty ?? '' as SessionDifficulty,
     });
     this.editing = true;
+    this.sportSub = this.editForm.get('sport_type')!.valueChanges.subscribe(sport => {
+      this.editForm.get('training_type')!.reset('');
+      if (sport === 'gym') {
+        this.editForm.get('session_difficulty')!.setValue(GYM_DIFFICULTY);
+      } else {
+        this.editForm.get('session_difficulty')!.reset(null);
+      }
+    });
   }
 
   cancelEdit(): void {

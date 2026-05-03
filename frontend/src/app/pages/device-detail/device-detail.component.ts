@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
@@ -20,6 +21,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { ApiService } from '../../services/api.service';
 import { Device, Session, AggregateResult, SportType, SessionDifficulty,
          SPORT_TYPE_LABELS, DIFFICULTY_LABELS,
+         TRAINING_TYPES_BY_SPORT, SPORT_HAS_DIFFICULTY, GYM_DIFFICULTY,
          WeightedScore, computeWeightedScore, scoreQuality,
          MetricQuality } from '../../models/session.model';
 import { ChartViewerComponent } from '../../shared/chart-viewer/chart-viewer.component';
@@ -63,7 +65,7 @@ const SPORT_ICONS: Record<SportType, string> = {
   templateUrl: './device-detail.component.html',
   styleUrls: ['./device-detail.component.scss'],
 })
-export class DeviceDetailComponent implements OnInit {
+export class DeviceDetailComponent implements OnInit, OnDestroy {
   device: Device | null = null;
   deviceId = '';
   sportTabs: SportTab[] = [];
@@ -80,8 +82,21 @@ export class DeviceDetailComponent implements OnInit {
   referenceFile: File | null = null;
   uploading = false;
 
-  readonly sportTypes = Object.entries(SPORT_TYPE_LABELS) as [SportType, string][];
+  readonly sportTypes   = Object.entries(SPORT_TYPE_LABELS) as [SportType, string][];
   readonly difficulties = Object.entries(DIFFICULTY_LABELS) as [SessionDifficulty, string][];
+  readonly difficultyLabels = DIFFICULTY_LABELS;
+
+  private sportSub?: Subscription;
+
+  get uploadHasDifficulty(): boolean {
+    const sport = this.uploadForm.get('sportType')?.value as SportType;
+    return sport ? SPORT_HAS_DIFFICULTY[sport] : true;
+  }
+
+  get uploadAvailableTrainingTypes(): string[] {
+    const sport = this.uploadForm.get('sportType')?.value as SportType;
+    return sport ? TRAINING_TYPES_BY_SPORT[sport] : [];
+  }
 
   constructor(
     private route: ActivatedRoute,
@@ -95,7 +110,18 @@ export class DeviceDetailComponent implements OnInit {
     this.deviceId = this.route.snapshot.paramMap.get('deviceId') || '';
     if (!this.deviceId) { this.router.navigate(['/devices']); return; }
     this.loadDevice();
+
+    this.sportSub = this.uploadForm.get('sportType')!.valueChanges.subscribe(sport => {
+      this.uploadForm.get('trainingType')!.reset('');
+      if (sport === 'gym') {
+        this.uploadForm.get('sessionDifficulty')!.setValue(GYM_DIFFICULTY);
+      } else {
+        this.uploadForm.get('sessionDifficulty')!.reset(null);
+      }
+    });
   }
+
+  ngOnDestroy(): void { this.sportSub?.unsubscribe(); }
 
   loadDevice(): void {
     this.loading = true;
@@ -130,16 +156,26 @@ export class DeviceDetailComponent implements OnInit {
     this.sportTabs = sportOrder.map(sport => {
       const sportSessions = sessions.filter(s => s.sport_type === sport);
 
-      // Group by training_type within this sport
+      // Running groups by session_difficulty; others by training_type
+      const groupKey = (s: Session) =>
+        sport === 'running' ? (s.session_difficulty ?? 'z2') : s.training_type;
+
       const typeMap = new Map<string, Session[]>();
       for (const s of sportSessions) {
-        if (!typeMap.has(s.training_type)) typeMap.set(s.training_type, []);
-        typeMap.get(s.training_type)!.push(s);
+        const k = groupKey(s);
+        if (!typeMap.has(k)) typeMap.set(k, []);
+        typeMap.get(k)!.push(s);
       }
 
-      const groups: SessionGroup[] = Array.from(typeMap.entries()).map(([type, sList]) => {
-        const key  = `${sport}::${type}`;
-        const prev = existingGroupMap.get(key);
+      // For running, enforce difficulty order
+      const orderedKeys = sport === 'running'
+        ? (['z2', 'tempo', 'series'] as SessionDifficulty[]).filter(k => typeMap.has(k))
+        : Array.from(typeMap.keys());
+
+      const groups: SessionGroup[] = orderedKeys.map(type => {
+        const sList = typeMap.get(type)!;
+        const key   = `${sport}::${type}`;
+        const prev  = existingGroupMap.get(key);
         return {
           type,
           sessions:         sList,
@@ -162,8 +198,12 @@ export class DeviceDetailComponent implements OnInit {
     });
   }
 
-  get existingTypes(): string[] {
-    return this.device?.training_types.map(t => t.name) ?? [];
+  /** Display label for a session group header. */
+  groupLabel(sport: SportType, type: string): string {
+    if (sport === 'running') {
+      return DIFFICULTY_LABELS[type as SessionDifficulty] ?? type;
+    }
+    return type;
   }
 
   // ── Upload ────────────────────────────────────────────────────────────────

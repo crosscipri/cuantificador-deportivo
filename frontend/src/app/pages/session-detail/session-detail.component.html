@@ -99,7 +99,7 @@
               <mat-error>Campo obligatorio</mat-error>
             </mat-form-field>
 
-            <mat-form-field appearance="outline">
+            <mat-form-field appearance="outline" *ngIf="editHasDifficulty">
               <mat-label>Dificultad / Intensidad *</mat-label>
               <mat-select formControlName="session_difficulty">
                 <mat-option *ngFor="let d of difficulties" [value]="d[0]">{{ d[1] }}</mat-option>
@@ -112,8 +112,11 @@
           <div class="row-two">
             <mat-form-field appearance="outline">
               <mat-label>Tipo de entrenamiento *</mat-label>
-              <input matInput formControlName="training_type" placeholder="Rodaje suave, Fondo largo…">
+              <mat-select formControlName="training_type">
+                <mat-option *ngFor="let t of editAvailableTrainingTypes" [value]="t">{{ t }}</mat-option>
+              </mat-select>
               <mat-icon matPrefix>sports_score</mat-icon>
+              <mat-hint *ngIf="!editForm.get('sport_type')?.value">Selecciona primero el deporte</mat-hint>
               <mat-error>Campo obligatorio</mat-error>
             </mat-form-field>
 
