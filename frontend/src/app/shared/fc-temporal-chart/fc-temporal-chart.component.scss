@@ -57,6 +57,11 @@
     button[mat-icon-button] {
       width: 32px;
       height: 32px;
+      line-height: 32px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       color: #9ca3af;
       &:hover { color: #374151; }
     }
