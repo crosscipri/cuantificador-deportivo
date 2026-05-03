@@ -2,8 +2,10 @@
   max-width: 1100px;
   margin: 0 auto;
   padding: 32px 24px 48px;
+  position: relative;   // needed for tooltip positioning
 }
 
+// ── Header ────────────────────────────────────────────────────────────────────
 .page-header {
   display: flex;
   align-items: flex-start;
@@ -11,12 +13,13 @@
   margin-bottom: 28px;
   gap: 16px;
 
-  h1 { margin: 0 0 4px; font-size: 1.8rem; color: #111827; }
+  h1        { margin: 0 0 4px; font-size: 1.8rem; color: #111827; }
   .subtitle { margin: 0; color: #6b7280; font-size: 0.9rem; }
 }
 
 .sport-selector { margin-bottom: 24px; }
 
+// ── Stats row ─────────────────────────────────────────────────────────────────
 .stats-row {
   display: flex;
   gap: 10px;
@@ -41,75 +44,144 @@
 
 .legend-chip {
   gap: 5px;
-  .dot {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   &.good   .dot { background: #16a34a; }
   &.warn   .dot { background: #d97706; }
   &.orange .dot { background: #ea580c; }
   &.bad    .dot { background: #dc2626; }
 }
 
+// ── Chart card ────────────────────────────────────────────────────────────────
 .chart-card {
   box-shadow: 0 1px 4px rgba(0,0,0,.05) !important;
   border: 1px solid #e2e5ec !important;
   border-radius: 12px !important;
+  overflow: visible !important;
 }
 
-.chart-canvas-wrap {
-  position: relative;
+.svg-wrap {
   width: 100%;
-  height: 420px;
+  overflow-x: auto;    // allow horizontal scroll on small screens
+}
 
-  // ngx-charts overrides
-  ::ng-deep {
-    .ngx-charts { font-family: inherit; }
-    .refline-label { font-size: 10px !important; }
-    .bar { transition: opacity 0.15s; }
-    .bar:hover { opacity: 0.85; }
-    .x.axis .tick text { font-size: 11px; font-weight: 600; fill: #111827; }
-    .y.axis .tick text { font-size: 10px; fill: #6b7280; }
-    .axis-label text { font-size: 11px !important; fill: #6b7280 !important; }
-    .gridline-path { stroke: #e5e8ef !important; }
+// ── SVG elements ──────────────────────────────────────────────────────────────
+svg {
+  display: block;
+  min-width: 540px;    // prevent extreme compression
+}
+
+.ref-line {
+  stroke: #d1d5db;
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.ref-label {
+  font-size: 10px;
+  fill: #9ca3af;
+  font-family: 'Courier New', monospace;
+}
+
+.axis-line {
+  stroke: #9ca3af;
+  stroke-width: 1.2;
+}
+
+.tick-line {
+  stroke: #9ca3af;
+  stroke-width: 1;
+}
+
+.tick-label {
+  font-size: 11px;
+  fill: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+
+.axis-label {
+  font-size: 11px;
+  fill: #6b7280;
+  font-family: inherit;
+}
+
+.device-name {
+  font-size: 12px;
+  fill: #374151;
+  font-weight: 500;
+}
+
+.track-line {
+  stroke: #e5e7eb;
+  stroke-width: 1;
+}
+
+.stem-line {
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.dot-circle {
+  stroke: #ffffff;
+  stroke-width: 1.5;
+  transition: r 0.15s;
+}
+
+.lollipop-row {
+  cursor: pointer;
+
+  &:hover {
+    .device-name { fill: #111827; font-weight: 600; }
+    .dot-circle  { r: 8; }
+    .stem-line   { stroke-width: 3.5; }
   }
 }
 
-// Custom tooltip
-.ngx-tooltip-custom {
-  padding: 12px 14px;
-  min-width: 180px;
+.r-label {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+// ── Floating tooltip ──────────────────────────────────────────────────────────
+.lollipop-tooltip {
+  position: absolute;
+  z-index: 1000;
+  background: #ffffff;
+  border: 1px solid #e2e5ec;
+  border-radius: 10px;
+  padding: 12px 16px;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  pointer-events: none;
+  animation: tt-in 0.1s ease;
 
   .tt-title {
     font-size: 13px;
     font-weight: 600;
     color: #111827;
     margin-bottom: 8px;
-    border-bottom: 1px solid #f3f4f6;
     padding-bottom: 6px;
+    border-bottom: 1px solid #f3f4f6;
   }
 
   .tt-row {
     display: flex;
     justify-content: space-between;
-    gap: 16px;
+    gap: 20px;
     font-size: 12px;
-    color: #374151;
     margin-top: 4px;
   }
 
   .tt-key { color: #6b7280; }
-  .tt-val { font-weight: 500; font-variant-numeric: tabular-nums; }
+  .tt-val { font-weight: 500; font-variant-numeric: tabular-nums; color: #111827; }
 }
 
-.chart-hint {
-  margin: 12px 0 0;
-  font-size: 11px;
-  color: #9ca3af;
-  text-align: center;
+@keyframes tt-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
+// ── Empty / loading states ────────────────────────────────────────────────────
 .empty-state {
   display: flex;
   flex-direction: column;

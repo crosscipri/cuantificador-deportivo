@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
@@ -50,7 +51,7 @@ import { SessionValidationChartsComponent } from '../../shared/session-validatio
   templateUrl: './session-detail.component.html',
   styleUrls: ['./session-detail.component.scss'],
 })
-export class SessionDetailComponent implements OnInit {
+export class SessionDetailComponent implements OnInit, OnDestroy {
   session: Session | null = null;
   loading = true;
   error   = '';
@@ -61,6 +62,7 @@ export class SessionDetailComponent implements OnInit {
 
   editing     = false;
   saving      = false;
+  private sportSub?: Subscription;
   reanalyzing = false;
   editForm = this.fb.group({
     session_name:       [''],
@@ -120,6 +122,8 @@ export class SessionDetailComponent implements OnInit {
       }
     });
   }
+
+  ngOnDestroy(): void { this.sportSub?.unsubscribe(); }
 
   cancelEdit(): void {
     this.editing = false;
