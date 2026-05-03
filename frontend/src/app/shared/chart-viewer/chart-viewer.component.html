@@ -28,16 +28,54 @@
     <div class="lb-toolbar">
       <span class="lb-title">{{ title }}</span>
       <div class="lb-controls">
-        <button mat-icon-button matTooltip="Reducir" (click)="zoomOut()">
-          <mat-icon>remove</mat-icon>
-        </button>
-        <button class="zoom-badge" mat-button (click)="resetView()" matTooltip="Restablecer vista">
-          {{ (zoom() * 100).toFixed(0) }}%
-        </button>
-        <button mat-icon-button matTooltip="Ampliar" (click)="zoomIn()">
-          <mat-icon>add</mat-icon>
+
+        <!-- Zoom controls — hidden when drawing -->
+        <ng-container *ngIf="!drawingMode">
+          <button mat-icon-button matTooltip="Reducir" (click)="zoomOut()">
+            <mat-icon>remove</mat-icon>
+          </button>
+          <button class="zoom-badge" mat-button (click)="resetView()" matTooltip="Restablecer vista">
+            {{ (zoom() * 100).toFixed(0) }}%
+          </button>
+          <button mat-icon-button matTooltip="Ampliar" (click)="zoomIn()">
+            <mat-icon>add</mat-icon>
+          </button>
+          <div class="lb-divider"></div>
+        </ng-container>
+
+        <!-- Drawing tools — visible when drawing -->
+        <ng-container *ngIf="drawingMode">
+          <button mat-icon-button matTooltip="Limpiar anotaciones" (click)="clearDrawing()">
+            <mat-icon>delete_sweep</mat-icon>
+          </button>
+          <button mat-icon-button
+                  [class.lb-tool-active]="drawTool === 'eraser'"
+                  matTooltip="Goma de borrar"
+                  (click)="drawTool = drawTool === 'eraser' ? 'pen' : 'eraser'">
+            <mat-icon>ink_eraser</mat-icon>
+          </button>
+          <button mat-icon-button
+                  *ngFor="let s of STROKES"
+                  (click)="drawStroke = s; drawTool = 'pen'"
+                  [matTooltip]="'Grosor ' + s + 'px'"
+                  [style.color]="drawStroke === s && drawTool === 'pen' ? drawColor : null">
+            <mat-icon [style.font-size.px]="8 + s">lens</mat-icon>
+          </button>
+          <label class="lb-color-btn" matTooltip="Color" [style.background]="drawColor">
+            <input type="color" [value]="drawColor" (input)="setColor($event)">
+          </label>
+          <div class="lb-divider"></div>
+        </ng-container>
+
+        <!-- Draw toggle -->
+        <button mat-icon-button
+                [class.lb-tool-active]="drawingMode"
+                [matTooltip]="drawingMode ? 'Desactivar dibujo' : 'Dibujar sobre la gráfica'"
+                (click)="drawingMode = !drawingMode; drawTool = 'pen'">
+          <mat-icon>{{ drawingMode ? 'edit_off' : 'edit' }}</mat-icon>
         </button>
         <div class="lb-divider"></div>
+
         <button mat-icon-button matTooltip="Descargar PNG" (click)="download()">
           <mat-icon>download</mat-icon>
         </button>
@@ -59,11 +97,18 @@
            class="lb-img"
            [style.transform]="transformStyle"
            draggable="false">
+      <app-drawing-canvas
+        [enabled]="drawingMode"
+        [color]="drawColor"
+        [strokeWidth]="drawStroke"
+        [tool]="drawTool">
+      </app-drawing-canvas>
     </div>
 
     <!-- Bottom hint -->
     <div class="lb-hint">
-      Rueda del ratón para hacer zoom · Arrastra para mover · ESC para cerrar
+      <span *ngIf="!drawingMode">Rueda del ratón para hacer zoom · Arrastra para mover · ESC para cerrar</span>
+      <span *ngIf="drawingMode">Modo dibujo activo · Haz clic en <strong>edit_off</strong> para volver al zoom/pan · ESC para cerrar</span>
     </div>
   </div>
 </div>

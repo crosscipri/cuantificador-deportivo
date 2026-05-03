@@ -6,6 +6,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { BaseChartDirective } from 'ng2-charts';
 import type { ChartConfiguration, ChartOptions } from 'chart.js';
 import { FcData } from '../../models/session.model';
+import { DrawingCanvasComponent, DrawTool } from '../drawing-canvas/drawing-canvas.component';
 
 function secToMmss(sec: number): string {
   const h = Math.floor(sec / 3600);
@@ -18,7 +19,8 @@ function secToMmss(sec: number): string {
 @Component({
   selector: 'app-fc-temporal-chart',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule, MatTooltipModule, BaseChartDirective],
+  imports: [CommonModule, MatButtonModule, MatIconModule, MatTooltipModule,
+            BaseChartDirective, DrawingCanvasComponent],
   templateUrl: './fc-temporal-chart.component.html',
   styleUrls: ['./fc-temporal-chart.component.scss'],
 })
@@ -27,10 +29,17 @@ export class FcTemporalChartComponent implements OnChanges {
   @Input() refName = 'Referencia';
   @Input() devName = 'Dispositivo';
 
-  @ViewChild(BaseChartDirective) chartRef?: BaseChartDirective;
+  @ViewChild(BaseChartDirective)   chartRef?:   BaseChartDirective;
+  @ViewChild(DrawingCanvasComponent) drawCanvas?: DrawingCanvasComponent;
 
   chartData: ChartConfiguration<'line'>['data'] = { datasets: [] };
-  fullscreen = false;
+  fullscreen   = false;
+  drawingMode  = false;
+  drawColor    = '#e53e3e';
+  drawStroke   = 3;
+  drawTool: DrawTool = 'pen';
+
+  readonly STROKES = [2, 5, 10];
 
   readonly chartOptions: ChartOptions<'line'> = {
     responsive: true,
@@ -109,22 +118,29 @@ export class FcTemporalChartComponent implements OnChanges {
 
   toggleFullscreen(): void {
     this.fullscreen = !this.fullscreen;
+    if (!this.fullscreen) this.drawingMode = false;
     document.body.style.overflow = this.fullscreen ? 'hidden' : '';
-    // Allow chart to resize after layout change
     setTimeout(() => this.chartRef?.chart?.resize(), 50);
   }
 
   @HostListener('document:keydown.escape')
-  onEscape(): void {
-    if (this.fullscreen) this.toggleFullscreen();
-  }
+  onEscape(): void { if (this.fullscreen) this.toggleFullscreen(); }
 
   download(): void {
-    const canvas = this.chartRef?.chart?.canvas;
-    if (!canvas) return;
+    const chartCanvas = this.chartRef?.chart?.canvas;
+    if (!chartCanvas) return;
+    const dataUrl = this.drawCanvas
+      ? this.drawCanvas.composite(chartCanvas)
+      : chartCanvas.toDataURL('image/png');
     const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
+    a.href     = dataUrl;
     a.download = `${this.devName}-vs-${this.refName}-fc-temporal.png`;
     a.click();
   }
+
+  setColor(e: Event): void {
+    this.drawColor = (e.target as HTMLInputElement).value;
+  }
+
+  clearDrawing(): void { this.drawCanvas?.clear(); }
 }

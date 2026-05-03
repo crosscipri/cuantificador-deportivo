@@ -179,6 +179,38 @@
     &:hover { color: #e5e7eb; background: rgba(255,255,255,.1); }
   }
 
+  .lb-tool-active {
+    color: #60a5fa !important;
+    background: rgba(96,165,250,.15) !important;
+    border-radius: 6px;
+  }
+
+  .lb-color-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.25);
+    cursor: pointer;
+    flex-shrink: 0;
+    display: inline-block;
+    overflow: hidden;
+    position: relative;
+    margin: 0 4px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    &:hover { transform: scale(1.15); box-shadow: 0 0 0 2px #60a5fa88; }
+
+    input[type=color] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      border: none;
+      padding: 0;
+    }
+  }
+
   .lb-divider {
     width: 1px;
     height: 22px;
@@ -191,6 +223,7 @@
 .lb-canvas {
   flex: 1;
   overflow: hidden;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;

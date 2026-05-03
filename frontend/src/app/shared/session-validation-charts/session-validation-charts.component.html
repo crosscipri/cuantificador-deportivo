@@ -3,6 +3,39 @@
   <div class="chart-toolbar">
     <span class="chart-title">Validación científica</span>
     <div class="chart-actions">
+
+      <!-- Drawing tools — only in fullscreen -->
+      <ng-container *ngIf="fullscreen">
+        <button mat-icon-button (click)="clearDrawing()" matTooltip="Limpiar anotaciones" *ngIf="drawingMode">
+          <mat-icon>delete_sweep</mat-icon>
+        </button>
+        <button mat-icon-button
+                [class.tool-active]="drawingMode && drawTool==='eraser'"
+                (click)="drawTool = drawTool === 'eraser' ? 'pen' : 'eraser'"
+                matTooltip="Goma de borrar"
+                *ngIf="drawingMode">
+          <mat-icon>ink_eraser</mat-icon>
+        </button>
+        <button mat-icon-button
+                *ngFor="let s of STROKES"
+                (click)="drawStroke = s; drawTool = 'pen'"
+                [matTooltip]="'Grosor ' + s + 'px'"
+                [style.color]="drawingMode && drawStroke===s && drawTool==='pen' ? drawColor : null">
+          <mat-icon [style.font-size.px]="8 + s">lens</mat-icon>
+        </button>
+        <label class="color-btn" matTooltip="Color" [style.background]="drawColor">
+          <input type="color" [value]="drawColor" (input)="setColor($event)">
+        </label>
+        <div class="toolbar-sep"></div>
+        <button mat-icon-button
+                [class.tool-active]="drawingMode"
+                (click)="drawingMode = !drawingMode; drawTool = 'pen'"
+                [matTooltip]="drawingMode ? 'Desactivar dibujo' : 'Dibujar sobre la gráfica'">
+          <mat-icon>{{ drawingMode ? 'edit_off' : 'edit' }}</mat-icon>
+        </button>
+        <div class="toolbar-sep"></div>
+      </ng-container>
+
       <button mat-icon-button (click)="download()" matTooltip="Descargar gráfica actual (PNG)">
         <mat-icon>download</mat-icon>
       </button>
@@ -16,24 +49,33 @@
   <mat-tab-group class="validation-tabs" animationDuration="150ms"
                  (selectedIndexChange)="activeTab = $event">
 
-    <!-- ── Correlación ─────────────────────────────────────────────── -->
     <mat-tab label="Correlación">
       <div class="chart-canvas-wrap">
         <canvas baseChart [data]="corrData" [options]="corrOptions" type="scatter"></canvas>
+        <app-drawing-canvas *ngIf="fullscreen"
+          [enabled]="drawingMode" [color]="drawColor"
+          [strokeWidth]="drawStroke" [tool]="drawTool">
+        </app-drawing-canvas>
       </div>
     </mat-tab>
 
-    <!-- ── Bland-Altman ────────────────────────────────────────────── -->
     <mat-tab label="Bland-Altman">
       <div class="chart-canvas-wrap">
         <canvas baseChart [data]="baData" [options]="baOptions" type="scatter"></canvas>
+        <app-drawing-canvas *ngIf="fullscreen"
+          [enabled]="drawingMode" [color]="drawColor"
+          [strokeWidth]="drawStroke" [tool]="drawTool">
+        </app-drawing-canvas>
       </div>
     </mat-tab>
 
-    <!-- ── Error por zonas ─────────────────────────────────────────── -->
     <mat-tab label="Error por zonas">
       <div class="chart-canvas-wrap">
         <canvas baseChart [data]="zoneData" [options]="zoneOptions" type="bar"></canvas>
+        <app-drawing-canvas *ngIf="fullscreen"
+          [enabled]="drawingMode" [color]="drawColor"
+          [strokeWidth]="drawStroke" [tool]="drawTool">
+        </app-drawing-canvas>
       </div>
     </mat-tab>
 

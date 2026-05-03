@@ -1,16 +1,17 @@
 import {
   Component, Input, HostListener,
-  ElementRef, ViewChild, signal, computed,
+  ElementRef, ViewChild, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule }   from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { DrawingCanvasComponent, DrawTool } from '../drawing-canvas/drawing-canvas.component';
 
 @Component({
   selector: 'app-chart-viewer',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule, MatTooltipModule],
+  imports: [CommonModule, MatButtonModule, MatIconModule, MatTooltipModule, DrawingCanvasComponent],
   templateUrl: './chart-viewer.component.html',
   styleUrls: ['./chart-viewer.component.scss'],
 })
@@ -20,12 +21,20 @@ export class ChartViewerComponent {
   @Input() filename = 'chart.png';
 
   @ViewChild('lightboxImg') lightboxImg?: ElementRef<HTMLImageElement>;
+  @ViewChild(DrawingCanvasComponent) drawCanvas?: DrawingCanvasComponent;
 
   // ── Lightbox state ──────────────────────────────────────────────────────
   lightboxOpen = signal(false);
   zoom         = signal(1);
   translateX   = signal(0);
   translateY   = signal(0);
+
+  drawingMode = false;
+  drawColor   = '#e53e3e';
+  drawStroke  = 3;
+  drawTool: DrawTool = 'pen';
+
+  readonly STROKES = [2, 5, 10];
 
   // Panning
   _dragging  = false;
@@ -45,6 +54,7 @@ export class ChartViewerComponent {
     this.zoom.set(1);
     this.translateX.set(0);
     this.translateY.set(0);
+    this.drawingMode = false;
     this.lightboxOpen.set(true);
     document.body.style.overflow = 'hidden';
   }
@@ -73,6 +83,7 @@ export class ChartViewerComponent {
   }
 
   onWheel(event: WheelEvent): void {
+    if (this.drawingMode) return;
     event.preventDefault();
     const factor = event.deltaY < 0 ? 1.1 : 0.9;
     this._applyZoom(this.zoom() * factor);
@@ -80,6 +91,7 @@ export class ChartViewerComponent {
 
   // ── Pan ──────────────────────────────────────────────────────────────────
   onMouseDown(event: MouseEvent): void {
+    if (this.drawingMode) return;
     if (this.zoom() <= 1) return;
     this._dragging  = true;
     this._dragStart = { x: event.clientX, y: event.clientY };
@@ -99,11 +111,28 @@ export class ChartViewerComponent {
   @HostListener('document:mouseup')
   onMouseUp(): void { this._dragging = false; }
 
+  // ── Drawing ───────────────────────────────────────────────────────────────
+  setColor(e: Event): void {
+    this.drawColor = (e.target as HTMLInputElement).value;
+  }
+
+  clearDrawing(): void { this.drawCanvas?.clear(); }
+
   // ── Download ─────────────────────────────────────────────────────────────
   download(): void {
-    const a    = document.createElement('a');
-    a.href     = this.imgSrc;
-    a.download = this.filename;
-    a.click();
+    if (this.drawCanvas) {
+      const img = new Image();
+      img.onload = () => {
+        const dataUrl = this.drawCanvas!.composite(img);
+        const a = document.createElement('a');
+        a.href = dataUrl; a.download = this.filename; a.click();
+      };
+      img.src = this.imgSrc;
+    } else {
+      const a    = document.createElement('a');
+      a.href     = this.imgSrc;
+      a.download = this.filename;
+      a.click();
+    }
   }
 }

@@ -2,6 +2,41 @@
   <div class="chart-toolbar">
     <span class="chart-title">FC Dispositivo vs Referencia</span>
     <div class="chart-actions">
+
+      <!-- Drawing tools — only in fullscreen -->
+      <ng-container *ngIf="fullscreen">
+        <button mat-icon-button (click)="clearDrawing()" matTooltip="Limpiar anotaciones" *ngIf="drawingMode">
+          <mat-icon>delete_sweep</mat-icon>
+        </button>
+        <button mat-icon-button
+                [class.tool-active]="drawingMode && drawTool==='eraser'"
+                (click)="drawTool = drawTool === 'eraser' ? 'pen' : 'eraser'"
+                matTooltip="Goma de borrar"
+                *ngIf="drawingMode">
+          <mat-icon>ink_eraser</mat-icon>
+        </button>
+        <button mat-icon-button
+                [class.stroke-active]="drawingMode && drawStroke===s"
+                *ngFor="let s of STROKES"
+                (click)="drawStroke = s; drawTool = 'pen'"
+                [matTooltip]="'Grosor ' + s + 'px'"
+                style="font-size:10px; font-weight:700;"
+                [style.color]="drawingMode && drawStroke===s && drawTool==='pen' ? drawColor : null">
+          <mat-icon [style.font-size.px]="8 + s">lens</mat-icon>
+        </button>
+        <label class="color-btn" [matTooltip]="'Color'" [style.background]="drawColor">
+          <input type="color" [value]="drawColor" (input)="setColor($event)">
+        </label>
+        <div class="toolbar-sep"></div>
+        <button mat-icon-button
+                [class.tool-active]="drawingMode"
+                (click)="drawingMode = !drawingMode; drawTool = 'pen'"
+                [matTooltip]="drawingMode ? 'Desactivar dibujo' : 'Dibujar sobre la gráfica'">
+          <mat-icon>{{ drawingMode ? 'edit_off' : 'edit' }}</mat-icon>
+        </button>
+        <div class="toolbar-sep"></div>
+      </ng-container>
+
       <button mat-icon-button (click)="download()" matTooltip="Descargar PNG">
         <mat-icon>download</mat-icon>
       </button>
@@ -11,11 +46,18 @@
       </button>
     </div>
   </div>
+
   <div class="chart-canvas-wrap">
     <canvas baseChart
       [data]="chartData"
       [options]="chartOptions"
       type="line">
     </canvas>
+    <app-drawing-canvas *ngIf="fullscreen"
+      [enabled]="drawingMode"
+      [color]="drawColor"
+      [strokeWidth]="drawStroke"
+      [tool]="drawTool">
+    </app-drawing-canvas>
   </div>
 </div>
