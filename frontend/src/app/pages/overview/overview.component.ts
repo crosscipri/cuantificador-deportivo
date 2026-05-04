@@ -1,12 +1,8 @@
 import { Component, OnInit, ElementRef } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
 
 import { ApiService } from '../../services/api.service';
 import { OverviewEntry, SportType, SPORT_TYPE_LABELS } from '../../models/session.model';
@@ -42,23 +38,21 @@ export interface LollipopItem {
   labelX:  number;
 }
 
-export type VizMode = 'lollipop' | 'bars' | 'table';
+export type VizMode = 'lollipop' | 'bars' | 'radar' | 'table';
 
-// ── SVG layout constants (design spec: rowH=56, ML=220, MR=90) ────
-const ML = 220; // margin left  (device name area)
-const MR =  90; // margin right (r label + padding)
-const MT =  30; // margin top
-const MB =  44; // margin bottom (x-axis)
-const RH =  56; // row height
-const SW = 860; // SVG viewBox width
+// ── SVG layout constants (design spec: rowH=56, ML=220, MR=90, W=1080) ────
+const ML =  220; // margin left  (device name area)
+const MR =   90; // margin right (r label + padding)
+const MT =   30; // margin top
+const MB =   44; // margin bottom (x-axis)
+const RH =   56; // row height
+const SW = 1080; // SVG viewBox width (matches design reference)
 
 @Component({
   selector: 'app-overview',
   standalone: true,
   imports: [
-    CommonModule, RouterModule, FormsModule, DecimalPipe,
-    MatCardModule, MatButtonModule, MatButtonToggleModule, MatIconModule,
-    MatProgressSpinnerModule,
+    CommonModule, RouterModule, FormsModule, DecimalPipe, MatIconModule,
   ],
   templateUrl: './overview.component.html',
   styleUrls: ['./overview.component.scss'],
@@ -140,7 +134,7 @@ export class OverviewComponent implements OnInit {
     const x0 = this._xPx(this.xMin, range);
 
     this.items = sorted.map((entry, i) => {
-      const cy  = MT + (sorted.length - 1 - i) * RH + RH / 2;
+      const cy  = MT + i * RH + RH / 2;  // worst at top (index 0), best at bottom
       const cx  = this._xPx(entry.r_global, range);
       return {
         entry,
@@ -196,4 +190,70 @@ export class OverviewComponent implements OnInit {
   biasSign(v: number): string { return v > 0 ? '+' : ''; }
   qualityMAEClass(v: number): string { return qualityMAE(v); }
   qualityRClass(v: number): string { return qualityR(v); }
+
+  // ── Radar chart ───────────────────────────────────────────────────
+
+  readonly RADAR_COLORS = [
+    'oklch(52% 0.14 240)',
+    'oklch(58% 0.13 155)',
+    'oklch(65% 0.16 45)',
+  ];
+
+  /** Top-3 devices for the radar chart (best r first) */
+  get radarTop3(): OverviewEntry[] {
+    return [...this.entries].sort((a, b) => b.r_global - a.r_global).slice(0, 3);
+  }
+
+  /** Normalise a metric to [0,1] for radar plotting */
+  radarNorm(entry: OverviewEntry, axis: string): number {
+    const maxSessions = Math.max(...this.entries.map(e => e.session_count), 1);
+    switch (axis) {
+      case 'r':        return Math.max(0, (entry.r_global - 0.7) / 0.3);
+      case 'mae':      return Math.max(0, 1 - entry.mae_global / 12);
+      case 'bias':     return Math.max(0, 1 - Math.abs(entry.bias_global) / 8);
+      case 'sesiones': return Math.min(1, entry.session_count / Math.max(maxSessions, 1));
+      default:         return 0;
+    }
+  }
+
+  /** SVG polygon points string for one radar entry */
+  radarPoints(entry: OverviewEntry): string {
+    const axes = ['r', 'mae', 'bias', 'sesiones'];
+    const cx = 210, cy = 195, R = 130;
+    return axes.map((axis, i) => {
+      const angle = -Math.PI / 2 + (i / axes.length) * Math.PI * 2;
+      const v = this.radarNorm(entry, axis);
+      return `${cx + Math.cos(angle) * R * v},${cy + Math.sin(angle) * R * v}`;
+    }).join(' ');
+  }
+
+  /** SVG polygon points for a grid ring */
+  radarGrid(scale: number): string {
+    const axes = 4;
+    const cx = 210, cy = 195, R = 130;
+    return Array.from({ length: axes }, (_, i) => {
+      const angle = -Math.PI / 2 + (i / axes) * Math.PI * 2;
+      return `${cx + Math.cos(angle) * R * scale},${cy + Math.sin(angle) * R * scale}`;
+    }).join(' ');
+  }
+
+  /** Axis label positions for radar */
+  radarAxes(): { label: string; x: number; y: number }[] {
+    const labels = ['r', 'MAE', '|bias|', 'sesiones'];
+    const cx = 210, cy = 195, R = 148;
+    return labels.map((label, i) => {
+      const angle = -Math.PI / 2 + (i / labels.length) * Math.PI * 2;
+      return { label, x: cx + Math.cos(angle) * R, y: cy + Math.sin(angle) * R };
+    });
+  }
+
+  /** Axis spoke endpoints for radar */
+  radarSpoke(i: number): { x: number; y: number } {
+    const cx = 210, cy = 195, R = 130;
+    const angle = -Math.PI / 2 + (i / 4) * Math.PI * 2;
+    return { x: cx + Math.cos(angle) * R, y: cy + Math.sin(angle) * R };
+  }
+
+  readonly radarCx = 210;
+  readonly radarCy = 195;
 }

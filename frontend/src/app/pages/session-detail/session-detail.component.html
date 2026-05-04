@@ -1,254 +1,251 @@
 <div class="detail-page">
 
   <!-- Spinner -->
-  <div class="center-spinner" *ngIf="loading"><mat-spinner diameter="48"></mat-spinner></div>
+  <div class="center-spinner" *ngIf="loading"><div class="spinner"></div></div>
 
   <!-- Error -->
   <div class="empty-state" *ngIf="error">
-    <mat-icon>error_outline</mat-icon>
     <h3>{{ error }}</h3>
-    <button mat-flat-button [routerLink]="['/devices', deviceId]">Volver al dispositivo</button>
+    <button class="ec-btn" [routerLink]="['/devices', deviceId]">Volver al dispositivo</button>
   </div>
 
   <ng-container *ngIf="session && !loading">
 
-    <!-- ── Breadcrumb & actions ─── -->
-    <div class="page-header">
-      <div class="breadcrumb">
-        <a routerLink="/devices"><mat-icon>devices</mat-icon> Dispositivos</a>
-        <mat-icon class="sep">chevron_right</mat-icon>
-        <a [routerLink]="['/devices', deviceId]">{{ session.device_name }}</a>
-        <mat-icon class="sep">chevron_right</mat-icon>
-        <span>{{ session.session_name }}</span>
+    <!-- ── Breadcrumb ── -->
+    <div class="breadcrumb">
+      <a routerLink="/devices" style="color:var(--ink-3);text-decoration:none">Dispositivos</a>
+      <span style="color:var(--ink-4)">›</span>
+      <a [routerLink]="['/devices', deviceId]" style="color:var(--ink-3);text-decoration:none">{{ session.device_name }}</a>
+      <span style="color:var(--ink-4)">›</span>
+      <span style="color:var(--ink);font-weight:500">{{ session.session_name }}</span>
+    </div>
+
+    <!-- ── Header ── -->
+    <div class="session-header">
+      <div>
+        <div class="eyebrow" style="margin-bottom:8px">Informe de validación · {{ session.device_name }}</div>
+        <h1 class="h1-display">{{ session.session_name }}</h1>
+        <div class="session-meta">
+          <span>{{ session.sport_type ? sportLabel[session.sport_type] : '—' }}</span>
+          <span class="meta-dot">·</span>
+          <span>{{ session.training_type }}</span>
+          <span class="meta-dot">·</span>
+          <span class="num">{{ formatDate(session.created_at) }}</span>
+          <span class="meta-dot" *ngIf="session.duration_seconds">·</span>
+          <span class="num" *ngIf="session.duration_seconds">{{ formatDuration(session.duration_seconds) }}</span>
+        </div>
       </div>
       <div class="header-actions">
-        <button mat-stroked-button (click)="reanalyze()" *ngIf="!editing"
-                [disabled]="reanalyzing"
-                matTooltip="Vuelve a procesar los ficheros guardados en la base de datos">
-          <mat-spinner *ngIf="reanalyzing" diameter="16" style="display:inline-block;margin-right:6px"></mat-spinner>
-          <mat-icon *ngIf="!reanalyzing">refresh</mat-icon>
-          {{ reanalyzing ? 'Recalculando…' : 'Refrescar actividad' }}
+        <button class="ec-btn" (click)="reanalyze()" *ngIf="!editing" [disabled]="reanalyzing">
+          <span *ngIf="reanalyzing" class="spinner-xs"></span>
+          {{ reanalyzing ? 'Recalculando…' : '↻ Reanalizar' }}
         </button>
-        <button mat-stroked-button (click)="startEdit()" *ngIf="!editing" [disabled]="reanalyzing">
-          <mat-icon>edit</mat-icon>
-          Editar
-        </button>
-        <button mat-stroked-button color="warn" (click)="delete()" *ngIf="!editing" [disabled]="reanalyzing">
-          <mat-icon>delete_outline</mat-icon>
-          Eliminar
+        <button class="ec-btn" (click)="startEdit()" *ngIf="!editing" [disabled]="reanalyzing">✎ Editar</button>
+        <button class="ec-btn danger" (click)="delete()" *ngIf="!editing" [disabled]="reanalyzing">Eliminar</button>
+      </div>
+    </div>
+
+    <!-- ── Verdict ── -->
+    <div class="verdict" *ngIf="!editing" [ngClass]="verdictQuality(session)" style="flex-direction:column;padding:18px 22px;margin-bottom:4px">
+      <div class="v-meta">Diagnóstico · vs {{ session.reference_name }}</div>
+      <p class="v-text" style="margin-top:6px">{{ verdictText(session) }}</p>
+    </div>
+
+    <!-- ── Edit form ── -->
+    <div class="edit-card" *ngIf="editing">
+      <form [formGroup]="editForm" class="edit-form">
+        <div class="row-two">
+          <mat-form-field appearance="outline">
+            <mat-label>Deporte *</mat-label>
+            <mat-select formControlName="sport_type">
+              <mat-option *ngFor="let s of sportTypes" [value]="s[0]">{{ s[1] }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" *ngIf="editHasDifficulty">
+            <mat-label>Dificultad *</mat-label>
+            <mat-select formControlName="session_difficulty">
+              <mat-option *ngFor="let d of difficulties" [value]="d[0]">{{ d[1] }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <div class="row-two">
+          <mat-form-field appearance="outline">
+            <mat-label>Tipo de entrenamiento *</mat-label>
+            <mat-select formControlName="training_type">
+              <mat-option *ngFor="let t of editAvailableTrainingTypes" [value]="t">{{ t }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Nombre</mat-label>
+            <input matInput formControlName="session_name">
+          </mat-form-field>
+        </div>
+      </form>
+      <div class="edit-actions">
+        <button class="ec-btn" (click)="cancelEdit()" [disabled]="saving">Cancelar</button>
+        <button class="ec-btn primary" (click)="saveEdit()" [disabled]="editForm.invalid || saving">
+          <span *ngIf="saving" class="spinner-xs"></span>
+          {{ saving ? 'Guardando…' : 'Guardar cambios' }}
         </button>
       </div>
     </div>
 
-    <!-- ── Session info (view mode) ─── -->
-    <mat-card class="info-card" *ngIf="!editing">
-      <mat-card-content>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">Sesión</span>
-            <span class="info-value main">{{ session.session_name }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Tipo entrenamiento</span>
-            <span class="info-value">{{ session.training_type }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Deporte</span>
-            <span class="info-value">{{ session.sport_type ? sportLabel[session.sport_type] : '—' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Intensidad</span>
-            <span class="info-value">{{ session.session_difficulty ? difficultyLabel[session.session_difficulty] : '—' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Dispositivo</span>
-            <span class="info-value device">{{ session.device_name }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Referencia</span>
-            <span class="info-value ref">{{ session.reference_name }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Duración</span>
-            <span class="info-value">{{ formatDuration(session.duration_seconds) }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Fecha</span>
-            <span class="info-value">{{ formatDate(session.created_at) }}</span>
-          </div>
-        </div>
-      </mat-card-content>
-    </mat-card>
-
-    <!-- ── Edit form ─── -->
-    <mat-card class="info-card edit-card" *ngIf="editing">
-      <mat-card-header>
-        <mat-icon mat-card-avatar>edit</mat-icon>
-        <mat-card-title>Editar sesión</mat-card-title>
-        <mat-card-subtitle>Modifica los metadatos de clasificación</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <form [formGroup]="editForm" class="edit-form">
-          <div class="row-two">
-            <mat-form-field appearance="outline">
-              <mat-label>Deporte *</mat-label>
-              <mat-select formControlName="sport_type">
-                <mat-option *ngFor="let s of sportTypes" [value]="s[0]">{{ s[1] }}</mat-option>
-              </mat-select>
-              <mat-icon matPrefix>directions_run</mat-icon>
-              <mat-error>Campo obligatorio</mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" *ngIf="editHasDifficulty">
-              <mat-label>Dificultad / Intensidad *</mat-label>
-              <mat-select formControlName="session_difficulty">
-                <mat-option *ngFor="let d of difficulties" [value]="d[0]">{{ d[1] }}</mat-option>
-              </mat-select>
-              <mat-icon matPrefix>speed</mat-icon>
-              <mat-error>Campo obligatorio</mat-error>
-            </mat-form-field>
-          </div>
-
-          <div class="row-two">
-            <mat-form-field appearance="outline">
-              <mat-label>Tipo de entrenamiento *</mat-label>
-              <mat-select formControlName="training_type">
-                <mat-option *ngFor="let t of editAvailableTrainingTypes" [value]="t">{{ t }}</mat-option>
-              </mat-select>
-              <mat-icon matPrefix>sports_score</mat-icon>
-              <mat-hint *ngIf="!editForm.get('sport_type')?.value">Selecciona primero el deporte</mat-hint>
-              <mat-error>Campo obligatorio</mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Nombre de la sesión</mat-label>
-              <input matInput formControlName="session_name">
-              <mat-icon matPrefix>label</mat-icon>
-            </mat-form-field>
-          </div>
-        </form>
-      </mat-card-content>
-      <mat-card-actions align="end">
-        <button mat-stroked-button (click)="cancelEdit()" [disabled]="saving">Cancelar</button>
-        <button mat-flat-button color="primary" (click)="saveEdit()"
-                [disabled]="editForm.invalid || saving">
-          <mat-spinner *ngIf="saving" diameter="18" style="display:inline-block;margin-right:6px"></mat-spinner>
-          <mat-icon *ngIf="!saving">save</mat-icon>
-          {{ saving ? 'Guardando…' : 'Guardar cambios' }}
-        </button>
-      </mat-card-actions>
-    </mat-card>
-
-    <!-- ── Metrics ─── -->
-    <div class="section-header" style="margin-top:32px">
-      <h2>Métricas de validación</h2>
+    <!-- ── § 1 · Hero metrics ── -->
+    <div class="section-header">
+      <div class="section-inner">
+        <span class="section-num">§ 1</span>
+        <h2>Métricas principales</h2>
+        <span class="section-sub">contra {{ session.reference_name }} · n = {{ session.metrics.n | number }} muestras</span>
+      </div>
       <div class="divider"></div>
     </div>
-    <app-metrics-table [metrics]="session.metrics"></app-metrics-table>
 
-    <!-- ── Temporal chart ─── -->
-    <div class="section-header" style="margin-top:36px">
-      <h2>Comparativa FC vs Referencia</h2>
+    <div class="hero-metrics">
+      <div class="metric-hero" [ngClass]="mq('r', session.metrics.r)">
+        <div class="eyebrow">r de Pearson</div>
+        <div class="metric-hero-val num">{{ session.metrics.r | number:'1.3-3' }}</div>
+        <div class="metric-hero-hint">correlación lineal</div>
+      </div>
+      <div class="metric-hero" [ngClass]="mq('mae', session.metrics.mae)">
+        <div class="eyebrow">MAE</div>
+        <div class="metric-hero-val num">{{ session.metrics.mae | number:'1.1-1' }}<span class="unit">bpm</span></div>
+        <div class="metric-hero-hint">{{ session.metrics.mape | number:'1.1-1' }}% relativo</div>
+      </div>
+      <div class="metric-hero" [ngClass]="mq('bias_abs', (session.metrics.bias < 0 ? -session.metrics.bias : session.metrics.bias))">
+        <div class="eyebrow">Bias</div>
+        <div class="metric-hero-val num">{{ biasSign(session.metrics.bias) }}{{ session.metrics.bias | number:'1.1-1' }}<span class="unit">bpm</span></div>
+        <div class="metric-hero-hint">Bland–Altman</div>
+      </div>
+      <div class="metric-hero" [ngClass]="mq('loa_semiancho', loaSemi(session))">
+        <div class="eyebrow">LoA 95%</div>
+        <div class="metric-hero-val num">±{{ loaSemi(session) }}<span class="unit">bpm</span></div>
+        <div class="metric-hero-hint">[{{ session.metrics.loa_l | number:'1.1-1' }}, {{ session.metrics.loa_u | number:'1.1-1' }}]</div>
+      </div>
+    </div>
+
+    <!-- ── Secondary metrics ── -->
+    <div class="secondary-metrics">
+      <div class="metric-mini" [ngClass]="mq('ccc', session.metrics.ccc)">
+        <div class="eyebrow" style="font-size:9.5px">CCC</div>
+        <div class="mini-val num">{{ session.metrics.ccc | number:'1.3-3' }}</div>
+      </div>
+      <div class="metric-mini" [ngClass]="mq('icc', session.metrics.icc)">
+        <div class="eyebrow" style="font-size:9.5px">ICC</div>
+        <div class="mini-val num">{{ session.metrics.icc | number:'1.3-3' }}</div>
+      </div>
+      <div class="metric-mini">
+        <div class="eyebrow" style="font-size:9.5px">RMSE</div>
+        <div class="mini-val num">{{ session.metrics.rmse | number:'1.2-2' }}<span class="unit-sm">bpm</span></div>
+      </div>
+      <div class="metric-mini">
+        <div class="eyebrow" style="font-size:9.5px">Pendiente</div>
+        <div class="mini-val num">{{ session.metrics.slope | number:'1.2-2' }}</div>
+      </div>
+      <div class="metric-mini">
+        <div class="eyebrow" style="font-size:9.5px">Intercepto</div>
+        <div class="mini-val num">{{ session.metrics.intercept | number:'1.1-1' }}</div>
+      </div>
+      <div class="metric-mini" [ngClass]="session.lag ? 'good' : ''">
+        <div class="eyebrow" style="font-size:9.5px">Lag</div>
+        <div class="mini-val num" *ngIf="session.lag">{{ session.lag | number:'1.1-1' }}<span class="unit-sm">s</span></div>
+        <div class="mini-val num" *ngIf="!session.lag">—</div>
+      </div>
+    </div>
+
+    <!-- ── § 2 · FC en el tiempo ── -->
+    <div class="section-header">
+      <div class="section-inner">
+        <span class="section-num">§ 2</span>
+        <h2>FC en el tiempo</h2>
+        <span class="section-sub">dispositivo (azul) sobre referencia (gris)</span>
+      </div>
       <div class="divider"></div>
     </div>
-    <app-fc-temporal-chart
-      *ngIf="session.fc_data; else temporalPng"
-      [fcData]="session.fc_data!"
-      [refName]="session.reference_name"
-      [devName]="session.device_name">
-    </app-fc-temporal-chart>
-    <ng-template #temporalPng>
-      <app-chart-viewer
-        [chartB64]="session.charts.temporal"
-        [title]="'FC — ' + session.device_name + ' vs ' + session.reference_name"
-        [filename]="session.session_name + '-fc-comparativa.png'">
-      </app-chart-viewer>
-    </ng-template>
 
-    <!-- ── Validation charts ─── -->
-    <div class="section-header" style="margin-top:36px">
-      <h2>Validación científica</h2>
-      <div class="divider"></div>
-      <span class="section-note">Correlación · Bland-Altman · Error por zonas</span>
+    <div class="chart-card">
+      <app-fc-temporal-chart
+        *ngIf="session.fc_data; else temporalPng"
+        [fcData]="session.fc_data!"
+        [refName]="session.reference_name"
+        [devName]="session.device_name">
+      </app-fc-temporal-chart>
+      <ng-template #temporalPng>
+        <app-chart-viewer
+          [chartB64]="session.charts.temporal"
+          [title]="'FC — ' + session.device_name + ' vs ' + session.reference_name"
+          [filename]="session.session_name + '-fc-comparativa.png'">
+        </app-chart-viewer>
+      </ng-template>
     </div>
-    <app-session-validation-charts
-      *ngIf="session.fc_data || session.zones?.length; else validationPng"
-      [session]="session">
-    </app-session-validation-charts>
-    <ng-template #validationPng>
-      <app-chart-viewer
-        [chartB64]="session.charts.validation"
-        [title]="'Validación — ' + session.device_name + ' vs ' + session.reference_name"
-        [filename]="session.session_name + '-validacion.png'">
-      </app-chart-viewer>
-    </ng-template>
 
-    <!-- ── Zones table ─── -->
-    <div class="section-header" style="margin-top:36px">
-      <h2>Error por zonas de intensidad</h2>
+    <!-- ── § 3 · Validación científica ── -->
+    <div class="section-header">
+      <div class="section-inner">
+        <span class="section-num">§ 3</span>
+        <h2>Validación científica</h2>
+      </div>
+      <div class="divider"></div>
+      <span class="section-note">Correlación · Bland–Altman</span>
+    </div>
+
+    <div class="chart-card">
+      <app-session-validation-charts
+        *ngIf="session.fc_data || session.zones?.length; else validationPng"
+        [session]="session">
+      </app-session-validation-charts>
+      <ng-template #validationPng>
+        <app-chart-viewer
+          [chartB64]="session.charts.validation"
+          [title]="'Validación — ' + session.device_name + ' vs ' + session.reference_name"
+          [filename]="session.session_name + '-validacion.png'">
+        </app-chart-viewer>
+      </ng-template>
+    </div>
+
+    <!-- ── § 4 · Error por zonas ── -->
+    <div class="section-header">
+      <div class="section-inner">
+        <span class="section-num">§ 4</span>
+        <h2>Error por zonas de intensidad</h2>
+        <span class="section-sub">MAE y bias estratificados por Z1–Z5</span>
+      </div>
       <div class="divider"></div>
     </div>
-    <mat-card>
-      <mat-card-content>
-        <table mat-table [dataSource]="session.zones" class="zones-table">
 
-          <ng-container matColumnDef="zone">
-            <th mat-header-cell *matHeaderCellDef>Zona</th>
-            <td mat-cell *matCellDef="let z">
-              <span class="zone-chip" [ngClass]="zoneCssClass(z.zone)">{{ z.zone }}</span>
+    <div class="zones-wrap">
+      <table class="zones-table">
+        <thead>
+          <tr>
+            <th>Zona</th>
+            <th>Rango (bpm)</th>
+            <th>% Tiempo</th>
+            <th>Muestras</th>
+            <th>MAE (bpm)</th>
+            <th>MAPE (%)</th>
+            <th>Bias (bpm)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let z of session.zones">
+            <td><span class="zone-chip" [ngClass]="zoneCssClass(z.zone)">{{ z.zone }}</span></td>
+            <td class="num">{{ z.range }}</td>
+            <td>
+              <div class="pct-bar-wrap">
+                <div class="pct-bar-track"><div class="pct-bar-fill" [style.width.%]="z.pct_time"></div></div>
+                <span class="num" style="font-size:12px;color:var(--ink-2)">{{ z.pct_time }}%</span>
+              </div>
             </td>
-          </ng-container>
-
-          <ng-container matColumnDef="range">
-            <th mat-header-cell *matHeaderCellDef>Rango</th>
-            <td mat-cell *matCellDef="let z" class="mono">{{ z.range }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="pct_time">
-            <th mat-header-cell *matHeaderCellDef>% Tiempo</th>
-            <td mat-cell *matCellDef="let z">{{ z.pct_time }}%</td>
-          </ng-container>
-
-          <ng-container matColumnDef="n">
-            <th mat-header-cell *matHeaderCellDef>Muestras</th>
-            <td mat-cell *matCellDef="let z" class="mono">{{ z.n }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="mae">
-            <th mat-header-cell *matHeaderCellDef>MAE (ppm)</th>
-            <td mat-cell *matCellDef="let z">
-              <span *ngIf="z.mae !== null"
-                    [class.good]="z.mae <= 3"
-                    [class.warn]="z.mae > 3 && z.mae <= 5"
-                    [class.bad]="z.mae > 5">{{ z.mae }}</span>
-              <span *ngIf="z.mae === null" class="no-data">—</span>
+            <td class="num">{{ z.n | number }}</td>
+            <td>
+              <span class="q-badge" *ngIf="z.mae !== null" [ngClass]="mq('mae', z.mae)">{{ z.mae }}</span>
+              <span style="color:var(--ink-4)" *ngIf="z.mae === null">—</span>
             </td>
-          </ng-container>
-
-          <ng-container matColumnDef="mape">
-            <th mat-header-cell *matHeaderCellDef>MAPE (%)</th>
-            <td mat-cell *matCellDef="let z">
-              <span *ngIf="z.mape !== null"
-                    [class.good]="z.mape <= 5"
-                    [class.warn]="z.mape > 5 && z.mape <= 10"
-                    [class.bad]="z.mape > 10">{{ z.mape }}%</span>
-              <span *ngIf="z.mape === null" class="no-data">—</span>
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="bias">
-            <th mat-header-cell *matHeaderCellDef>Bias (ppm)</th>
-            <td mat-cell *matCellDef="let z" class="mono">
-              <span *ngIf="z.bias !== null">{{ z.bias > 0 ? '+' : '' }}{{ z.bias }}</span>
-              <span *ngIf="z.bias === null" class="no-data">—</span>
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="zoneColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: zoneColumns;"></tr>
-        </table>
-      </mat-card-content>
-    </mat-card>
+            <td class="num">{{ z.mape !== null ? (z.mape + '%') : '—' }}</td>
+            <td class="num">{{ z.bias !== null ? (biasSign(z.bias!) + (z.bias | number:'1.1-1')) : '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
   </ng-container>
 

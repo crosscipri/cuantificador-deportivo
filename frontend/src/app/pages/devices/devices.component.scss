@@ -1,3 +1,8 @@
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width: 30px; height: 30px; border: 2px solid var(--line); border-top-color: var(--ink-3); border-radius: 50%; animation: spin 0.7s linear infinite; }
+.center-spinner { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 72px 0; color: var(--ink-3); font-size: 13px; }
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 72px 24px; text-align: center; color: var(--ink-3); h3 { margin: 0; font-size: 17px; color: var(--ink-2); font-weight: 500; } p { margin: 0; font-size: 13px; } }
+
 .devices-page {
   max-width: 1100px;
   margin: 0 auto;
@@ -302,6 +307,32 @@
     margin-top: 2px;
   }
 }
+
+// ── Quality badge (r/CCC) ──────────────────────────────────────────
+.q-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  border: 1px solid var(--line-2);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  flex-shrink: 0;
+
+  &.good   { color: var(--good-ink);   background: var(--good-soft);   border-color: oklch(85% 0.06 155); }
+  &.warn   { color: var(--warn-ink);   background: var(--warn-soft);   border-color: oklch(85% 0.06 75); }
+  &.orange { color: var(--orange-ink); background: var(--orange-soft); border-color: oklch(85% 0.07 45); }
+  &.bad    { color: var(--bad-ink);    background: var(--bad-soft);    border-color: oklch(85% 0.07 25); }
+}
+
+// Quality-colored metric values
+.q-color-good   { color: var(--good-ink); }
+.q-color-warn   { color: var(--warn-ink); }
+.q-color-orange { color: var(--orange-ink); }
+.q-color-bad    { color: var(--bad-ink); }
 
 // ── Responsive ─────────────────────────────────────────────────────
 @media (max-width: 720px) {

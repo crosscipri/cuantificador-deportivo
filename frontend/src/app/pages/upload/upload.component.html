@@ -2,31 +2,82 @@
 
   <!-- Breadcrumb -->
   <div class="breadcrumb">
-    <a routerLink="/devices"><mat-icon>devices</mat-icon> Dispositivos</a>
-    <mat-icon class="sep">chevron_right</mat-icon>
+    <a routerLink="/devices">Dispositivos</a>
+    <span class="bc-sep">›</span>
     <a [routerLink]="['/devices', deviceId]">{{ device.name }}</a>
-    <mat-icon class="sep">chevron_right</mat-icon>
-    <span>Nueva sesión</span>
+    <span class="bc-sep">›</span>
+    <span class="bc-current">Nueva sesión</span>
   </div>
 
-  <!-- ── FORM ── -->
-  <mat-card class="upload-card" *ngIf="!result">
-    <mat-card-header>
-      <mat-icon mat-card-avatar class="header-icon">upload_file</mat-icon>
-      <mat-card-title>Nueva sesión — {{ device.name }}</mat-card-title>
-      <mat-card-subtitle>{{ device.name }} vs {{ device.reference_name }}</mat-card-subtitle>
-    </mat-card-header>
+  <!-- ── UPLOAD FORM ── -->
+  <ng-container *ngIf="!result">
 
-    <mat-card-content>
-      <form [formGroup]="form" class="upload-form">
+    <div class="page-header">
+      <div>
+        <div class="eyebrow" style="margin-bottom:8px">03 · Nueva sesión · {{ device.name }}</div>
+        <h1 class="h1-display">Subir actividad</h1>
+        <p class="page-sub">{{ device.name }} <span style="color:var(--ink-4)">vs</span> {{ device.reference_name }} — selecciona los archivos de ambos dispositivos para el análisis comparativo.</p>
+      </div>
+    </div>
 
-        <div class="row-two">
+    <!-- Drop zones -->
+    <div class="drop-vs">
+      <!-- Device file -->
+      <div class="drop-zone" [class.has-file]="deviceFile"
+           (dragover)="onDragOver($event)" (drop)="onDrop($event,'device')"
+           (click)="devInput.click()">
+        <input #devInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden
+               (change)="onDeviceFile($event)">
+        <div class="dz-icon">
+          <svg *ngIf="!deviceFile" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="3"/><path d="M4 12h3M17 12h3M12 4v3M12 17v3"/>
+          </svg>
+          <svg *ngIf="deviceFile" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+        </div>
+        <span class="dz-role eyebrow">Dispositivo</span>
+        <span class="dz-name">{{ deviceFile ? deviceFile.name : device.name }}</span>
+        <span class="dz-hint">{{ deviceFile ? 'Clic para cambiar' : 'Arrastra o clic — .FIT / .TCX / .GPX' }}</span>
+      </div>
+
+      <!-- VS separator -->
+      <div class="vs-divider">
+        <div class="vs-line"></div>
+        <span class="vs-text">vs</span>
+        <div class="vs-line"></div>
+      </div>
+
+      <!-- Reference file -->
+      <div class="drop-zone" [class.has-file]="referenceFile"
+           (dragover)="onDragOver($event)" (drop)="onDrop($event,'ref')"
+           (click)="refInput.click()">
+        <input #refInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden
+               (change)="onReferenceFile($event)">
+        <div class="dz-icon">
+          <svg *ngIf="!referenceFile" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12h3l3-7 4 14 3-7h5"/>
+          </svg>
+          <svg *ngIf="referenceFile" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+        </div>
+        <span class="dz-role eyebrow">Referencia</span>
+        <span class="dz-name">{{ referenceFile ? referenceFile.name : device.reference_name }}</span>
+        <span class="dz-hint">{{ referenceFile ? 'Clic para cambiar' : 'Arrastra o clic — .FIT / .TCX / .GPX' }}</span>
+      </div>
+    </div>
+
+    <!-- Classification form -->
+    <div class="classify-card">
+      <div class="classify-header eyebrow">Clasificación de la sesión</div>
+      <form [formGroup]="form" class="classify-form">
+        <div class="form-row">
           <mat-form-field appearance="outline">
             <mat-label>Deporte *</mat-label>
             <mat-select formControlName="sportType">
               <mat-option *ngFor="let s of sportTypes" [value]="s[0]">{{ s[1] }}</mat-option>
             </mat-select>
-            <mat-icon matPrefix>directions_run</mat-icon>
             <mat-error>Campo obligatorio</mat-error>
           </mat-form-field>
 
@@ -35,18 +86,14 @@
             <mat-select formControlName="sessionDifficulty">
               <mat-option *ngFor="let d of difficulties" [value]="d[0]">{{ d[1] }}</mat-option>
             </mat-select>
-            <mat-icon matPrefix>speed</mat-icon>
             <mat-error>Campo obligatorio</mat-error>
           </mat-form-field>
-        </div>
 
-        <div class="row-two">
           <mat-form-field appearance="outline">
             <mat-label>Tipo de entrenamiento *</mat-label>
             <mat-select formControlName="trainingType">
               <mat-option *ngFor="let t of availableTrainingTypes" [value]="t">{{ t }}</mat-option>
             </mat-select>
-            <mat-icon matPrefix>sports_score</mat-icon>
             <mat-hint *ngIf="!form.get('sportType')?.value">Selecciona primero el deporte</mat-hint>
             <mat-error>Campo obligatorio</mat-error>
           </mat-form-field>
@@ -54,77 +101,51 @@
           <mat-form-field appearance="outline">
             <mat-label>Nombre de la sesión</mat-label>
             <input matInput formControlName="sessionName" placeholder="Rodaje 45 min">
-            <mat-icon matPrefix>label</mat-icon>
           </mat-form-field>
         </div>
-
-        <div class="drop-zones">
-          <div class="drop-zone" [class.has-file]="deviceFile"
-               (dragover)="onDragOver($event)" (drop)="onDrop($event,'device')"
-               (click)="devInput.click()">
-            <input #devInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden
-                   (change)="onDeviceFile($event)">
-            <mat-icon>{{ deviceFile ? 'check_circle' : 'watch' }}</mat-icon>
-            <span class="zone-label">{{ deviceFile ? deviceFile.name : device.name }}</span>
-            <span class="zone-hint">{{ deviceFile ? 'Clic para cambiar' : 'Arrastra o clic (.FIT / .TCX / .GPX)' }}</span>
-          </div>
-
-          <div class="drop-zone-arrow">
-            <mat-icon>compare_arrows</mat-icon>
-            <span>vs</span>
-          </div>
-
-          <div class="drop-zone" [class.has-file]="referenceFile"
-               (dragover)="onDragOver($event)" (drop)="onDrop($event,'ref')"
-               (click)="refInput.click()">
-            <input #refInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden
-                   (change)="onReferenceFile($event)">
-            <mat-icon>{{ referenceFile ? 'check_circle' : 'monitor_heart' }}</mat-icon>
-            <span class="zone-label">{{ referenceFile ? referenceFile.name : device.reference_name }}</span>
-            <span class="zone-hint">{{ referenceFile ? 'Clic para cambiar' : 'Arrastra o clic (.FIT / .TCX / .GPX)' }}</span>
-          </div>
-        </div>
-
       </form>
-    </mat-card-content>
+    </div>
 
-    <mat-card-actions align="end">
-      <button mat-stroked-button [routerLink]="['/devices', deviceId]">Cancelar</button>
-      <button mat-flat-button color="primary" (click)="submit()" [disabled]="!canSubmit()">
-        <mat-icon>analytics</mat-icon>
-        Analizar sesión
+    <!-- Actions -->
+    <div class="form-actions">
+      <a class="ec-btn" [routerLink]="['/devices', deviceId]">Cancelar</a>
+      <button class="ec-btn primary" (click)="submit()" [disabled]="!canSubmit()">
+        Analizar sesión →
       </button>
-    </mat-card-actions>
-  </mat-card>
+    </div>
+
+  </ng-container>
 
   <!-- ── LOADING ── -->
   <div class="loading-overlay" *ngIf="loading">
-    <mat-spinner diameter="56"></mat-spinner>
+    <div class="spinner-lg"></div>
     <p>Analizando archivos…</p>
+    <p class="loading-sub">El análisis tarda entre 5 y 30 segundos</p>
   </div>
 
   <!-- ── RESULTS ── -->
   <ng-container *ngIf="result && !loading">
     <div class="result-header">
-      <mat-icon class="ok-icon">check_circle</mat-icon>
-      <div>
-        <h2>{{ result.session_name }}</h2>
-        <span class="result-sub">{{ result.training_type }}</span>
+      <div class="result-title-row">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--good)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+        <div>
+          <h2>{{ result.session_name }}</h2>
+          <span class="result-sub">{{ result.training_type }}</span>
+        </div>
       </div>
       <div class="result-actions">
-        <button mat-stroked-button (click)="reset()">
-          <mat-icon>add</mat-icon> Nueva sesión
-        </button>
-        <button mat-flat-button color="accent" [routerLink]="['/devices', deviceId]">
-          <mat-icon>arrow_back</mat-icon> Volver al dispositivo
-        </button>
+        <button class="ec-btn" (click)="reset()">+ Nueva sesión</button>
+        <a class="ec-btn primary" [routerLink]="['/devices', deviceId]">← Volver al dispositivo</a>
       </div>
     </div>
 
     <app-metrics-table [metrics]="result.metrics"></app-metrics-table>
 
     <div class="section-header" style="margin-top:28px">
-      <h2>Comparativa FC</h2><div class="divider"></div>
+      <div class="section-inner"><h2>Comparativa FC</h2></div>
+      <div class="divider"></div>
     </div>
     <app-chart-viewer [chartB64]="result.charts.temporal"
       [title]="'FC — ' + device.name + ' vs ' + device.reference_name"
@@ -132,7 +153,8 @@
     </app-chart-viewer>
 
     <div class="section-header" style="margin-top:28px">
-      <h2>Validación científica</h2><div class="divider"></div>
+      <div class="section-inner"><h2>Validación científica</h2></div>
+      <div class="divider"></div>
     </div>
     <app-chart-viewer [chartB64]="result.charts.validation"
       [title]="'Validación — ' + device.name + ' vs ' + device.reference_name"
@@ -142,6 +164,6 @@
 
 </div>
 
-<div class="center-spinner" *ngIf="!device">
-  <mat-spinner diameter="48"></mat-spinner>
+<div class="center-spinner" *ngIf="!device && !loading">
+  <div class="spinner"></div>
 </div>

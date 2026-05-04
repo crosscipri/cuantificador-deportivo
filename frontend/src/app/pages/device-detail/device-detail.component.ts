@@ -3,20 +3,10 @@ import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatExpansionModule } from '@angular/material/expansion';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
-import { MatTabsModule } from '@angular/material/tabs';
 
 import { ApiService } from '../../services/api.service';
 import { Device, Session, AggregateResult, SportType, SessionDifficulty,
@@ -56,10 +46,7 @@ const SPORT_ICONS: Record<SportType, string> = {
   standalone: true,
   imports: [
     CommonModule, RouterModule, ReactiveFormsModule,
-    MatCardModule, MatButtonModule, MatIconModule, MatInputModule,
-    MatFormFieldModule, MatAutocompleteModule, MatChipsModule,
-    MatCheckboxModule, MatProgressSpinnerModule, MatExpansionModule,
-    MatSnackBarModule, MatTooltipModule, MatSelectModule, MatTabsModule,
+    MatInputModule, MatFormFieldModule, MatSnackBarModule, MatSelectModule,
     ChartViewerComponent, MetricsTableComponent,
   ],
   templateUrl: './device-detail.component.html',
@@ -346,6 +333,39 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
   }
 
   biasSign(v: number): string { return v > 0 ? '+' : ''; }
+
+  /** Generate a mini SVG path for a session sparkline (dev or ref line) */
+  sparkPath(session: Session, which: 'dev' | 'ref'): string {
+    const spark = session.spark_data;
+    const pts = spark ? (which === 'dev' ? spark.device : spark.reference) : null;
+
+    const w = 160, h = 28;
+
+    if (pts && pts.length >= 2) {
+      const minV = Math.min(...pts);
+      const maxV = Math.max(...pts);
+      const range = maxV - minV || 1;
+      return pts.map((v, i) => {
+        const x = (i / (pts.length - 1)) * w;
+        const y = h - ((v - minV) / range) * (h - 2) - 1;
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' ');
+    }
+
+    // Fallback: simple sine-based placeholder when no spark_data
+    const fcmax = session.fcmax || 160;
+    const fcmid = fcmax * 0.82;
+    const n = 16;
+    const offset = which === 'ref' ? 2 : 0;
+    return Array.from({ length: n }, (_, i) => {
+      const t = i / (n - 1);
+      const v = fcmid + (fcmax - fcmid) * Math.sin(t * Math.PI * 1.1) +
+        (Math.sin(i * 2.3 + offset) * 3) + offset * 1.5;
+      const x = (i / (n - 1)) * w;
+      const y = h - ((v - (fcmid - 15)) / (fcmax - fcmid + 20)) * h;
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${Math.max(1, Math.min(h - 1, y)).toFixed(1)}`;
+    }).join(' ');
+  }
 
   // ── Custom tab state (replaces mat-tab-group) ──────────────────────
   activeTabIndex = 0;

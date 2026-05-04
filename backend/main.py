@@ -224,6 +224,21 @@ async def create_session(
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
+    # Build a 20-point sparkline for list views (no need to fetch full fc_data)
+    _fc = result.get("fc_data", {})
+    _dev_pts = _fc.get("device", [])
+    _ref_pts = _fc.get("reference", [])
+    _n = len(_dev_pts)
+    if _n >= 2:
+        _step = max(1, _n // 20)
+        _indices = list(range(0, _n, _step))[:20]
+        spark_data = {
+            "device":    [_dev_pts[i] for i in _indices],
+            "reference": [_ref_pts[i] for i in _indices],
+        }
+    else:
+        spark_data = {}
+
     doc: dict[str, Any] = {
         "device_id":              ObjectId(device_id),
         "training_type":          training_type.strip(),
@@ -237,6 +252,7 @@ async def create_session(
         "device_file_name":       device_file.filename or "",
         "reference_file_bytes":   Binary(reference_bytes),
         "reference_file_name":    reference_file.filename or "",
+        "spark_data":             spark_data,
         **result,
     }
     inserted = await db().sessions.insert_one(doc)
@@ -254,7 +270,7 @@ async def list_device_sessions(
     if training_type:
         query["training_type"] = training_type
 
-    cursor = db().sessions.find(query, {"fc_data": 0}).sort("created_at", -1)
+    cursor = db().sessions.find(query, {"fc_data": 0, "device_file_bytes": 0, "reference_file_bytes": 0}).sort("created_at", -1)
     return [_ser(d) async for d in cursor]
 
 

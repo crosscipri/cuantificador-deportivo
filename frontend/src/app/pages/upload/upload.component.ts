@@ -2,14 +2,10 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subscription } from 'rxjs';
 
 import { ApiService } from '../../services/api.service';
@@ -25,9 +21,8 @@ import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, RouterModule,
-    MatCardModule, MatButtonModule, MatIconModule,
     MatInputModule, MatFormFieldModule, MatSelectModule,
-    MatSnackBarModule, MatProgressSpinnerModule,
+    MatSnackBarModule,
     ChartViewerComponent, MetricsTableComponent,
   ],
   templateUrl: './upload.component.html',

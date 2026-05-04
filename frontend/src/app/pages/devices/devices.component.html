@@ -21,13 +21,13 @@
 
   <!-- Loading -->
   <div class="center-spinner" *ngIf="loading">
-    <mat-spinner diameter="40"></mat-spinner>
+    <div class="spinner"></div>
     <p>Cargando dispositivos…</p>
   </div>
 
   <!-- Empty -->
   <div class="empty-state" *ngIf="!loading && devices.length === 0">
-    <mat-icon>devices</mat-icon>
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.3"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="3"/><path d="M4 12h3M17 12h3M12 4v3M12 17v3"/></svg>
     <h3>Sin dispositivos aún</h3>
     <p>Crea tu primer dispositivo para empezar a validar wearables</p>
     <button class="ec-btn primary" (click)="openCreate()">
@@ -53,8 +53,13 @@
           </div>
         </div>
         <span class="data-badge" *ngIf="dev.session_count === 0">sin datos</span>
-        <span class="data-badge has-data" *ngIf="dev.session_count > 0">
+        <span class="data-badge has-data" *ngIf="dev.session_count > 0 && avgCcc(dev) === null">
           {{ dev.session_count }} ses.
+        </span>
+        <span class="data-badge q-badge"
+              *ngIf="avgCcc(dev) as ccc"
+              [ngClass]="cccQuality(ccc)">
+          r {{ ccc | number:'1.3-3' }}
         </span>
       </div>
 
@@ -82,15 +87,17 @@
         </ng-template>
       </div>
 
-      <!-- Metric strip (sessions + type breakdown) -->
+      <!-- Metric strip (sessions + MAE + last date) -->
       <div class="metric-strip" *ngIf="dev.session_count > 0">
         <div class="metric-item">
           <div class="eyebrow" style="font-size:9.5px">Sesiones</div>
           <div class="metric-val num">{{ dev.session_count }}</div>
         </div>
-        <div class="metric-item" *ngIf="dev.training_types.length > 0">
-          <div class="eyebrow" style="font-size:9.5px">Tipos</div>
-          <div class="metric-val">{{ dev.training_types.length }}</div>
+        <div class="metric-item" *ngIf="avgMae(dev) as mae">
+          <div class="eyebrow" style="font-size:9.5px">MAE rel.</div>
+          <div class="metric-val num" [ngClass]="'q-color-' + maeQuality(mae)">
+            {{ mae | number:'1.1-1' }}<span style="font-size:10px;color:var(--ink-3);margin-left:2px">%</span>
+          </div>
         </div>
         <div class="metric-item" *ngIf="lastDate(dev) !== '—'">
           <div class="eyebrow" style="font-size:9.5px">Última</div>

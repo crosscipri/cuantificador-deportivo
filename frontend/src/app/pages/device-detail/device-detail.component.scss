@@ -1,3 +1,8 @@
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width: 32px; height: 32px; border: 2px solid var(--line); border-top-color: var(--ink-3); border-radius: 50%; animation: spin 0.7s linear infinite; }
+.spinner-xs { display: inline-block; width: 12px; height: 12px; border: 1.5px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; opacity: 0.6; vertical-align: middle; }
+.center-spinner { display: flex; justify-content: center; padding: 64px; }
+
 .detail-page {
   max-width: 1100px;
   margin: 0 auto;
@@ -174,14 +179,14 @@
     text-align: center; transition: border-color 0.15s, background 0.15s;
     background: var(--surface-2);
 
-    mat-icon  { font-size: 32px; width: 32px; height: 32px; color: var(--ink-3); }
+    svg { color: var(--ink-3); flex-shrink: 0; }
     .zone-label { font-size: 14px; font-weight: 500; color: var(--ink); }
     .zone-hint  { font-size: 12px; color: var(--ink-3); }
-    &:hover { border-color: var(--accent); background: var(--accent-soft); }
+    &:hover { border-color: var(--accent); background: var(--accent-soft); svg { color: var(--accent); } }
     &.has-file {
       border-color: oklch(85% 0.06 155); border-style: solid;
       background: var(--good-soft);
-      mat-icon { color: var(--good); }
+      svg { color: var(--good); }
     }
   }
 
@@ -194,7 +199,14 @@
                 font-size: 18px; color: var(--ink-3); }
   }
 
-  mat-card-actions { padding: 8px 16px 12px !important; gap: 8px !important; }
+}
+
+.upload-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  margin-top: 4px;
 }
 
 // ── Sport tabs (underline) ─────────────────────────────────────────
@@ -357,7 +369,8 @@
 
   .col-chk  { width: 32px; }
   .col-chk input { cursor: pointer; accent-color: var(--ink); }
-  .col-name { min-width: 180px; }
+  .col-name { min-width: 160px; }
+  .col-spark { width: 170px; padding: 8px 12px; }
   .col-date, .col-dur, .col-fcmax { color: var(--ink-2); white-space: nowrap; }
   .col-act  { width: 28px; color: var(--ink-3); text-align: center; font-size: 16px; }
 
