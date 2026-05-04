@@ -1,4 +1,4 @@
-import { Component, OnInit, ElementRef } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -78,10 +78,6 @@ export class OverviewComponent implements OnInit {
   // ── Viz switcher ─────────────────────────────────────────────────
   viz: VizMode = 'lollipop';
 
-  // ── Tooltip ──────────────────────────────────────────────────────
-  hovered: LollipopItem | null = null;
-  tooltipX = 0;
-  tooltipY = 0;
 
   // Expose layout to template
   readonly ML = ML;
@@ -89,7 +85,7 @@ export class OverviewComponent implements OnInit {
   readonly MB = MB;
   readonly SW = SW;
 
-  constructor(private api: ApiService, private elRef: ElementRef) {}
+  constructor(private api: ApiService) {}
 
   ngOnInit(): void { this.load(); }
 
@@ -97,7 +93,6 @@ export class OverviewComponent implements OnInit {
     this.loading = true;
     this.error   = '';
     this.entries = [];
-    this.hovered = null;
 
     this.api.getOverviewData(this.selectedSport).subscribe({
       next:  data  => { this.entries = data; this._build(data); this.loading = false; },
@@ -112,7 +107,7 @@ export class OverviewComponent implements OnInit {
     const sorted = [...entries].sort((a, b) => a.r_global - b.r_global); // worst → best
 
     const minR = Math.min(...sorted.map(e => e.r_global));
-    this.xMin  = Math.max(0.50, Math.floor((minR - 0.05) * 20) / 20);
+    this.xMin  = Math.max(0.0, Math.floor((minR - 0.05) * 20) / 20);
     this.xMax  = 1.02;
 
     const range = this.xMax - this.xMin;
@@ -168,22 +163,6 @@ export class OverviewComponent implements OnInit {
   /** Verdict for the #1 device */
   get topItem(): LollipopItem | null {
     return this.items.length ? this.items[this.items.length - 1] : null;
-  }
-
-  // ── Tooltip handlers ──────────────────────────────────────────────
-  onLollipopEnter(event: MouseEvent, item: LollipopItem): void {
-    this.hovered = item;
-    this._positionTooltip(event);
-  }
-  onLollipopMove(event: MouseEvent): void {
-    if (this.hovered) this._positionTooltip(event);
-  }
-  onLollipopLeave(): void { this.hovered = null; }
-
-  private _positionTooltip(event: MouseEvent): void {
-    const rect = this.elRef.nativeElement.getBoundingClientRect();
-    this.tooltipX = event.clientX - rect.left + 14;
-    this.tooltipY = event.clientY - rect.top  - 10;
   }
 
   get refLabel(): string { return this.entries[0]?.reference_name ?? ''; }

@@ -116,8 +116,7 @@
 
           <!-- Lollipops -->
           <g class="lollipops">
-            <g *ngFor="let item of items" class="lollipop-row" (mouseenter)="onLollipopEnter($event, item)"
-              (mousemove)="onLollipopMove($event)" (mouseleave)="onLollipopLeave()">
+            <g *ngFor="let item of items" class="lollipop-row">
 
               <!-- Hit area -->
               <rect [attr.x]="ML + item.x0" [attr.y]="item.cy - 18" [attr.width]="item.cx - item.x0 + 60" height="36"
@@ -126,9 +125,7 @@
               <!-- Device name (two lines) -->
               <text [attr.x]="ML - 14" [attr.y]="item.cy + 1" class="device-name" text-anchor="end">{{ item.entry.name
                 }}</text>
-              <text [attr.x]="ML - 14" [attr.y]="item.cy + 15" class="device-sub" text-anchor="end">
-                {{ item.entry.session_count }} ses. · vs {{ item.entry.reference_name }}
-              </text>
+
 
               <!-- Track -->
               <line [attr.x1]="ML + item.x0" [attr.y1]="item.cy" [attr.x2]="ML + chartW" [attr.y2]="item.cy"
@@ -239,32 +236,6 @@
         </table>
       </div>
 
-      <!-- Floating tooltip (lollipop only) -->
-      <div class="lollipop-tooltip" *ngIf="hovered && viz === 'lollipop'" [style.left.px]="tooltipX"
-        [style.top.px]="tooltipY">
-        <div class="tt-title">{{ hovered.entry.name }}</div>
-        <div class="tt-row">
-          <span class="tt-key">r global</span>
-          <span class="tt-val" [style.color]="hovered.color">{{ hovered.entry.r_global | number:'1.4-4' }}</span>
-        </div>
-        <div class="tt-row">
-          <span class="tt-key">MAE relativo</span>
-          <span class="tt-val">{{ hovered.entry.mae_global | number:'1.2-2' }} %</span>
-        </div>
-        <div class="tt-row">
-          <span class="tt-key">Bias</span>
-          <span class="tt-val">{{ biasSign(hovered.entry.bias_global) }}{{ hovered.entry.bias_global | number:'1.1-1' }}
-            bpm</span>
-        </div>
-        <div class="tt-row">
-          <span class="tt-key">Sesiones</span>
-          <span class="tt-val">{{ hovered.entry.session_count }}</span>
-        </div>
-        <div class="tt-row">
-          <span class="tt-key">Referencia</span>
-          <span class="tt-val">{{ hovered.entry.reference_name }}</span>
-        </div>
-      </div>
 
     </div>
 
