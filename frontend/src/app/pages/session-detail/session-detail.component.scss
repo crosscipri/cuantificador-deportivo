@@ -4,13 +4,22 @@
   padding: 32px 48px 64px;
 }
 
-.center-spinner { display: flex; justify-content: center; padding: 64px; }
+.center-spinner {
+  display: flex;
+  justify-content: center;
+  padding: 64px;
+}
 
 // ── Spinners ────────────────────────────────────────────────────────
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .spinner {
-  width: 32px; height: 32px;
+  width: 32px;
+  height: 32px;
   border: 2px solid var(--line);
   border-top-color: var(--ink-3);
   border-radius: 50%;
@@ -19,7 +28,8 @@
 
 .spinner-xs {
   display: inline-block;
-  width: 12px; height: 12px;
+  width: 12px;
+  height: 12px;
   border: 1.5px solid currentColor;
   border-top-color: transparent;
   border-radius: 50%;
@@ -66,7 +76,9 @@
   color: var(--ink-2);
   flex-wrap: wrap;
 
-  .meta-dot { color: var(--ink-4); }
+  .meta-dot {
+    color: var(--ink-4);
+  }
 }
 
 .header-actions {
@@ -96,13 +108,30 @@
   text-decoration: none;
   white-space: nowrap;
 
-  &:hover  { background: var(--bg-sunk); }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-  &.primary {
-    background: var(--ink); color: var(--bg); border-color: var(--ink);
-    &:hover { background: oklch(28% 0.012 250); }
+  &:hover {
+    background: var(--bg-sunk);
   }
-  &.danger { color: var(--bad-ink); border-color: var(--bad-soft); background: var(--bad-soft); }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.primary {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+
+    &:hover {
+      background: oklch(28% 0.012 250);
+    }
+  }
+
+  &.danger {
+    color: var(--bad-ink);
+    border-color: var(--bad-soft);
+    background: var(--bad-soft);
+  }
 }
 
 // ── Verdict ────────────────────────────────────────────────────────
@@ -116,19 +145,37 @@
   background: var(--surface);
   margin-bottom: 4px;
 
-  &.good   { border-left-color: var(--good); }
-  &.warn   { border-left-color: var(--warn); }
-  &.orange { border-left-color: var(--orange); }
-  &.bad    { border-left-color: var(--bad); }
+  &.good {
+    border-left-color: var(--good);
+  }
+
+  &.warn {
+    border-left-color: var(--warn);
+  }
+
+  &.orange {
+    border-left-color: var(--orange);
+  }
+
+  &.bad {
+    border-left-color: var(--bad);
+  }
 
   .v-meta {
-    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
-    font-weight: 600; color: var(--ink-3);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    color: var(--ink-3);
   }
+
   .v-text {
     font-family: var(--font-display);
-    font-size: 16px; line-height: 1.45; color: var(--ink);
-    letter-spacing: -0.005em; margin: 0;
+    font-size: 16px;
+    line-height: 1.45;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    margin: 0;
   }
 }
 
@@ -142,9 +189,19 @@
   margin-top: 8px;
 
   .edit-form {
-    display: flex; flex-direction: column; gap: 4px;
-    .row-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    mat-form-field { width: 100%; }
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .row-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    mat-form-field {
+      width: 100%;
+    }
   }
 }
 
@@ -174,10 +231,30 @@
   text-decoration: none;
   white-space: nowrap;
 
-  &:hover    { background: var(--bg-sunk); }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-  &.primary  { background: var(--ink); color: var(--bg); border-color: var(--ink); &:hover { background: oklch(28% 0.012 250); } }
-  &.danger   { color: var(--bad-ink); border-color: var(--bad-soft); background: var(--bad-soft); }
+  &:hover {
+    background: var(--bg-sunk);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.primary {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+
+    &:hover {
+      background: oklch(28% 0.012 250);
+    }
+  }
+
+  &.danger {
+    color: var(--bad-ink);
+    border-color: var(--bad-soft);
+    background: var(--bad-soft);
+  }
 }
 
 // ── Section header ────────────────────────────────────────────────
@@ -194,11 +271,13 @@
     gap: 10px;
     flex-shrink: 0;
   }
+
   .section-num {
     font-family: var(--font-mono);
     font-size: 12px;
     color: var(--ink-4);
   }
+
   h2 {
     margin: 0;
     font-family: var(--font-sans);
@@ -207,9 +286,24 @@
     color: var(--ink);
     letter-spacing: -0.01em;
   }
-  .section-sub { font-size: 12.5px; color: var(--ink-3); }
-  .divider { flex: 1; height: 1px; background: var(--line); margin-bottom: 4px; }
-  .section-note { font-size: 11px; color: var(--ink-3); flex-shrink: 0; }
+
+  .section-sub {
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+
+  .divider {
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+    margin-bottom: 4px;
+  }
+
+  .section-note {
+    font-size: 11px;
+    color: var(--ink-3);
+    flex-shrink: 0;
+  }
 }
 
 // ── Hero metrics grid ─────────────────────────────────────────────
@@ -219,7 +313,9 @@
   gap: 12px;
   margin-bottom: 12px;
 
-  @media (max-width: 700px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .metric-hero {
@@ -232,10 +328,21 @@
   flex-direction: column;
   gap: 4px;
 
-  &.good   { border-left-color: var(--good); }
-  &.warn   { border-left-color: var(--warn); }
-  &.orange { border-left-color: var(--orange); }
-  &.bad    { border-left-color: var(--bad); }
+  &.good {
+    border-left-color: var(--good);
+  }
+
+  &.warn {
+    border-left-color: var(--warn);
+  }
+
+  &.orange {
+    border-left-color: var(--orange);
+  }
+
+  &.bad {
+    border-left-color: var(--bad);
+  }
 
   .metric-hero-val {
     font-size: 32px;
@@ -246,8 +353,17 @@
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
   }
-  .metric-hero-hint { font-size: 11px; color: var(--ink-3); }
-  .unit { font-size: 16px; color: var(--ink-3); margin-left: 3px; }
+
+  .metric-hero-hint {
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+
+  .unit {
+    font-size: 16px;
+    color: var(--ink-3);
+    margin-left: 3px;
+  }
 }
 
 // ── Secondary metrics ─────────────────────────────────────────────
@@ -257,7 +373,9 @@
   gap: 8px;
   margin-bottom: 4px;
 
-  @media (max-width: 700px) { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .metric-mini {
@@ -266,10 +384,29 @@
   border-radius: var(--r-sm);
   background: var(--surface);
 
-  &.good   { .mini-val { color: var(--good-ink); } }
-  &.warn   { .mini-val { color: var(--warn-ink); } }
-  &.orange { .mini-val { color: var(--orange-ink); } }
-  &.bad    { .mini-val { color: var(--bad-ink); } }
+  &.good {
+    .mini-val {
+      color: var(--good-ink);
+    }
+  }
+
+  &.warn {
+    .mini-val {
+      color: var(--warn-ink);
+    }
+  }
+
+  &.orange {
+    .mini-val {
+      color: var(--orange-ink);
+    }
+  }
+
+  &.bad {
+    .mini-val {
+      color: var(--bad-ink);
+    }
+  }
 
   .mini-val {
     font-size: 18px;
@@ -279,16 +416,20 @@
     font-variant-numeric: tabular-nums;
     color: var(--ink);
   }
-  .unit-sm { font-size: 11px; color: var(--ink-3); margin-left: 2px; }
+
+  .unit-sm {
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-left: 2px;
+  }
 }
 
 // ── Chart card ────────────────────────────────────────────────────
 .chart-card {
   background: var(--surface);
-  border: 1px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-sm);
-  padding: 20px 24px;
+
   overflow: hidden;
 }
 
@@ -316,14 +457,21 @@
     padding: 10px 14px;
     border-bottom: 1px solid var(--line);
   }
+
   td {
     padding: 12px 14px;
     border-bottom: 1px solid var(--line);
     vertical-align: middle;
     color: var(--ink);
   }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: var(--bg-sunk); }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr:hover td {
+    background: var(--bg-sunk);
+  }
 }
 
 .pct-bar-wrap {
@@ -332,6 +480,7 @@
   gap: 8px;
   min-width: 110px;
 }
+
 .pct-bar-track {
   width: 64px;
   height: 6px;
@@ -340,6 +489,7 @@
   overflow: hidden;
   flex-shrink: 0;
 }
+
 .pct-bar-fill {
   height: 100%;
   background: var(--ink-2);
@@ -360,10 +510,29 @@
   background: var(--surface-2);
   color: var(--ink-2);
 
-  &.good   { color: var(--good-ink);   background: var(--good-soft);   border-color: oklch(85% 0.06 155); }
-  &.warn   { color: var(--warn-ink);   background: var(--warn-soft);   border-color: oklch(85% 0.06 75); }
-  &.orange { color: var(--orange-ink); background: var(--orange-soft); border-color: oklch(85% 0.07 45); }
-  &.bad    { color: var(--bad-ink);    background: var(--bad-soft);    border-color: oklch(85% 0.07 25); }
+  &.good {
+    color: var(--good-ink);
+    background: var(--good-soft);
+    border-color: oklch(85% 0.06 155);
+  }
+
+  &.warn {
+    color: var(--warn-ink);
+    background: var(--warn-soft);
+    border-color: oklch(85% 0.06 75);
+  }
+
+  &.orange {
+    color: var(--orange-ink);
+    background: var(--orange-soft);
+    border-color: oklch(85% 0.07 45);
+  }
+
+  &.bad {
+    color: var(--bad-ink);
+    background: var(--bad-soft);
+    border-color: oklch(85% 0.07 25);
+  }
 }
 
 // ── Zone chip ─────────────────────────────────────────────────────
@@ -379,8 +548,28 @@
   font-weight: 700;
   font-family: var(--font-mono);
 }
-.zone-z1 { background: var(--z1-soft); color: var(--z1); }
-.zone-z2 { background: var(--z2-soft); color: var(--good-ink); }
-.zone-z3 { background: var(--z3-soft); color: var(--warn-ink); }
-.zone-z4 { background: var(--z4-soft); color: var(--orange-ink); }
-.zone-z5 { background: var(--z5-soft); color: var(--bad-ink); }
+
+.zone-z1 {
+  background: var(--z1-soft);
+  color: var(--z1);
+}
+
+.zone-z2 {
+  background: var(--z2-soft);
+  color: var(--good-ink);
+}
+
+.zone-z3 {
+  background: var(--z3-soft);
+  color: var(--warn-ink);
+}
+
+.zone-z4 {
+  background: var(--z4-soft);
+  color: var(--orange-ink);
+}
+
+.zone-z5 {
+  background: var(--z5-soft);
+  color: var(--bad-ink);
+}
