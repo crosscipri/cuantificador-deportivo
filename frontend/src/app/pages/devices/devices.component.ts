@@ -10,7 +10,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 
 import { ApiService } from '../../services/api.service';
-import { Device } from '../../models/session.model';
+import { Device, SparkData } from '../../models/session.model';
 
 // ── Inline dialog component ───────────────────────────────────────────────────
 
@@ -176,5 +176,20 @@ export class DevicesComponent implements OnInit {
     if (v <= 5)  return 'warn';
     if (v <= 10) return 'orange';
     return 'bad';
+  }
+
+  /** SVG path for the card sparkline */
+  sparkPath(spark: SparkData | undefined, which: 'device' | 'reference'): string {
+    const pts = spark ? spark[which] : null;
+    const w = 180, h = 36;
+    if (!pts || pts.length < 2) return '';
+    const minV = Math.min(...pts);
+    const maxV = Math.max(...pts);
+    const range = maxV - minV || 1;
+    return pts.map((v, i) => {
+      const x = (i / (pts.length - 1)) * w;
+      const y = h - ((v - minV) / range) * (h - 4) - 2;
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
   }
 }

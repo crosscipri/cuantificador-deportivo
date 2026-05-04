@@ -69,6 +69,7 @@ export interface Device {
   created_at: string;
   session_count: number;
   training_types: TrainingTypeSummary[];
+  last_spark?: SparkData;
 }
 
 export type SportType       = 'running' | 'cycling' | 'gym';

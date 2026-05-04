@@ -134,6 +134,29 @@ async def list_devices() -> list[dict]:
         ]
         dev["session_count"] = sum(t["count"] for t in types)
 
+        # Include sparkline of the most recent session for the card preview
+        last_session = await db().sessions.find_one(
+            {"device_id": ObjectId(dev["id"])},
+            {"spark_data": 1, "fc_data": 1},
+            sort=[("created_at", -1)],
+        )
+        if last_session:
+            spark = last_session.get("spark_data")
+            if not spark:
+                # Compute on-the-fly from fc_data for older sessions
+                fc = last_session.get("fc_data", {})
+                dev_pts = fc.get("device", [])
+                ref_pts = fc.get("reference", [])
+                n = len(dev_pts)
+                if n >= 2:
+                    step = max(1, n // 20)
+                    idx = list(range(0, n, step))[:20]
+                    spark = {
+                        "device":    [dev_pts[i] for i in idx],
+                        "reference": [ref_pts[i] for i in idx],
+                    }
+            dev["last_spark"] = spark or {}
+
     return devices
 
 
@@ -270,8 +293,31 @@ async def list_device_sessions(
     if training_type:
         query["training_type"] = training_type
 
-    cursor = db().sessions.find(query, {"fc_data": 0, "device_file_bytes": 0, "reference_file_bytes": 0}).sort("created_at", -1)
-    return [_ser(d) async for d in cursor]
+    # Fetch fc_data so we can build spark_data for sessions that pre-date the field,
+    # but exclude the heavy binary file bytes.
+    cursor = db().sessions.find(
+        query,
+        {"device_file_bytes": 0, "reference_file_bytes": 0},
+    ).sort("created_at", -1)
+
+    results = []
+    async for d in cursor:
+        # Build spark_data on-the-fly if not already stored
+        if not d.get("spark_data"):
+            fc = d.get("fc_data", {})
+            dev_pts = fc.get("device", [])
+            ref_pts = fc.get("reference", [])
+            n = len(dev_pts)
+            if n >= 2:
+                step = max(1, n // 20)
+                indices = list(range(0, n, step))[:20]
+                d["spark_data"] = {
+                    "device":    [dev_pts[i] for i in indices],
+                    "reference": [ref_pts[i] for i in indices],
+                }
+        d.pop("fc_data", None)  # never send full fc_data in list response
+        results.append(_ser(d))
+    return results
 
 
 @app.get("/api/sessions/{session_id}")
