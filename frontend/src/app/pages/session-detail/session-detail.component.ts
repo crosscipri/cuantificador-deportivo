@@ -44,6 +44,11 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   deviceId = '';
   metricQuality = metricQuality;
 
+  siblingIds: string[] = [];  // all session IDs for this device, newest-first
+  get currentIndex(): number { return this.siblingIds.indexOf(this.session?.id ?? ''); }
+  get prevId(): string | null { return this.siblingIds[this.currentIndex - 1] ?? null; }
+  get nextId(): string | null { return this.siblingIds[this.currentIndex + 1] ?? null; }
+
   readonly zoneColumns = ['zone', 'range', 'pct_time', 'n', 'mae', 'mape', 'bias'];
 
   editing     = false;
@@ -84,10 +89,29 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.deviceId = this.route.snapshot.paramMap.get('deviceId') || '';
     const id = this.route.snapshot.paramMap.get('sessionId')!;
+    this.loadSession(id);
+
+    // Load sibling IDs so we can navigate prev/next
+    if (this.deviceId) {
+      this.api.listDeviceSessions(this.deviceId).subscribe({
+        next: sessions => { this.siblingIds = sessions.map(s => s.id); },
+      });
+    }
+  }
+
+  loadSession(id: string): void {
+    this.loading = true;
+    this.error   = '';
+    this.session = null;
     this.api.getSession(id).subscribe({
       next:  s  => { this.session = s; this.loading = false; },
       error: () => { this.error = 'No se pudo cargar la sesión.'; this.loading = false; },
     });
+  }
+
+  navigateTo(id: string): void {
+    this.router.navigate(['/devices', this.deviceId, 'sessions', id]);
+    this.loadSession(id);
   }
 
   startEdit(): void {

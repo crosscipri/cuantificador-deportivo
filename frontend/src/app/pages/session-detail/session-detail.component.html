@@ -39,6 +39,15 @@
         </div>
       </div>
       <div class="header-actions">
+        <div class="session-nav" *ngIf="siblingIds.length > 1">
+          <button class="ec-btn nav-btn" (click)="navigateTo(prevId!)" [disabled]="!prevId" title="Sesión anterior">
+            ←
+          </button>
+          <span class="nav-pos">{{ currentIndex + 1 }} / {{ siblingIds.length }}</span>
+          <button class="ec-btn nav-btn" (click)="navigateTo(nextId!)" [disabled]="!nextId" title="Sesión siguiente">
+            →
+          </button>
+        </div>
         <button class="ec-btn" (click)="reanalyze()" *ngIf="!editing" [disabled]="reanalyzing">
           <span *ngIf="reanalyzing" class="spinner-xs"></span>
           {{ reanalyzing ? 'Recalculando…' : '↻ Reanalizar' }}
