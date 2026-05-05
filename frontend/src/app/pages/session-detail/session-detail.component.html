@@ -32,8 +32,6 @@
           <span>{{ session.sport_type ? sportLabel[session.sport_type] : '—' }}</span>
           <span class="meta-dot">·</span>
           <span>{{ session.training_type }}</span>
-          <span class="meta-dot">·</span>
-          <span class="num">{{ formatDate(session.created_at) }}</span>
           <span class="meta-dot" *ngIf="session.duration_seconds">·</span>
           <span class="num" *ngIf="session.duration_seconds">{{ formatDuration(session.duration_seconds) }}</span>
         </div>
@@ -140,7 +138,7 @@
     </div>
 
     <!-- ── Secondary metrics ── -->
-    <div class="secondary-metrics">
+    <!-- <div class="secondary-metrics">
       <div class="metric-mini" [ngClass]="mq('ccc', session.metrics.ccc)">
         <div class="eyebrow" style="font-size:9.5px">CCC</div>
         <div class="mini-val num">{{ session.metrics.ccc | number:'1.3-3' }}</div>
@@ -167,7 +165,7 @@
         </div>
         <div class="mini-val num" *ngIf="!session.lag">—</div>
       </div>
-    </div>
+    </div> -->
 
     <!-- ── § 2 · FC en el tiempo ── -->
     <div class="section-header">
