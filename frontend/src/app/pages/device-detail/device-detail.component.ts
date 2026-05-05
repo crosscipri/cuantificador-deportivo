@@ -3,20 +3,10 @@ import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatExpansionModule } from '@angular/material/expansion';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
-import { MatTabsModule } from '@angular/material/tabs';
 
 import { ApiService } from '../../services/api.service';
 import { Device, Session, AggregateResult, SportType, SessionDifficulty,
@@ -56,10 +46,7 @@ const SPORT_ICONS: Record<SportType, string> = {
   standalone: true,
   imports: [
     CommonModule, RouterModule, ReactiveFormsModule,
-    MatCardModule, MatButtonModule, MatIconModule, MatInputModule,
-    MatFormFieldModule, MatAutocompleteModule, MatChipsModule,
-    MatCheckboxModule, MatProgressSpinnerModule, MatExpansionModule,
-    MatSnackBarModule, MatTooltipModule, MatSelectModule, MatTabsModule,
+    MatInputModule, MatFormFieldModule, MatSnackBarModule, MatSelectModule,
     ChartViewerComponent, MetricsTableComponent,
   ],
   templateUrl: './device-detail.component.html',
@@ -346,4 +333,88 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
   }
 
   biasSign(v: number): string { return v > 0 ? '+' : ''; }
+
+  /** Generate a mini SVG path for a session sparkline (dev or ref line) */
+  sparkPath(session: Session, which: 'dev' | 'ref'): string {
+    const spark = session.spark_data;
+    const pts = spark ? (which === 'dev' ? spark.device : spark.reference) : null;
+
+    const w = 160, h = 28;
+
+    if (pts && pts.length >= 2) {
+      const minV = Math.min(...pts);
+      const maxV = Math.max(...pts);
+      const range = maxV - minV || 1;
+      return pts.map((v, i) => {
+        const x = (i / (pts.length - 1)) * w;
+        const y = h - ((v - minV) / range) * (h - 2) - 1;
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' ');
+    }
+
+    // Fallback: simple sine-based placeholder when no spark_data
+    const fcmax = session.fcmax || 160;
+    const fcmid = fcmax * 0.82;
+    const n = 16;
+    const offset = which === 'ref' ? 2 : 0;
+    return Array.from({ length: n }, (_, i) => {
+      const t = i / (n - 1);
+      const v = fcmid + (fcmax - fcmid) * Math.sin(t * Math.PI * 1.1) +
+        (Math.sin(i * 2.3 + offset) * 3) + offset * 1.5;
+      const x = (i / (n - 1)) * w;
+      const y = h - ((v - (fcmid - 15)) / (fcmax - fcmid + 20)) * h;
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${Math.max(1, Math.min(h - 1, y)).toFixed(1)}`;
+    }).join(' ');
+  }
+
+  // ── Custom tab state (replaces mat-tab-group) ──────────────────────
+  activeTabIndex = 0;
+
+  get activeSportTab(): SportTab | null {
+    return this.sportTabs[this.activeTabIndex] ?? null;
+  }
+
+  countSessions(tab: SportTab): number {
+    return tab.groups.reduce((sum, g) => sum + g.sessions.length, 0);
+  }
+
+  /** Natural-language verdict first sentence based on quality */
+  verdictStrong(score: WeightedScore): string {
+    const q = scoreQuality(score);
+    if (q === 'good')   return `Excelente precisión — r = ${score.r_global.toFixed(3)}.`;
+    if (q === 'warn')   return `Buena correlación — r = ${score.r_global.toFixed(3)}.`;
+    if (q === 'orange') return `Correlación moderada — r = ${score.r_global.toFixed(3)}.`;
+    return `Correlación baja — r = ${score.r_global.toFixed(3)}.`;
+  }
+
+  /** CSS class for a score metric value */
+  scoreQuality(value: number, kind: 'r' | 'mae'): string {
+    if (kind === 'r') {
+      if (value >= 0.95) return 'q-good';
+      if (value >= 0.90) return 'q-warn';
+      if (value >= 0.80) return 'q-orange';
+      return 'q-bad';
+    }
+    if (value <= 3)  return 'q-good';
+    if (value <= 5)  return 'q-warn';
+    if (value <= 10) return 'q-orange';
+    return 'q-bad';
+  }
+
+  /** Summary badges shown collapsed in group header */
+  groupBadges(group: SessionGroup): { label: string; value: string; quality: string }[] {
+    if (!group.sessions.length) return [];
+    const rs  = group.sessions.map(s => s.metrics?.r   ?? 0).filter(Boolean);
+    const maes = group.sessions.map(s => s.metrics?.mae ?? 0).filter(Boolean);
+    if (!rs.length) return [];
+    const avgR   = rs.reduce((a, b) => a + b, 0) / rs.length;
+    const avgMae = maes.length ? maes.reduce((a, b) => a + b, 0) / maes.length : null;
+    const badges: { label: string; value: string; quality: string }[] = [
+      { label: 'r', value: avgR.toFixed(3), quality: this.rBadge(avgR) },
+    ];
+    if (avgMae !== null) {
+      badges.push({ label: 'MAE', value: avgMae.toFixed(1), quality: this.maeBadge(avgMae) });
+    }
+    return badges;
+  }
 }

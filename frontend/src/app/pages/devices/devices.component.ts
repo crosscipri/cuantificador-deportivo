@@ -2,18 +2,15 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 
 import { ApiService } from '../../services/api.service';
-import { Device } from '../../models/session.model';
+import { Device, SparkData } from '../../models/session.model';
 
 // ── Inline dialog component ───────────────────────────────────────────────────
 
@@ -84,8 +81,7 @@ export class NewDeviceDialogComponent {
   standalone: true,
   imports: [
     CommonModule, RouterModule,
-    MatCardModule, MatButtonModule, MatIconModule, MatChipsModule,
-    MatProgressSpinnerModule, MatSnackBarModule, MatDialogModule,
+    MatSnackBarModule, MatDialogModule,
   ],
   templateUrl: './devices.component.html',
   styleUrls: ['./devices.component.scss'],
@@ -130,5 +126,70 @@ export class DevicesComponent implements OnInit {
       next: () => { this.snack.open('Dispositivo eliminado', 'OK', { duration: 2500 }); this.load(); },
       error: () => this.snack.open('Error al eliminar', 'Cerrar', { duration: 3000 }),
     });
+  }
+
+  /** Return 2-char uppercase initials from device name */
+  initials(name: string): string {
+    const words = name.trim().split(/\s+/);
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
+
+  /** Return formatted date of most recent session */
+  lastDate(dev: Device): string {
+    if (!dev.training_types.length) return '—';
+    const latest = dev.training_types
+      .map(t => t.last_date)
+      .filter(Boolean)
+      .sort()
+      .pop();
+    if (!latest) return '—';
+    const d = new Date(latest);
+    return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+  }
+
+  /** Average CCC across all training types that have data */
+  avgCcc(dev: Device): number | null {
+    const vals = dev.training_types.map(t => t.avg_ccc).filter((v): v is number => v != null);
+    if (!vals.length) return null;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  }
+
+  /** Average MAE across all training types that have data */
+  avgMae(dev: Device): number | null {
+    const vals = dev.training_types.map(t => t.avg_mae).filter((v): v is number => v != null);
+    if (!vals.length) return null;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  }
+
+  /** Quality class for CCC/r value */
+  cccQuality(v: number): string {
+    if (v >= 0.95) return 'good';
+    if (v >= 0.90) return 'warn';
+    if (v >= 0.80) return 'orange';
+    return 'bad';
+  }
+
+  /** Quality class for MAE value */
+  maeQuality(v: number): string {
+    if (v <= 3)  return 'good';
+    if (v <= 5)  return 'warn';
+    if (v <= 10) return 'orange';
+    return 'bad';
+  }
+
+  /** SVG path for the card sparkline */
+  sparkPath(spark: SparkData | undefined, which: 'device' | 'reference'): string {
+    const pts = spark ? spark[which] : null;
+    const w = 180, h = 36;
+    if (!pts || pts.length < 2) return '';
+    const minV = Math.min(...pts);
+    const maxV = Math.max(...pts);
+    const range = maxV - minV || 1;
+    return pts.map((v, i) => {
+      const x = (i / (pts.length - 1)) * w;
+      const y = h - ((v - minV) / range) * (h - 4) - 2;
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
   }
 }

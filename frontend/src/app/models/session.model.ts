@@ -38,6 +38,11 @@ export interface FcData {
   step:      number;    // downsampling step applied by backend
 }
 
+export interface SparkData {
+  device:    number[];
+  reference: number[];
+}
+
 export interface OverviewEntry {
   name:           string;
   reference_name: string;
@@ -64,6 +69,7 @@ export interface Device {
   created_at: string;
   session_count: number;
   training_types: TrainingTypeSummary[];
+  last_spark?: SparkData;
 }
 
 export type SportType       = 'running' | 'cycling' | 'gym';
@@ -136,7 +142,8 @@ export interface Session {
   fcmax: number;
   duration_seconds: number;
   charts: Charts;
-  fc_data?: FcData;  // only present in GET /api/sessions/:id
+  fc_data?: FcData;    // only present in GET /api/sessions/:id
+  spark_data?: SparkData; // 20-point sparkline, present in list responses
 }
 
 export interface AggregateResult {

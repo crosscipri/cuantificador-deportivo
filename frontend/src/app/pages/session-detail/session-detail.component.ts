@@ -3,17 +3,10 @@ import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatCardModule } from '@angular/material/card';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatTableModule } from '@angular/material/table';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { ApiService } from '../../services/api.service';
 import { Session, metricQuality, SportType, SessionDifficulty,
@@ -32,12 +25,6 @@ import { SessionValidationChartsComponent } from '../../shared/session-validatio
     CommonModule,
     RouterModule,
     ReactiveFormsModule,
-    MatButtonModule,
-    MatIconModule,
-    MatCardModule,
-    MatProgressSpinnerModule,
-    MatTableModule,
-    MatChipsModule,
     MatSnackBarModule,
     MatFormFieldModule,
     MatInputModule,
@@ -46,7 +33,6 @@ import { SessionValidationChartsComponent } from '../../shared/session-validatio
     MetricsTableComponent,
     FcTemporalChartComponent,
     SessionValidationChartsComponent,
-    MatTooltipModule,
   ],
   templateUrl: './session-detail.component.html',
   styleUrls: ['./session-detail.component.scss'],
@@ -178,6 +164,34 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
       },
       error: () => this.snack.open('Error al eliminar', 'Cerrar', { duration: 3000 }),
     });
+  }
+
+  biasSign(v: number): string { return v > 0 ? '+' : ''; }
+
+  loaSemi(session: Session): number {
+    return Math.round(((session.metrics.loa_u - session.metrics.loa_l) / 2) * 10) / 10;
+  }
+
+  mq(metric: string, v: number): string {
+    return metricQuality(metric as any, v);
+  }
+
+  verdictQuality(session: Session): string {
+    return metricQuality('r', session.metrics.r);
+  }
+
+  verdictText(session: Session): string {
+    const r   = session.metrics.r;
+    const mae = session.metrics.mae;
+    const bias = session.metrics.bias;
+    const q = metricQuality('r', r);
+    const biasStr = Math.abs(bias) < 0.1 ? 'bias prácticamente nulo' :
+      `bias ${bias > 0 ? '+' : ''}${bias.toFixed(1)} bpm`;
+
+    if (q === 'good') return `Validación de calidad clínica. Correlación ${r.toFixed(3)} con ${biasStr}. MAE ${mae.toFixed(1)} bpm — sensor de alta fidelidad para este tipo de entrenamiento.`;
+    if (q === 'warn') return `Correlación buena (${r.toFixed(3)}) con ${biasStr}. MAE ${mae.toFixed(1)} bpm — apto para monitorización de carga aeróbica.`;
+    if (q === 'orange') return `Correlación moderada (${r.toFixed(3)}). MAE ${mae.toFixed(1)} bpm. Usar con precaución en análisis de intensidad.`;
+    return `Correlación insuficiente (${r.toFixed(3)}). MAE ${mae.toFixed(1)} bpm — resultados poco fiables para este tipo de sesión.`;
   }
 
   formatDuration(seconds: number): string {

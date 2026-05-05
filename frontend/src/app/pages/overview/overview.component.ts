@@ -1,49 +1,58 @@
-import { Component, OnInit, ElementRef } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
 
 import { ApiService } from '../../services/api.service';
 import { OverviewEntry, SportType, SPORT_TYPE_LABELS } from '../../models/session.model';
 
-// ── Colour thresholds ─────────────────────────────────────────────────────────
-function colorForR(r: number): string {
-  if (r >= 0.95) return '#16a34a';
-  if (r >= 0.90) return '#d97706';
-  if (r >= 0.80) return '#ea580c';
-  return '#dc2626';
+// ── Colour thresholds ─────────────────────────────────────────────
+export function colorForR(r: number): string {
+  if (r >= 0.95) return 'var(--good)';
+  if (r >= 0.90) return 'var(--warn)';
+  if (r >= 0.80) return 'var(--orange)';
+  return 'var(--bad)';
+}
+export function qualityR(r: number): string {
+  if (r >= 0.95) return 'good';
+  if (r >= 0.90) return 'warn';
+  if (r >= 0.80) return 'orange';
+  return 'bad';
+}
+export function qualityMAE(m: number): string {
+  if (m <= 3)  return 'good';
+  if (m <= 5)  return 'warn';
+  if (m <= 10) return 'orange';
+  return 'bad';
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────
 export interface LollipopItem {
   entry:   OverviewEntry;
   color:   string;
-  cx:      number;   // dot x pixel
-  cy:      number;   // dot y pixel
-  x0:      number;   // line start x pixel (chart origin)
-  labelX:  number;   // r-value label x
+  quality: string;
+  cx:      number;
+  cy:      number;
+  x0:      number;
+  labelX:  number;
 }
 
-// ── SVG layout constants ──────────────────────────────────────────────────────
-const ML = 190; // margin left  (device name area)
-const MR =  58; // margin right (r label + padding)
-const MT =  24; // margin top
-const MB =  52; // margin bottom (x-axis)
-const RH =  38; // row height
-const SW = 860; // SVG width (viewBox)
+export type VizMode = 'lollipop' | 'bars' | 'radar' | 'table';
+
+// ── SVG layout constants (design spec: rowH=56, ML=220, MR=90, W=1080) ────
+const ML =  220; // margin left  (device name area)
+const MR =   90; // margin right (r label + padding)
+const MT =   30; // margin top
+const MB =   44; // margin bottom (x-axis)
+const RH =   56; // row height
+const SW = 1080; // SVG viewBox width (matches design reference)
 
 @Component({
   selector: 'app-overview',
   standalone: true,
   imports: [
-    CommonModule, RouterModule, FormsModule, DecimalPipe,
-    MatCardModule, MatButtonModule, MatButtonToggleModule, MatIconModule,
-    MatProgressSpinnerModule,
+    CommonModule, RouterModule, FormsModule, DecimalPipe, MatIconModule,
   ],
   templateUrl: './overview.component.html',
   styleUrls: ['./overview.component.scss'],
@@ -57,19 +66,18 @@ export class OverviewComponent implements OnInit {
 
   entries: OverviewEntry[] = [];
 
-  // ── Chart state ─────────────────────────────────────────────────────────
-  items:     LollipopItem[] = [];
-  svgHeight  = 0;
-  xMin       = 0.3;
-  xMax       = 1.02;
-  xTicks:    number[] = [];
-  refLines:  { r: number; label: string; x: number }[] = [];
-  chartW     = SW - ML - MR;
+  // ── Chart state ──────────────────────────────────────────────────
+  items:    LollipopItem[] = [];
+  svgHeight = 0;
+  xMin      = 0.7;
+  xMax      = 1.0;
+  xTicks:   number[] = [];
+  refLines: { r: number; label: string; x: number }[] = [];
+  chartW    = SW - ML - MR;
 
-  // ── Tooltip ──────────────────────────────────────────────────────────────
-  hovered: LollipopItem | null = null;
-  tooltipX = 0;
-  tooltipY = 0;
+  // ── Viz switcher ─────────────────────────────────────────────────
+  viz: VizMode = 'lollipop';
+
 
   // Expose layout to template
   readonly ML = ML;
@@ -77,7 +85,7 @@ export class OverviewComponent implements OnInit {
   readonly MB = MB;
   readonly SW = SW;
 
-  constructor(private api: ApiService, private elRef: ElementRef) {}
+  constructor(private api: ApiService) {}
 
   ngOnInit(): void { this.load(); }
 
@@ -85,7 +93,6 @@ export class OverviewComponent implements OnInit {
     this.loading = true;
     this.error   = '';
     this.entries = [];
-    this.hovered = null;
 
     this.api.getOverviewData(this.selectedSport).subscribe({
       next:  data  => { this.entries = data; this._build(data); this.loading = false; },
@@ -93,14 +100,14 @@ export class OverviewComponent implements OnInit {
     });
   }
 
-  // ── Private ───────────────────────────────────────────────────────────────
+  // ── Private ───────────────────────────────────────────────────────
   private _build(entries: OverviewEntry[]): void {
     if (!entries.length) return;
 
     const sorted = [...entries].sort((a, b) => a.r_global - b.r_global); // worst → best
 
     const minR = Math.min(...sorted.map(e => e.r_global));
-    this.xMin  = Math.max(0.25, Math.floor((minR - 0.05) * 20) / 20);
+    this.xMin  = Math.max(0.0, Math.floor((minR - 0.05) * 20) / 20);
     this.xMax  = 1.02;
 
     const range = this.xMax - this.xMin;
@@ -110,7 +117,7 @@ export class OverviewComponent implements OnInit {
     let t = Math.ceil(this.xMin * 20) / 20;
     while (t <= 1.0 + 1e-9) { this.xTicks.push(+t.toFixed(2)); t = +(t + 0.05).toFixed(2); }
 
-    // Reference lines
+    // Reference lines at 0.80, 0.90, 0.95
     this.refLines = [
       { r: 0.80, label: '0.80', x: this._xPx(0.80, range) },
       { r: 0.90, label: '0.90', x: this._xPx(0.90, range) },
@@ -119,19 +126,19 @@ export class OverviewComponent implements OnInit {
 
     this.svgHeight = sorted.length * RH + MT + MB;
 
-    const x0 = this._xPx(this.xMin, range); // chart left edge (always 0 px)
+    const x0 = this._xPx(this.xMin, range);
 
     this.items = sorted.map((entry, i) => {
-      // i=0 → bottom row, i=n-1 → top row
-      const cy  = MT + (sorted.length - 1 - i) * RH + RH / 2;
+      const cy  = MT + i * RH + RH / 2;  // worst at top (index 0), best at bottom
       const cx  = this._xPx(entry.r_global, range);
       return {
         entry,
-        color:  colorForR(entry.r_global),
+        color:   colorForR(entry.r_global),
+        quality: qualityR(entry.r_global),
         cx,
         cy,
         x0,
-        labelX: cx + 9,
+        labelX: cx + 14,
       };
     });
   }
@@ -142,24 +149,90 @@ export class OverviewComponent implements OnInit {
 
   xTickPx(r: number): number { return this._xPx(r); }
 
-  // ── Tooltip handlers ──────────────────────────────────────────────────────
-  onLollipopEnter(event: MouseEvent, item: LollipopItem): void {
-    this.hovered  = item;
-    this._positionTooltip(event);
+  /** Sorted best-first (for bars + table views) */
+  get itemsBestFirst(): LollipopItem[] {
+    return [...this.items].reverse();
   }
 
-  onLollipopMove(event: MouseEvent): void {
-    if (this.hovered) this._positionTooltip(event);
+  /** Bar width as % (0–100) for the bars view */
+  barWidth(r: number): number {
+    const range = this.xMax - this.xMin;
+    return Math.max(0, (r - this.xMin) / range * 100);
   }
 
-  onLollipopLeave(): void { this.hovered = null; }
-
-  private _positionTooltip(event: MouseEvent): void {
-    const rect = this.elRef.nativeElement.getBoundingClientRect();
-    this.tooltipX = event.clientX - rect.left + 14;
-    this.tooltipY = event.clientY - rect.top  - 10;
+  /** Verdict for the #1 device */
+  get topItem(): LollipopItem | null {
+    return this.items.length ? this.items[this.items.length - 1] : null;
   }
 
   get refLabel(): string { return this.entries[0]?.reference_name ?? ''; }
   biasSign(v: number): string { return v > 0 ? '+' : ''; }
+  qualityMAEClass(v: number): string { return qualityMAE(v); }
+  qualityRClass(v: number): string { return qualityR(v); }
+
+  // ── Radar chart ───────────────────────────────────────────────────
+
+  readonly RADAR_COLORS = [
+    'oklch(52% 0.14 240)',
+    'oklch(58% 0.13 155)',
+    'oklch(65% 0.16 45)',
+  ];
+
+  /** Top-3 devices for the radar chart (best r first) */
+  get radarTop3(): OverviewEntry[] {
+    return [...this.entries].sort((a, b) => b.r_global - a.r_global).slice(0, 3);
+  }
+
+  /** Normalise a metric to [0,1] for radar plotting */
+  radarNorm(entry: OverviewEntry, axis: string): number {
+    const maxSessions = Math.max(...this.entries.map(e => e.session_count), 1);
+    switch (axis) {
+      case 'r':        return Math.max(0, (entry.r_global - 0.7) / 0.3);
+      case 'mae':      return Math.max(0, 1 - entry.mae_global / 12);
+      case 'bias':     return Math.max(0, 1 - Math.abs(entry.bias_global) / 8);
+      case 'sesiones': return Math.min(1, entry.session_count / Math.max(maxSessions, 1));
+      default:         return 0;
+    }
+  }
+
+  /** SVG polygon points string for one radar entry */
+  radarPoints(entry: OverviewEntry): string {
+    const axes = ['r', 'mae', 'bias', 'sesiones'];
+    const cx = 210, cy = 195, R = 130;
+    return axes.map((axis, i) => {
+      const angle = -Math.PI / 2 + (i / axes.length) * Math.PI * 2;
+      const v = this.radarNorm(entry, axis);
+      return `${cx + Math.cos(angle) * R * v},${cy + Math.sin(angle) * R * v}`;
+    }).join(' ');
+  }
+
+  /** SVG polygon points for a grid ring */
+  radarGrid(scale: number): string {
+    const axes = 4;
+    const cx = 210, cy = 195, R = 130;
+    return Array.from({ length: axes }, (_, i) => {
+      const angle = -Math.PI / 2 + (i / axes) * Math.PI * 2;
+      return `${cx + Math.cos(angle) * R * scale},${cy + Math.sin(angle) * R * scale}`;
+    }).join(' ');
+  }
+
+  /** Axis label positions for radar */
+  radarAxes(): { label: string; x: number; y: number }[] {
+    const labels = ['r', 'MAE', '|bias|', 'sesiones'];
+    const cx = 210, cy = 195, R = 148;
+    return labels.map((label, i) => {
+      const angle = -Math.PI / 2 + (i / labels.length) * Math.PI * 2;
+      return { label, x: cx + Math.cos(angle) * R, y: cy + Math.sin(angle) * R };
+    });
+  }
+
+  /** Axis spoke endpoints for radar */
+  radarSpoke(i: number): { x: number; y: number } {
+    const cx = 210, cy = 195, R = 130;
+    const angle = -Math.PI / 2 + (i / 4) * Math.PI * 2;
+    return { x: cx + Math.cos(angle) * R, y: cy + Math.sin(angle) * R };
+  }
+
+  readonly radarCx = 210;
+  readonly radarCy = 195;
 }
