@@ -332,24 +332,92 @@
             <p class="ai-sec-body">{{ aiAnalysis.report.informe.validez_general }}</p>
           </div>
 
+          <!-- Bland-Altman: objeto nuevo o string legacy -->
           <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.bland_altman">
             <div class="ai-sec-title">Análisis Bland–Altman</div>
-            <p class="ai-sec-body">{{ aiAnalysis.report.informe.bland_altman }}</p>
+            <ng-container *ngIf="aiAnalysis.report.informe.bland_altman?.descripcion_visual; else baLegacy">
+              <p class="ai-sec-body">{{ aiAnalysis.report.informe.bland_altman.descripcion_visual }}</p>
+              <p class="ai-sec-canal" *ngIf="aiAnalysis.report.informe.bland_altman.interpretacion_canal">
+                {{ aiAnalysis.report.informe.bland_altman.interpretacion_canal }}
+              </p>
+              <p class="ai-sec-sub" *ngIf="aiAnalysis.report.informe.bland_altman.sesgo_proporcional">
+                <strong>Sesgo proporcional:</strong> {{ aiAnalysis.report.informe.bland_altman.sesgo_proporcional }}
+              </p>
+            </ng-container>
+            <ng-template #baLegacy>
+              <p class="ai-sec-body">{{ aiAnalysis.report.informe.bland_altman }}</p>
+            </ng-template>
           </div>
 
-          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.error_por_zonas">
+          <!-- Scatter plot (nuevo campo) -->
+          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.scatter_plot">
+            <div class="ai-sec-title">Dispersión · Scatter Plot</div>
+            <p class="ai-sec-body">{{ aiAnalysis.report.informe.scatter_plot?.descripcion_visual }}</p>
+            <p class="ai-sec-sub" *ngIf="aiAnalysis.report.informe.scatter_plot?.patron_error">
+              <strong>Patrón de error:</strong> {{ aiAnalysis.report.informe.scatter_plot?.patron_error }}
+            </p>
+          </div>
+
+          <!-- Error por zonas: objeto Z1-Z5 nuevo o string legacy -->
+          <div class="ai-section-card wide" *ngIf="aiAnalysis.report?.informe?.error_por_zonas">
             <div class="ai-sec-title">Error por zonas de intensidad</div>
-            <p class="ai-sec-body">{{ aiAnalysis.report.informe.error_por_zonas }}</p>
+            <ng-container *ngIf="aiZones.length > 0; else ezLegacy">
+              <div class="ai-zones-grid">
+                <div class="ai-zone-row" *ngFor="let z of aiZones">
+                  <span class="ai-zone-name">{{ z.key }}</span>
+                  <span class="ai-zone-mae" *ngIf="z.mae !== null">{{ z.mae | number:'1.1-1' }} bpm</span>
+                  <span class="ai-zone-mae ai-zone-nodata" *ngIf="z.mae === null">—</span>
+                  <span class="ai-zone-val">{{ z.valoracion }}</span>
+                  <span class="ai-zone-desc">
+                    {{ z.explicacion_canal }}
+                    <span class="ai-zone-causa" *ngIf="z.causa_probable">· <em>{{ z.causa_probable }}</em></span>
+                  </span>
+                </div>
+              </div>
+            </ng-container>
+            <ng-template #ezLegacy>
+              <p class="ai-sec-body">{{ aiAnalysis.report.informe.error_por_zonas }}</p>
+            </ng-template>
           </div>
 
-          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.lag_analisis">
-            <div class="ai-sec-title">Lag temporal</div>
-            <p class="ai-sec-body">{{ aiAnalysis.report.informe.lag_analisis }}</p>
+          <!-- Series temporales (nuevo) o fenómenos detectados (legacy) -->
+          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.series_temporales">
+            <div class="ai-sec-title">Series temporales</div>
+            <p class="ai-sec-body">{{ aiAnalysis.report.informe.series_temporales?.descripcion_visual }}</p>
+            <p class="ai-sec-sub" *ngIf="aiAnalysis.report.informe.series_temporales?.fenomenos_identificados">
+              <strong>Fenómenos:</strong> {{ aiAnalysis.report.informe.series_temporales?.fenomenos_identificados }}
+            </p>
+            <p class="ai-sec-canal" *ngIf="aiAnalysis.report.informe.series_temporales?.interpretacion_canal">
+              {{ aiAnalysis.report.informe.series_temporales?.interpretacion_canal }}
+            </p>
           </div>
-
-          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.fenomenos_detectados">
+          <div class="ai-section-card" *ngIf="!aiAnalysis.report?.informe?.series_temporales && aiAnalysis.report?.informe?.fenomenos_detectados">
             <div class="ai-sec-title">Fenómenos detectados</div>
             <p class="ai-sec-body">{{ aiAnalysis.report.informe.fenomenos_detectados }}</p>
+          </div>
+
+          <!-- Lag temporal: objeto nuevo o string legacy -->
+          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.lag_analisis">
+            <div class="ai-sec-title">Lag temporal</div>
+            <ng-container *ngIf="aiAnalysis.report.informe.lag_analisis?.explicacion_canal; else lagLegacy">
+              <p class="ai-sec-body" *ngIf="aiAnalysis.report.informe.lag_analisis.lag_estimado_segundos !== null && aiAnalysis.report.informe.lag_analisis.lag_estimado_segundos !== undefined">
+                <strong>Lag estimado:</strong> {{ aiAnalysis.report.informe.lag_analisis.lag_estimado_segundos }} s
+                <span class="ai-lag-warn" *ngIf="aiAnalysis.report.informe.lag_analisis.es_problematico">· Problemático</span>
+              </p>
+              <p class="ai-sec-sub" *ngIf="aiAnalysis.report.informe.lag_analisis.causa_del_lag">
+                <strong>Causa:</strong> {{ aiAnalysis.report.informe.lag_analisis.causa_del_lag }}
+              </p>
+              <p class="ai-sec-canal">{{ aiAnalysis.report.informe.lag_analisis.explicacion_canal }}</p>
+            </ng-container>
+            <ng-template #lagLegacy>
+              <p class="ai-sec-body">{{ aiAnalysis.report.informe.lag_analisis }}</p>
+            </ng-template>
+          </div>
+
+          <!-- Diagnóstico de causas (nuevo campo) -->
+          <div class="ai-section-card wide ai-diagnostico" *ngIf="aiAnalysis.report?.informe?.diagnostico_causas">
+            <div class="ai-sec-title">Diagnóstico de causas de error</div>
+            <p class="ai-sec-body">{{ aiAnalysis.report.informe.diagnostico_causas }}</p>
           </div>
 
           <div class="ai-section-card accent" *ngIf="aiAnalysis.report?.informe?.recomendacion_practica">
@@ -380,7 +448,10 @@
               </span>
               <span class="ann-tipo">{{ ann.tipo | titlecase }}</span>
               <span class="ann-sev" [ngClass]="'sev-' + ann.severidad">{{ ann.severidad }}</span>
-              <span class="ann-desc">{{ ann.descripcion }}</span>
+              <span class="ann-desc">
+                {{ ann.descripcion }}
+                <span class="ann-causa" *ngIf="ann.causa">· <em>{{ ann.causa }}</em></span>
+              </span>
             </div>
           </div>
         </ng-container>

@@ -85,6 +85,18 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
     return sport ? TRAINING_TYPES_BY_SPORT[sport] : [];
   }
 
+  get aiZones(): { key: string; mae: number | null; valoracion: string; explicacion_canal: string; causa_probable: string }[] {
+    const zones = this.aiAnalysis?.report?.informe?.error_por_zonas;
+    if (!zones || typeof zones !== 'object') return [];
+    return Object.entries(zones as Record<string, any>).map(([key, v]) => ({
+      key,
+      mae:               v?.mae              ?? null,
+      valoracion:        v?.valoracion        ?? '',
+      explicacion_canal: v?.explicacion_canal ?? '',
+      causa_probable:    v?.causa_probable    ?? '',
+    }));
+  }
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,

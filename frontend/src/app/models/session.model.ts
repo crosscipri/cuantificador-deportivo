@@ -139,20 +139,54 @@ export const TRAINING_TYPES_BY_SPORT: Record<SportType, string[]> = {
 export type AiCalificacion = 'excelente' | 'bueno' | 'moderado' | 'deficiente';
 
 export interface AiAnnotation {
-  tiempo_inicio: number;
-  tiempo_fin:    number;
-  tipo:          'lag' | 'overshooting' | 'cadence_lock' | 'alta_discrepancia' | 'recuperacion_lenta';
-  descripcion:   string;
-  severidad:     'leve' | 'moderada' | 'severa';
+  tiempo_inicio:    number;
+  tiempo_fin:       number;
+  tipo:             'lag' | 'overshooting' | 'cadence_lock' | 'alta_discrepancia' | 'recuperacion_lenta';
+  descripcion:      string;
+  severidad:        'leve' | 'moderada' | 'severa';
+  causa?:           string;
+  frase_para_video?: string;
+}
+
+export interface AiBlandAltman {
+  descripcion_visual:   string;
+  interpretacion_canal: string;
+  sesgo_proporcional:   string;
+}
+
+export interface AiZoneData {
+  mae:              number | null;
+  valoracion:       string;
+  explicacion_canal: string;
+}
+
+export interface AiLagAnalisis {
+  lag_estimado_segundos: number | null;
+  es_problematico:       boolean;
+  explicacion_canal:     string;
+}
+
+export interface AiSeriesTemporales {
+  descripcion_visual:       string;
+  fenomenos_identificados:  string;
+  interpretacion_canal:     string;
+}
+
+export interface AiScatterPlot {
+  descripcion_visual: string;
+  patron_error:       string;
 }
 
 export interface AiReport {
-  resumen_ejecutivo:   string;
-  validez_general:     string;
-  bland_altman:        string;
-  error_por_zonas:     string;
-  lag_analisis:        string;
-  fenomenos_detectados: string;
+  resumen_ejecutivo:      string;
+  validez_general:        string;
+  bland_altman:           any;
+  error_por_zonas:        any;
+  lag_analisis:           any;
+  diagnostico_causas?:    string;
+  fenomenos_detectados?:  string;
+  series_temporales?:     AiSeriesTemporales;
+  scatter_plot?:          AiScatterPlot;
   recomendacion_practica: string;
 }
 
@@ -161,14 +195,15 @@ export interface AiAnalysis {
     informe:                 AiReport;
     anotaciones_temporales:  AiAnnotation[];
     veredicto_sesion: {
-      calificacion: AiCalificacion;
-      etiqueta:     string;
-      para_quien:   string;
+      calificacion:        AiCalificacion;
+      etiqueta:            string;
+      para_quien:          string;
+      NO_recomendado_para?: string;
     };
   };
   annotated_charts: {
-    temporal:   string;  // base64 PNG
-    validation: string;  // base64 PNG
+    temporal:   string;
+    validation: string;
   };
   generated_at: string;
   model:        string;
