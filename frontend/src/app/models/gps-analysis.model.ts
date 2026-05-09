@@ -67,6 +67,32 @@ export interface GpsTestRun {
   points: { lat: number; lon: number; time?: string; ele?: number }[];
 }
 
+export interface GpsAiModeAnalysis {
+  modo: string;
+  nivel: string;
+  analisis: string;
+  puntos_fuertes: string[];
+  puntos_debiles: string[];
+}
+
+export interface GpsAiReport {
+  veredicto_general: string;
+  mejor_modo: string;
+  peor_modo: string;
+  tabla_comparativa: GpsAiModeAnalysis[];
+  explicacion_tecnica: string;
+  caso_ultratrac: string | null;
+  veredicto_satiq: string | null;
+  conclusion_practica: string;
+  recomendacion_usuario: string;
+}
+
+export interface GpsAiAnalysis {
+  report: GpsAiReport;
+  generated_at: string;
+  model: string;
+}
+
 export interface GpsTestDetail {
   id: string;
   device_id: string;

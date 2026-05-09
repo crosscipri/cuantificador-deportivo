@@ -18,7 +18,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from analyzer import (analyze_session, generate_aggregate_analysis,
                       generate_overview_chart, _weighted_global_score)
-from ai_analyzer import generate_session_ai_analysis, generate_device_ai_verdict
+from ai_analyzer import generate_session_ai_analysis, generate_device_ai_verdict, generate_gps_track_ai_analysis
 
 load_dotenv()
 
@@ -676,6 +676,45 @@ async def delete_gps_test(test_id: str) -> dict:
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Test GPS no encontrado")
     return {"deleted": True}
+
+
+@app.get("/api/gps-tests/{test_id}/ai-analysis")
+async def get_gps_test_ai_analysis(test_id: str) -> dict:
+    doc = await db().gps_tests.find_one({"_id": _oid(test_id)}, {"ai_analysis": 1})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Test GPS no encontrado")
+    ai = doc.get("ai_analysis")
+    if not ai:
+        raise HTTPException(status_code=404, detail="Análisis IA no generado aún")
+    return ai
+
+
+@app.post("/api/gps-tests/{test_id}/ai-analysis", status_code=200)
+async def create_gps_test_ai_analysis(test_id: str, body: dict) -> dict:
+    doc = await db().gps_tests.find_one({"_id": _oid(test_id)}, {"name": 1, "reference_distance": 1})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Test GPS no encontrado")
+
+    modes_stats = body.get("modes_stats", [])
+    if not modes_stats:
+        raise HTTPException(status_code=422, detail="Se requieren estadísticas de los modos")
+
+    try:
+        result = await generate_gps_track_ai_analysis(
+            doc.get("name", "Test GPS"),
+            float(doc.get("reference_distance", 1600)),
+            modes_stats,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error generando análisis IA: {exc}")
+
+    await db().gps_tests.update_one(
+        {"_id": _oid(test_id)},
+        {"$set": {"ai_analysis": result}},
+    )
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────

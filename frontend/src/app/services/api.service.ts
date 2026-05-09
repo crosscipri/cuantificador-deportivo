@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry } from '../models/session.model';
-import { GpsTestSummary, GpsTestDetail } from '../models/gps-analysis.model';
+import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis } from '../models/gps-analysis.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -143,5 +143,19 @@ export class ApiService {
 
   deleteGpsTest(testId: string): Observable<{ deleted: boolean }> {
     return this.http.delete<{ deleted: boolean }>(`${this.base}/gps-tests/${testId}`);
+  }
+
+  getGpsTestAiAnalysis(testId: string): Observable<GpsAiAnalysis> {
+    return this.http.get<GpsAiAnalysis>(`${this.base}/gps-tests/${testId}/ai-analysis`);
+  }
+
+  generateGpsTestAiAnalysis(testId: string, modesStats: {
+    name: string; rmse: number; p95: number; mean_err: number;
+    mape: number; delta_dist: number; sample_hz: number; n_samples: number;
+  }[]): Observable<GpsAiAnalysis> {
+    return this.http.post<GpsAiAnalysis>(
+      `${this.base}/gps-tests/${testId}/ai-analysis`,
+      { modes_stats: modesStats },
+    );
   }
 }

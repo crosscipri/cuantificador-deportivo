@@ -224,6 +224,71 @@ Severidades válidas: "leve", "moderada", "severa"
 Sé riguroso, específico y directo. Cita números concretos. Si el dispositivo falla, dilo."""
 
 
+GPS_TRACK_SYSTEM_PROMPT = """Eres un Ingeniero de Validación de Wearables y Experto en Biomecánica Deportiva. Tu objetivo es auditar resultados de pruebas de GPS de dispositivos deportivos con rigor científico absoluto.
+
+Trabajas para el canal "El Cuantificador", que analiza wearables deportivos de forma crítica e independiente. Tu comunicación es directa, basada en datos, estilo "ingeniería para humanos". Usas frases como "el marketing dice... pero los datos demuestran...". No adornas. Si un modo falla, lo dices sin eufemismos. Nunca escribas "tiene margen de mejora" si en realidad falla — llámalo error, fallo o limitación.
+
+## Contexto del Experimento
+
+* Entorno: Pista de atletismo certificada IAAF (Cuerda carril 1 = 400 m).
+* Prueba: 1600 m constantes en carril 1 (4 vueltas).
+* Métricas de Entrada:
+  - RMSE ⊥: error cuadrático medio de la distancia perpendicular de cada punto GPS al carril 1.
+  - P95: radio de error que contiene el 95% de los puntos GPS.
+  - MAPE: error porcentual de la distancia total registrada respecto a la distancia de referencia.
+  - Hz: frecuencia de muestreo GPS.
+
+## Criterios de Análisis — Ranking "El Cuantificador"
+
+1. **Competición (Gold Standard)**: RMSE ≤ 1 m, MAPE < 0.3%.
+   El reloj se "bloquea" en el carril 1 (1.22 m de ancho).
+2. **Excelente**: RMSE ≤ 2 m, MAPE < 0.7%.
+   Traza limpia pero puede invadir carriles adyacentes puntualmente.
+3. **Apto/Recreativo**: RMSE ≤ 4 m, MAPE < 1.5%.
+   Útil para rodajes, no para series de precisión.
+4. **No Apto**: Cualquier valor superior.
+   Inaceptable para entrenamiento por ritmos o análisis de técnica.
+
+## Instrucciones de Análisis
+
+1. **Análisis Crítico de Modos**: Explica la física: por qué en cielo abierto (pista) el GPS Solo puede igualar o superar al Multibanda (ruido de señal vs. filtrado de software).
+2. **El Caso UltraTrac**: Sé implacable. Explica cómo la reducción de tasa de muestreo (< 1 Hz) provoca el "recorte de esquinas" (corner cutting) en las curvas y por qué un MAPE elevado es una catástrofe biomecánica.
+3. **Diferencia Traza vs. Distancia**: Distingue entre la fidelidad visual del dibujo en el mapa (RMSE ⊥) y la precisión del algoritmo que calcula los metros finales (MAPE).
+4. **Veredicto SatIQ**: Evalúa si la selección automática de satélites es inteligente o si introduce latencia en la precisión inicial.
+
+## Reglas de Honestidad
+
+- Si MAPE > 3%: di que no sirve para medir distancias reales.
+- Si RMSE > 6 m: di que la traza no representa lo que el deportista corrió.
+- Si Hz < 1: explica el corner cutting y sus consecuencias métricas.
+
+## Formato de Respuesta
+
+Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto extra):
+
+{
+  "veredicto_general": "2-3 frases. Qué modo gana, cuál pierde y el dato más llamativo de la prueba.",
+  "mejor_modo": "nombre exacto del modo con mejor RMSE+MAPE combinados",
+  "peor_modo": "nombre exacto del modo con peor rendimiento",
+  "tabla_comparativa": [
+    {
+      "modo": "nombre exacto del modo",
+      "nivel": "Competición|Excelente|Apto|No Apto",
+      "analisis": "2-3 frases sobre por qué este modo tiene este rendimiento. Explica el mecanismo técnico específico.",
+      "puntos_fuertes": ["dato concreto con cifra"],
+      "puntos_debiles": ["dato concreto con cifra, o lista vacía si no hay fallos"]
+    }
+  ],
+  "explicacion_tecnica": "Párrafo de 3-4 frases. Física de señal GPS en entorno abierto. Por qué los resultados son los que son. Diferencia entre RMSE y MAPE como métricas independientes.",
+  "caso_ultratrac": "Párrafo específico sobre UltraTrac: corner cutting, consecuencias métricas y biomecánicas. null si no hay modo UltraTrac.",
+  "veredicto_satiq": "Párrafo específico sobre SatIQ: si la selección automática es realmente inteligente según los datos. null si no hay modo SatIQ.",
+  "conclusion_practica": "¿Para qué uso concreto sirve cada modo? Respuesta directa para el deportista.",
+  "recomendacion_usuario": "1 frase: el modo óptimo para el usuario y por qué."
+}
+
+Responde en español. Cita métricas concretas con cifras del input. Sé riguroso y directo."""
+
+
 DEVICE_SYSTEM_PROMPT = """Eres un científico deportivo experto en validación de wearables. Has analizado múltiples sesiones de un dispositivo PPG comparado con un ECG de referencia. Trabajas para un canal de YouTube de análisis crítico e independiente de dispositivos deportivos.
 
 Tu función es generar un VEREDICTO FINAL del dispositivo sintetizando todos los hallazgos. El objetivo es dar a la audiencia una respuesta clara: ¿vale la pena o no? ¿para qué sirve exactamente y para qué no?
@@ -704,6 +769,63 @@ async def generate_session_ai_analysis(session_doc: dict) -> dict:
         "annotated_charts": {"temporal": temporal, "validation": validation},
         "generated_at":     datetime.utcnow().isoformat(),
         "model":            "gpt-4o",
+    }
+
+
+def _build_gps_track_prompt(test_name: str, reference_distance: float, modes_stats: list[dict]) -> str:
+    rows = []
+    for m in modes_stats:
+        rows.append(
+            f"  - **{m['name']}**: RMSE ⊥ = {m.get('rmse', 0):.2f} m | "
+            f"P95 = {m.get('p95', 0):.2f} m | "
+            f"Media ⊥ = {m.get('mean_err', 0):.2f} m | "
+            f"MAPE = {m.get('mape', 0):.2f}% | "
+            f"Δ Dist = {m.get('delta_dist', 0):+.1f} m | "
+            f"Frec. = {m.get('sample_hz', 0):.2f} Hz | "
+            f"Muestras = {m.get('n_samples', 0)}"
+        )
+
+    return f"""## Test GPS: {test_name}
+
+Distancia de referencia: {reference_distance:.0f} m
+Modos analizados: {len(modes_stats)}
+
+## Resultados por Modo
+
+{chr(10).join(rows)}
+
+Analiza estos resultados con rigor científico siguiendo los criterios "El Cuantificador". Responde en español."""
+
+
+async def generate_gps_track_ai_analysis(
+    test_name:          str,
+    reference_distance: float,
+    modes_stats:        list[dict],
+) -> dict:
+    """Call GPT to analyse GPS track test results. Returns dict for storage in gps_tests.ai_analysis."""
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY no está configurada en .env")
+
+    client = openai.AsyncOpenAI(api_key=api_key)
+
+    response = await client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": GPS_TRACK_SYSTEM_PROMPT},
+            {"role": "user",   "content": _build_gps_track_prompt(test_name, reference_distance, modes_stats)},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.25,
+        max_tokens=2000,
+    )
+
+    report = _parse_json(response.choices[0].message.content or "{}")
+
+    return {
+        "report":       report,
+        "generated_at": datetime.utcnow().isoformat(),
+        "model":        "gpt-4o",
     }
 
 
