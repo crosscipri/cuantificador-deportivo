@@ -50,3 +50,28 @@ export interface GpsTrackAnalysis {
   stats:              GpsModeStats[];
   reference_distance: number;  // meters (default 1600)
 }
+
+export interface GpsTestSummary {
+  id: string;
+  device_id: string;
+  name: string;
+  reference_distance: number;
+  created_at: string;
+  mode_count: number;
+  modes_summary: { name: string; color: string; run_count: number }[];
+}
+
+export interface GpsTestRun {
+  filename: string;
+  distance_m: number;
+  points: { lat: number; lon: number; time?: string; ele?: number }[];
+}
+
+export interface GpsTestDetail {
+  id: string;
+  device_id: string;
+  name: string;
+  reference_distance: number;
+  created_at: string;
+  modes: { id: string; name: string; color: string; runs: GpsTestRun[] }[];
+}

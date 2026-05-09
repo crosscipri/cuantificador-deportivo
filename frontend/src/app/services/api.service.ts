@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry } from '../models/session.model';
+import { GpsTestSummary, GpsTestDetail } from '../models/gps-analysis.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -120,5 +121,27 @@ export class ApiService {
 
   generateDeviceAiVerdict(deviceId: string): Observable<AiVerdict> {
     return this.http.post<AiVerdict>(`${this.base}/devices/${deviceId}/ai-verdict`, {});
+  }
+
+  // ── GPS Tests ─────────────────────────────────────────────────────────────
+
+  listGpsTests(deviceId: string): Observable<GpsTestSummary[]> {
+    return this.http.get<GpsTestSummary[]>(`${this.base}/devices/${deviceId}/gps-tests`);
+  }
+
+  saveGpsTest(deviceId: string, payload: {
+    name?: string;
+    reference_distance: number;
+    modes: { id: string; name: string; color: string; runs: { filename: string; distance_m: number; points: any[] }[] }[];
+  }): Observable<GpsTestSummary> {
+    return this.http.post<GpsTestSummary>(`${this.base}/devices/${deviceId}/gps-tests`, payload);
+  }
+
+  getGpsTest(testId: string): Observable<GpsTestDetail> {
+    return this.http.get<GpsTestDetail>(`${this.base}/gps-tests/${testId}`);
+  }
+
+  deleteGpsTest(testId: string): Observable<{ deleted: boolean }> {
+    return this.http.delete<{ deleted: boolean }>(`${this.base}/gps-tests/${testId}`);
   }
 }

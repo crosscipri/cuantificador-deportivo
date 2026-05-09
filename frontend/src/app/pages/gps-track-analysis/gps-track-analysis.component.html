@@ -4,6 +4,36 @@
 
     <a [routerLink]="['/devices', deviceId]" class="setup-back">← Volver al dispositivo</a>
 
+    <!-- Saved tests list -->
+    <div class="saved-tests" *ngIf="savedTests.length > 0 || loadingTests">
+
+      <div class="saved-tests-header">
+        <span class="setup-label">Tests guardados</span>
+        <span class="saved-loading" *ngIf="loadingTests">Cargando…</span>
+      </div>
+
+      <div class="saved-list">
+        <div class="saved-row" *ngFor="let t of savedTests" (click)="loadTest(t.id)">
+          <div class="saved-row-info">
+            <div class="saved-row-name">{{ t.name }}</div>
+            <div class="saved-row-meta">
+              {{ t.mode_count }} modo{{ t.mode_count !== 1 ? 's' : '' }} ·
+              {{ t.reference_distance }} m ref ·
+              {{ t.created_at | date:'dd/MM/yyyy HH:mm' }}
+            </div>
+            <div class="saved-row-swatches">
+              <span class="saved-swatch" *ngFor="let ms of t.modes_summary"
+                    [style.background]="ms.color"
+                    [title]="ms.name + ' (' + ms.run_count + ' run' + (ms.run_count !== 1 ? 's' : '') + ')'">
+              </span>
+            </div>
+          </div>
+          <button class="saved-delete-btn" (click)="deleteTest(t.id, $event)" title="Eliminar test">×</button>
+        </div>
+      </div>
+
+    </div>
+
     <div class="setup-hero">
       <h1 class="setup-title">Análisis GPS — Pista de Atletismo</h1>
       <p class="setup-subtitle">
@@ -67,6 +97,7 @@
         <span *ngIf="!analyzing">Analizar ficheros GPS</span>
         <span *ngIf="analyzing">Procesando…</span>
       </button>
+      <span class="saving-indicator" *ngIf="savingTest">Guardando…</span>
     </div>
 
   </div>
@@ -75,6 +106,7 @@
 <!-- ── ANALYTICAL LAYOUT ───────────────────────────────────────────────────── -->
 <ng-container *ngIf="analytics">
   <div class="analytical">
+  <div class="analytical-top">
 
     <!-- ── LEFT SIDEBAR ─────────────────────────────────────────────────── -->
     <aside class="col-left">
@@ -90,17 +122,17 @@
              *ngFor="let m of sortedByMeanErr"
              [class.selected]="m.selected"
              [class.hovered]="hoveredModeId === m.modeId"
+             [class.dimmed]="!m.visible"
              (click)="selectMode(m.modeId)"
-             (mouseenter)="hoverMode(m.modeId)"
+             (mouseenter)="hoverMode(m.modeId); selectMode(m.modeId)"
              (mouseleave)="hoverMode(null)">
-          <button class="vis-swatch"
-                  [style.background]="m.color"
-                  [style.opacity]="m.visible ? 1 : 0.25"
-                  (click)="toggleVisibility(m.modeId); $event.stopPropagation()"
-                  title="Mostrar/ocultar">
-          </button>
+          <span class="mode-dot" [style.background]="m.color"></span>
           <span class="mode-name">{{ m.modeName }}</span>
           <span class="mode-mean-err num">{{ fmt(m.meanErr) }} m</span>
+          <label class="vis-switch" (click)="$event.stopPropagation()">
+            <input type="checkbox" [checked]="m.visible" (change)="toggleVisibility(m.modeId)" />
+            <span class="vis-switch-track"></span>
+          </label>
         </div>
       </div>
 
@@ -144,6 +176,28 @@
         <div class="meta-row">
           <span class="meta-key">Modos</span>
           <span class="meta-val num">{{ analytics!.length }}</span>
+        </div>
+      </div>
+
+      <!-- Ranking -->
+      <div class="rank-section">
+        <div class="section-eyebrow">Clasificación</div>
+        <div class="rank-row" *ngFor="let m of sortedByMeanErr; let i = index">
+          <span class="rank-badge"
+                [class.rank-gold]="i === 0"
+                [class.rank-silver]="i === 1"
+                [class.rank-bronze]="i === 2">#{{ i + 1 }}</span>
+          <span class="dot-sm" [style.background]="m.color"></span>
+          <div class="rank-info">
+            <span class="rank-name">{{ m.modeName }}</span>
+            <div class="rank-bar-track">
+              <div class="rank-bar"
+                   [style.width]="rankBarPct(m.meanErr)"
+                   [style.background]="m.color">
+              </div>
+            </div>
+          </div>
+          <span class="rank-val num">{{ fmt(m.meanErr) }} m</span>
         </div>
       </div>
 
@@ -347,8 +401,8 @@
                 <path [attr.d]="run.pathD"
                       fill="none"
                       [attr.stroke]="mode.color"
-                      stroke-width="0.38"
-                      [attr.stroke-opacity]="hoveredModeId && hoveredModeId !== mode.modeId ? 0.25 : 0.88"
+                      [attr.stroke-width]="hoveredModeId === mode.modeId ? 0.6 : 0.38"
+                      [attr.stroke-opacity]="hoveredModeId && hoveredModeId !== mode.modeId ? 0.15 : 0.88"
                       stroke-linejoin="round"
                       stroke-linecap="round" />
               </g>
@@ -540,6 +594,89 @@
       </div>
 
     </aside>
+
+  </div><!-- /analytical-top -->
+
+  <!-- ── FULL RANKING TABLE ──────────────────────────────────────────────── -->
+  <section class="rank-full">
+    <div class="rank-full-header">
+      <div>
+        <span class="rank-full-eyebrow">Análisis comparativo</span>
+        <h2 class="rank-full-title">Clasificación completa</h2>
+      </div>
+      <span class="rank-full-sub">Ordenado por precisión de distancia total · Referencia {{ referenceDistance }} m</span>
+    </div>
+
+    <div class="rank-table-wrap">
+      <table class="rank-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th class="rank-th-name">Modo GPS</th>
+            <th>Dist. registrada</th>
+            <th>Δ Distancia</th>
+            <th>Error ⊥ med.</th>
+            <th>Error ⊥ máx.</th>
+            <th>Frecuencia</th>
+            <th>Muestras</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of sortedByDistAccuracy; let i = index"
+              [class.rank-tr-best]="i === 0"
+              (click)="selectMode(m.modeId)"
+              (mouseenter)="hoverMode(m.modeId)"
+              (mouseleave)="hoverMode(null)">
+
+            <td class="rank-td-pos">
+              <span class="rank-badge"
+                    [class.rank-gold]="i === 0"
+                    [class.rank-silver]="i === 1"
+                    [class.rank-bronze]="i === 2">#{{ i + 1 }}</span>
+            </td>
+
+            <td class="rank-td-name">
+              <span class="dot-sm" [style.background]="m.color"></span>
+              {{ m.modeName }}
+            </td>
+
+            <td class="rank-td-metric">
+              <span class="num">{{ fmt(m.recDist, 0) }} m</span>
+              <div class="mbar-track">
+                <div class="mbar"
+                     [style.width]="rankBarPct(Math.abs(m.deltaDist), maxAbsDeltaDist)"
+                     [style.background]="m.color"></div>
+              </div>
+            </td>
+
+            <td class="rank-td-metric">
+              <span class="num" [class.over]="m.deltaDist >= 0" [class.under]="m.deltaDist < 0">
+                {{ fmtSign(m.deltaDist) }} m
+              </span>
+              <div class="mbar-track">
+                <div class="mbar mbar-neutral"
+                     [style.width]="rankBarPct(Math.abs(m.deltaDist), maxAbsDeltaDist)"></div>
+              </div>
+            </td>
+
+            <td class="rank-td-metric">
+              <span class="num">{{ fmt(m.meanErr) }} m</span>
+              <div class="mbar-track">
+                <div class="mbar"
+                     [style.width]="rankBarPct(m.meanErr)"
+                     [style.background]="m.color"></div>
+              </div>
+            </td>
+
+            <td class="rank-td-num num">{{ fmt(m.maxErr) }} m</td>
+            <td class="rank-td-num num">{{ fmtHz(m.sampleHz) }}</td>
+            <td class="rank-td-num num">{{ m.nSamples }}</td>
+
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   </div><!-- /analytical -->
 </ng-container>

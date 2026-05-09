@@ -48,6 +48,8 @@ async def startup() -> None:
     await app.state.db.sessions.create_index("device_id")
     await app.state.db.sessions.create_index("training_type")
     await app.state.db.sessions.create_index([("created_at", -1)])
+    await app.state.db.gps_tests.create_index("device_id")
+    await app.state.db.gps_tests.create_index([("created_at", -1)])
 
 
 @app.on_event("shutdown")
@@ -98,6 +100,23 @@ def _ser(doc: dict, *, keep_fc: bool = False) -> dict:
         doc["ai_verdict_model"] = verdict.get("model")
     else:
         doc["has_ai_verdict"] = False
+    return doc
+
+
+def _ser_gps_test(doc: dict, *, include_points: bool = False) -> dict:
+    doc["id"] = str(doc.pop("_id"))
+    if "device_id" in doc:
+        doc["device_id"] = str(doc["device_id"])
+    if isinstance(doc.get("created_at"), datetime):
+        doc["created_at"] = doc["created_at"].isoformat()
+    if not include_points:
+        modes = doc.get("modes", [])
+        doc["mode_count"] = len(modes)
+        doc["modes_summary"] = [
+            {"name": m["name"], "color": m["color"], "run_count": len(m.get("runs", []))}
+            for m in modes
+        ]
+        doc.pop("modes", None)
     return doc
 
 
@@ -608,6 +627,55 @@ async def create_aggregate(body: dict) -> dict:
         raise HTTPException(status_code=500, detail=str(exc))
 
     return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GPS TESTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.post("/api/devices/{device_id}/gps-tests", status_code=201)
+async def create_gps_test(device_id: str, body: dict) -> dict:
+    if not await db().devices.find_one({"_id": _oid(device_id)}):
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+    modes = body.get("modes", [])
+    if not modes:
+        raise HTTPException(status_code=422, detail="Se requiere al menos un modo GPS")
+    doc = {
+        "device_id":          ObjectId(device_id),
+        "name":               body.get("name") or f"Test GPS {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        "reference_distance": float(body.get("reference_distance", 1600)),
+        "modes":              modes,
+        "created_at":         datetime.utcnow(),
+    }
+    inserted = await db().gps_tests.insert_one(doc)
+    doc["_id"] = inserted.inserted_id
+    return _ser_gps_test(doc, include_points=False)
+
+
+@app.get("/api/devices/{device_id}/gps-tests")
+async def list_gps_tests(device_id: str) -> list[dict]:
+    return [
+        _ser_gps_test(d, include_points=False)
+        async for d in db().gps_tests.find(
+            {"device_id": _oid(device_id)}
+        ).sort("created_at", -1)
+    ]
+
+
+@app.get("/api/gps-tests/{test_id}")
+async def get_gps_test(test_id: str) -> dict:
+    doc = await db().gps_tests.find_one({"_id": _oid(test_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Test GPS no encontrado")
+    return _ser_gps_test(doc, include_points=True)
+
+
+@app.delete("/api/gps-tests/{test_id}")
+async def delete_gps_test(test_id: str) -> dict:
+    result = await db().gps_tests.delete_one({"_id": _oid(test_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Test GPS no encontrado")
+    return {"deleted": True}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
