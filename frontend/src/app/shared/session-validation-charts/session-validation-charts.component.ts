@@ -140,6 +140,8 @@ export class SessionValidationChartsComponent implements OnChanges {
         })),
       ],
     };
+    (this.corrOptions as any).plugins.title.text =
+      `Correlación — CCC = ${m.ccc.toFixed(3)}  ·  r = ${m.r.toFixed(3)}`;
   }
 
   private _buildBA(fc: FcData, m: Metrics): void {

@@ -47,6 +47,8 @@ export interface OverviewEntry {
   name:           string;
   reference_name: string;
   r_global:       number;
+  ccc_global:     number;
+  lag_mean:       number;
   mae_global:     number;
   bias_global:    number;
   session_count:  number;
@@ -165,6 +167,8 @@ export interface WeightedScore {
   mae_global:  number;   // MAE relativo ponderado (%)
   bias_global: number;   // bias ponderado con signo (bpm)
   r_global:    number;   // correlación Fisher-ponderada
+  ccc_global:  number;   // CCC de Lin ponderado (media directa)
+  lag_mean:    number;   // lag medio ponderado (segundos)
   n_sessions:  number;   // sesiones con datos completos
 }
 
@@ -184,7 +188,7 @@ export function computeWeightedScore(sessions: Session[]): WeightedScore | null 
   );
   if (valid.length === 0) return null;
 
-  let W = 0, maeSum = 0, biasSum = 0, zSum = 0;
+  let W = 0, maeSum = 0, biasSum = 0, zSum = 0, cccSum = 0, lagSum = 0;
 
   for (const s of valid) {
     const w      = DIFFICULTY_WEIGHTS[s.session_difficulty] ?? 1.0;
@@ -196,6 +200,8 @@ export function computeWeightedScore(sessions: Session[]): WeightedScore | null 
     maeSum  += maeRel * w;
     biasSum += s.metrics.bias * w;
     zSum    += z * w;
+    cccSum  += (s.metrics.ccc ?? 0) * w;
+    lagSum  += (s.lag ?? 0) * w;
   }
 
   const zMean   = zSum / W;
@@ -205,13 +211,15 @@ export function computeWeightedScore(sessions: Session[]): WeightedScore | null 
     mae_global:  Math.round(maeSum  / W * 100) / 100,
     bias_global: Math.round(biasSum / W * 100) / 100,
     r_global:    Math.round(rGlobal * 10000)   / 10000,
+    ccc_global:  Math.round(cccSum  / W * 10000) / 10000,
+    lag_mean:    Math.round(lagSum  / W * 10)    / 10,
     n_sessions:  valid.length,
   };
 }
 
-/** Calidad del score global por deporte basada en r_global */
+/** Calidad del score global por deporte basada en ccc_global */
 export function scoreQuality(score: WeightedScore): MetricQuality {
-  return metricQuality('r', score.r_global);
+  return metricQuality('ccc', score.ccc_global);
 }
 
 /**

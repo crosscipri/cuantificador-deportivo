@@ -201,21 +201,21 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   }
 
   verdictQuality(session: Session): string {
-    return metricQuality('r', session.metrics.r);
+    return metricQuality('ccc', session.metrics.ccc);
   }
 
   verdictText(session: Session): string {
-    const r   = session.metrics.r;
-    const mae = session.metrics.mae;
+    const ccc  = session.metrics.ccc;
+    const mae  = session.metrics.mae;
     const bias = session.metrics.bias;
-    const q = metricQuality('r', r);
+    const q    = metricQuality('ccc', ccc);
     const biasStr = Math.abs(bias) < 0.1 ? 'bias prácticamente nulo' :
       `bias ${bias > 0 ? '+' : ''}${bias.toFixed(1)} bpm`;
 
-    if (q === 'good') return `Validación de calidad clínica. Correlación ${r.toFixed(3)} con ${biasStr}. MAE ${mae.toFixed(1)} bpm — sensor de alta fidelidad para este tipo de entrenamiento.`;
-    if (q === 'warn') return `Correlación buena (${r.toFixed(3)}) con ${biasStr}. MAE ${mae.toFixed(1)} bpm — apto para monitorización de carga aeróbica.`;
-    if (q === 'orange') return `Correlación moderada (${r.toFixed(3)}). MAE ${mae.toFixed(1)} bpm. Usar con precaución en análisis de intensidad.`;
-    return `Correlación insuficiente (${r.toFixed(3)}). MAE ${mae.toFixed(1)} bpm — resultados poco fiables para este tipo de sesión.`;
+    if (q === 'good') return `Validación de calidad clínica. CCC = ${ccc.toFixed(3)} con ${biasStr}. MAE ${mae.toFixed(1)} bpm — sensor de alta fidelidad para este tipo de entrenamiento.`;
+    if (q === 'warn') return `Acuerdo bueno (CCC = ${ccc.toFixed(3)}) con ${biasStr}. MAE ${mae.toFixed(1)} bpm — apto para monitorización de carga aeróbica.`;
+    if (q === 'orange') return `Acuerdo moderado (CCC = ${ccc.toFixed(3)}). MAE ${mae.toFixed(1)} bpm. Usar con precaución en análisis de intensidad.`;
+    return `Acuerdo insuficiente (CCC = ${ccc.toFixed(3)}). MAE ${mae.toFixed(1)} bpm — resultados poco fiables para este tipo de sesión.`;
   }
 
   formatDuration(seconds: number): string {

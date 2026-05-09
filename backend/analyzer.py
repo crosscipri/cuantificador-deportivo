@@ -682,7 +682,7 @@ def _weighted_global_score(sessions_info: list) -> dict | None:
 
     r_global    = Fisher z-transform → weighted mean → inverse transform
     """
-    weights, mae_rels, biases, fisher_zs = [], [], [], []
+    weights, mae_rels, biases, fisher_zs, cccs, lags = [], [], [], [], [], []
 
     for s in sessions_info:
         m = s.get("metrics") or {}
@@ -690,6 +690,8 @@ def _weighted_global_score(sessions_info: list) -> dict | None:
         fc_media = m.get("media_ref")
         bias     = m.get("bias")
         r        = m.get("r")
+        ccc      = m.get("ccc")
+        lag      = s.get("lag")
 
         if mae is None or fc_media is None or fc_media == 0:
             continue
@@ -700,6 +702,8 @@ def _weighted_global_score(sessions_info: list) -> dict | None:
         weights.append(w)
         mae_rels.append(mae_rel)
         biases.append(bias if bias is not None else 0.0)
+        cccs.append(ccc if ccc is not None else 0.0)
+        lags.append(float(lag) if lag is not None else 0.0)
 
         # Fisher z-transform (clip r to avoid ±∞)
         r_clip = float(np.clip(r if r is not None else 0.0, -0.9999, 0.9999))
@@ -713,11 +717,15 @@ def _weighted_global_score(sessions_info: list) -> dict | None:
     bias_global = sum(b * w for b, w in zip(biases,    weights)) / W
     z_mean      = sum(z * w for z, w in zip(fisher_zs, weights)) / W
     r_global    = float((np.exp(2 * z_mean) - 1) / (np.exp(2 * z_mean) + 1))
+    ccc_global  = sum(c * w for c, w in zip(cccs, weights)) / W
+    lag_mean    = sum(l * w for l, w in zip(lags, weights)) / W
 
     return {
         "mae_global":  round(mae_global,  2),
         "bias_global": round(bias_global, 2),
         "r_global":    round(r_global,    4),
+        "ccc_global":  round(ccc_global,  4),
+        "lag_mean":    round(lag_mean,    1),
         "n_weighted":  len(weights),
         "total_weight": round(W, 1),
     }

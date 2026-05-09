@@ -21,10 +21,10 @@
     <span class="threshold">±≤6 ✓ · ±6–10 · ±10–15 · >15</span>
   </div>
 
-  <div class="metric-badge" [ngClass]="metricQuality('r', metrics.r)">
-    <span class="label">Correlación r</span>
-    <span class="value">{{ metrics.r }}</span>
-    <span class="unit">Pearson</span>
+  <div class="metric-badge" [ngClass]="metricQuality('ccc', metrics.ccc)">
+    <span class="label">CCC de Lin</span>
+    <span class="value">{{ metrics.ccc }}</span>
+    <span class="unit">r = {{ metrics.r }}</span>
     <span class="threshold">≥0.95 ✓ · 0.90–0.95 · 0.80–0.90 · <0.80</span>
   </div>
 

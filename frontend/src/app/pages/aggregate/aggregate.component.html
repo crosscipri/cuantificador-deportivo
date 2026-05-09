@@ -56,8 +56,8 @@
             <span class="s-date">{{ formatDate(s.created_at) }}</span>
           </div>
           <div class="check-metrics">
-            <span class="cm" [class.good]="s.metrics.r >= 0.95" [class.warn]="s.metrics.r >= 0.90 && s.metrics.r < 0.95" [class.bad]="s.metrics.r < 0.80">
-              r {{ s.metrics.r | number:'1.3-3' }}
+            <span class="cm" [class.good]="s.metrics.ccc >= 0.95" [class.warn]="s.metrics.ccc >= 0.90 && s.metrics.ccc < 0.95" [class.bad]="s.metrics.ccc < 0.80">
+              CCC {{ s.metrics.ccc | number:'1.3-3' }}
             </span>
             <span class="cm" [class.good]="s.metrics.mae <= 3" [class.warn]="s.metrics.mae > 3 && s.metrics.mae <= 5" [class.bad]="s.metrics.mae > 5">
               MAE {{ s.metrics.mae | number:'1.1-1' }}

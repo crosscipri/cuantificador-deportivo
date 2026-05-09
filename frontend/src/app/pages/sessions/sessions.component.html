@@ -91,9 +91,9 @@
               <span class="ref-tag">{{ session.reference_name }}</span>
             </div>
             <div class="row-metrics">
-              <div class="rm-cell" [ngClass]="metricQuality('r', session.metrics.r)">
-                <span class="rm-label">r</span>
-                <span class="rm-val">{{ session.metrics.r | number:'1.3-3' }}</span>
+              <div class="rm-cell" [ngClass]="metricQuality('ccc', session.metrics.ccc)">
+                <span class="rm-label">CCC</span>
+                <span class="rm-val">{{ session.metrics.ccc | number:'1.3-3' }}</span>
               </div>
               <div class="rm-cell" [ngClass]="metricQuality('mae', session.metrics.mae)">
                 <span class="rm-label">MAE</span>

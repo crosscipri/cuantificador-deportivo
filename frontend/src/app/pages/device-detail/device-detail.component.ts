@@ -381,15 +381,15 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
   /** Natural-language verdict first sentence based on quality */
   verdictStrong(score: WeightedScore): string {
     const q = scoreQuality(score);
-    if (q === 'good')   return `Excelente precisión — r = ${score.r_global.toFixed(3)}.`;
-    if (q === 'warn')   return `Buena correlación — r = ${score.r_global.toFixed(3)}.`;
-    if (q === 'orange') return `Correlación moderada — r = ${score.r_global.toFixed(3)}.`;
-    return `Correlación baja — r = ${score.r_global.toFixed(3)}.`;
+    if (q === 'good')   return `Excelente acuerdo — CCC = ${score.ccc_global.toFixed(3)}.`;
+    if (q === 'warn')   return `Buen acuerdo — CCC = ${score.ccc_global.toFixed(3)}.`;
+    if (q === 'orange') return `Acuerdo moderado — CCC = ${score.ccc_global.toFixed(3)}.`;
+    return `Acuerdo bajo — CCC = ${score.ccc_global.toFixed(3)}.`;
   }
 
   /** CSS class for a score metric value */
-  scoreQuality(value: number, kind: 'r' | 'mae'): string {
-    if (kind === 'r') {
+  scoreQuality(value: number, kind: 'r' | 'ccc' | 'mae'): string {
+    if (kind === 'r' || kind === 'ccc') {
       if (value >= 0.95) return 'q-good';
       if (value >= 0.90) return 'q-warn';
       if (value >= 0.80) return 'q-orange';
@@ -404,13 +404,13 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
   /** Summary badges shown collapsed in group header */
   groupBadges(group: SessionGroup): { label: string; value: string; quality: string }[] {
     if (!group.sessions.length) return [];
-    const rs  = group.sessions.map(s => s.metrics?.r   ?? 0).filter(Boolean);
+    const cccs = group.sessions.map(s => s.metrics?.ccc ?? 0).filter(Boolean);
     const maes = group.sessions.map(s => s.metrics?.mae ?? 0).filter(Boolean);
-    if (!rs.length) return [];
-    const avgR   = rs.reduce((a, b) => a + b, 0) / rs.length;
+    if (!cccs.length) return [];
+    const avgCCC = cccs.reduce((a, b) => a + b, 0) / cccs.length;
     const avgMae = maes.length ? maes.reduce((a, b) => a + b, 0) / maes.length : null;
     const badges: { label: string; value: string; quality: string }[] = [
-      { label: 'r', value: avgR.toFixed(3), quality: this.rBadge(avgR) },
+      { label: 'CCC', value: avgCCC.toFixed(3), quality: this.rBadge(avgCCC) },
     ];
     if (avgMae !== null) {
       badges.push({ label: 'MAE', value: avgMae.toFixed(1), quality: this.maeBadge(avgMae) });

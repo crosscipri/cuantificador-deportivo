@@ -26,6 +26,12 @@ export function qualityMAE(m: number): string {
   if (m <= 10) return 'orange';
   return 'bad';
 }
+export function qualityCCC(c: number): string {
+  if (c >= 0.95) return 'good';
+  if (c >= 0.90) return 'warn';
+  if (c >= 0.80) return 'orange';
+  return 'bad';
+}
 
 // ── Types ─────────────────────────────────────────────────────────
 export interface LollipopItem {
@@ -104,10 +110,10 @@ export class OverviewComponent implements OnInit {
   private _build(entries: OverviewEntry[]): void {
     if (!entries.length) return;
 
-    const sorted = [...entries].sort((a, b) => a.r_global - b.r_global); // worst → best
+    const sorted = [...entries].sort((a, b) => a.ccc_global - b.ccc_global); // worst → best by CCC
 
-    const minR = Math.min(...sorted.map(e => e.r_global));
-    this.xMin  = Math.max(0.0, Math.floor((minR - 0.05) * 20) / 20);
+    const minC = Math.min(...sorted.map(e => e.ccc_global));
+    this.xMin  = Math.max(0.0, Math.floor((minC - 0.05) * 20) / 20);
     this.xMax  = 1.02;
 
     const range = this.xMax - this.xMin;
@@ -129,16 +135,16 @@ export class OverviewComponent implements OnInit {
     const x0 = this._xPx(this.xMin, range);
 
     this.items = sorted.map((entry, i) => {
-      const cy  = MT + i * RH + RH / 2;  // worst at top (index 0), best at bottom
-      const cx  = this._xPx(entry.r_global, range);
+      const cy = MT + i * RH + RH / 2;
+      const cx = this._xPx(entry.ccc_global, range);
       return {
         entry,
-        color:   colorForR(entry.r_global),
-        quality: qualityR(entry.r_global),
+        color:   colorForR(entry.ccc_global),
+        quality: qualityCCC(entry.ccc_global),
         cx,
         cy,
         x0,
-        labelX: cx + 14,
+        labelX:  cx + 14,
       };
     });
   }
@@ -155,12 +161,12 @@ export class OverviewComponent implements OnInit {
   }
 
   /** Bar width as % (0–100) for the bars view */
-  barWidth(r: number): number {
+  barWidth(v: number): number {
     const range = this.xMax - this.xMin;
-    return Math.max(0, (r - this.xMin) / range * 100);
+    return Math.max(0, (v - this.xMin) / range * 100);
   }
 
-  /** Verdict for the #1 device */
+  /** Verdict for the #1 device (best CCC) */
   get topItem(): LollipopItem | null {
     return this.items.length ? this.items[this.items.length - 1] : null;
   }
@@ -169,6 +175,11 @@ export class OverviewComponent implements OnInit {
   biasSign(v: number): string { return v > 0 ? '+' : ''; }
   qualityMAEClass(v: number): string { return qualityMAE(v); }
   qualityRClass(v: number): string { return qualityR(v); }
+  qualityCCCClass(v: number): string { return qualityCCC(v); }
+  lagLabel(s: number): string {
+    if (s === 0) return '0 s';
+    return (s > 0 ? '+' : '') + s.toFixed(1) + ' s';
+  }
 
   // ── Radar chart ───────────────────────────────────────────────────
 
@@ -178,16 +189,16 @@ export class OverviewComponent implements OnInit {
     'oklch(65% 0.16 45)',
   ];
 
-  /** Top-3 devices for the radar chart (best r first) */
+  /** Top-3 devices for the radar chart (best CCC first) */
   get radarTop3(): OverviewEntry[] {
-    return [...this.entries].sort((a, b) => b.r_global - a.r_global).slice(0, 3);
+    return [...this.entries].sort((a, b) => b.ccc_global - a.ccc_global).slice(0, 3);
   }
 
   /** Normalise a metric to [0,1] for radar plotting */
   radarNorm(entry: OverviewEntry, axis: string): number {
     const maxSessions = Math.max(...this.entries.map(e => e.session_count), 1);
     switch (axis) {
-      case 'r':        return Math.max(0, (entry.r_global - 0.7) / 0.3);
+      case 'CCC':      return Math.max(0, (entry.ccc_global - 0.7) / 0.3);
       case 'mae':      return Math.max(0, 1 - entry.mae_global / 12);
       case 'bias':     return Math.max(0, 1 - Math.abs(entry.bias_global) / 8);
       case 'sesiones': return Math.min(1, entry.session_count / Math.max(maxSessions, 1));
@@ -197,7 +208,7 @@ export class OverviewComponent implements OnInit {
 
   /** SVG polygon points string for one radar entry */
   radarPoints(entry: OverviewEntry): string {
-    const axes = ['r', 'mae', 'bias', 'sesiones'];
+    const axes = ['CCC', 'mae', 'bias', 'sesiones'];
     const cx = 210, cy = 195, R = 130;
     return axes.map((axis, i) => {
       const angle = -Math.PI / 2 + (i / axes.length) * Math.PI * 2;
@@ -218,7 +229,7 @@ export class OverviewComponent implements OnInit {
 
   /** Axis label positions for radar */
   radarAxes(): { label: string; x: number; y: number }[] {
-    const labels = ['r', 'MAE', '|bias|', 'sesiones'];
+    const labels = ['CCC', 'MAE', '|bias|', 'sesiones'];
     const cx = 210, cy = 195, R = 148;
     return labels.map((label, i) => {
       const angle = -Math.PI / 2 + (i / labels.length) * Math.PI * 2;

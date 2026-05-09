@@ -522,7 +522,7 @@ async def get_overview_data(sport_type: str = "running") -> list[dict]:
         sessions = [
             s async for s in db().sessions.find(
                 {"device_id": dev["_id"], "sport_type": sport_type},
-                {"metrics": 1, "session_difficulty": 1, "_id": 0},
+                {"metrics": 1, "session_difficulty": 1, "lag": 1, "_id": 0},
             )
         ]
         if not sessions:
@@ -536,6 +536,8 @@ async def get_overview_data(sport_type: str = "running") -> list[dict]:
             "name":           dev["name"],
             "reference_name": dev["reference_name"],
             "r_global":       score["r_global"],
+            "ccc_global":     score["ccc_global"],
+            "lag_mean":       score["lag_mean"],
             "mae_global":     score["mae_global"],
             "bias_global":    score["bias_global"],
             "session_count":  score["n_weighted"],

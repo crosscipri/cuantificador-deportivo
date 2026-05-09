@@ -52,9 +52,9 @@
       <!-- Score card -->
       <div class="score-card">
         <div class="score-metric">
-          <div class="eyebrow">r global</div>
-          <div class="score-val num" [ngClass]="scoreQuality(score.r_global, 'r')">{{ score.r_global | number:'1.3-3' }}</div>
-          <div class="score-hint">Fisher-pond.</div>
+          <div class="eyebrow">CCC global</div>
+          <div class="score-val num" [ngClass]="scoreQuality(score.ccc_global, 'ccc')">{{ score.ccc_global | number:'1.3-3' }}</div>
+          <div class="score-hint">r = {{ score.r_global | number:'1.3-3' }}</div>
         </div>
         <div class="score-metric">
           <div class="eyebrow">MAE rel.</div>
@@ -190,7 +190,7 @@
                 <th class="col-dur">Duración</th>
                 <th class="col-fcmax">FC max</th>
                 <th class="col-mae">MAE</th>
-                <th class="col-r">r</th>
+                <th class="col-r">CCC</th>
                 <th class="col-act"></th>
               </tr>
             </thead>
@@ -221,7 +221,7 @@
                   <span class="q-badge" [ngClass]="maeBadge(s.metrics.mae)">{{ s.metrics.mae }}</span>
                 </td>
                 <td class="col-r">
-                  <span class="q-badge" [ngClass]="rBadge(s.metrics.r)">{{ s.metrics.r }}</span>
+                  <span class="q-badge" [ngClass]="rBadge(s.metrics.ccc)">{{ s.metrics.ccc }}</span>
                 </td>
                 <td class="col-act">›</td>
               </tr>
