@@ -22,9 +22,8 @@
               {{ t.created_at | date:'dd/MM/yyyy HH:mm' }}
             </div>
             <div class="saved-row-swatches">
-              <span class="saved-swatch" *ngFor="let ms of t.modes_summary"
-                    [style.background]="ms.color"
-                    [title]="ms.name + ' (' + ms.run_count + ' run' + (ms.run_count !== 1 ? 's' : '') + ')'">
+              <span class="saved-swatch" *ngFor="let ms of t.modes_summary" [style.background]="ms.color"
+                [title]="ms.name + ' (' + ms.run_count + ' run' + (ms.run_count !== 1 ? 's' : '') + ')'">
               </span>
             </div>
           </div>
@@ -44,9 +43,7 @@
     <div class="setup-controls">
       <div class="setup-ref-field">
         <label class="setup-label">Distancia de referencia (m)</label>
-        <input type="number" class="setup-input"
-               [(ngModel)]="referenceDistance"
-               min="100" max="100000" step="100" />
+        <input type="number" class="setup-input" [(ngModel)]="referenceDistance" min="100" max="100000" step="100" />
       </div>
       <button class="setup-add-btn" (click)="addMode()" [disabled]="modes.length >= 7">
         + Añadir modo GPS
@@ -59,17 +56,15 @@
         <div class="setup-card-head">
           <span class="swatch" [style.background]="mode.color"></span>
           <input class="card-name-input" [(ngModel)]="mode.name" placeholder="Nombre del modo" />
-          <button class="card-remove-btn" (click)="removeMode(i)"
-                  *ngIf="modes.length > 1" title="Eliminar modo">×</button>
+          <button class="card-remove-btn" (click)="removeMode(i)" *ngIf="modes.length > 1"
+            title="Eliminar modo">×</button>
         </div>
 
-        <div class="drop-zone"
-             (dragover)="onDragOver($event)"
-             (drop)="onDrop($event, mode)"
-             [class.has-files]="mode.fileInputFiles.length > 0">
+        <div class="drop-zone" (dragover)="onDragOver($event)" (drop)="onDrop($event, mode)"
+          [class.has-files]="mode.fileInputFiles.length > 0">
           <div class="drop-icon">📂</div>
           <div class="drop-hint" *ngIf="!mode.fileInputFiles.length">
-            Arrastra hasta 5 ficheros .gpx<br/>
+            Arrastra hasta 5 ficheros .gpx<br />
             <label class="browse-link">
               o haz clic para seleccionar
               <input type="file" accept=".gpx" multiple (change)="onFilesSelected($event, mode)" hidden />
@@ -106,595 +101,529 @@
 <!-- ── ANALYTICAL LAYOUT ───────────────────────────────────────────────────── -->
 <ng-container *ngIf="analytics">
   <div class="analytical">
-  <div class="analytical-top">
+    <div class="analytical-top">
 
-    <!-- ── LEFT SIDEBAR ─────────────────────────────────────────────────── -->
-    <aside class="col-left">
+      <!-- ── LEFT SIDEBAR ─────────────────────────────────────────────────── -->
+      <aside class="col-left">
 
-      <div class="panel-header">
-        <span class="panel-label">Dispositivos</span>
-        <button class="nuevo-test-btn" (click)="newTest()">Nuevo test</button>
+        <div class="panel-header">
+          <span class="panel-label">Dispositivos</span>
+          <button class="nuevo-test-btn" (click)="newTest()">Nuevo test</button>
+        </div>
+
+        <!-- Mode list sorted by mean error -->
+        <div class="mode-list">
+          <div class="mode-row" *ngFor="let m of sortedByMeanErr" [class.selected]="m.selected"
+            [class.hovered]="hoveredModeId === m.modeId" [class.dimmed]="!m.visible" (click)="selectMode(m.modeId)"
+            (mouseenter)="hoverMode(m.modeId)" (mouseleave)="hoverMode(null)">
+            <span class="mode-dot" [style.background]="m.color"></span>
+            <span class="mode-name">{{ m.modeName }}</span>
+            <span class="mode-mean-err num">{{ fmt(m.meanErr) }} m</span>
+            <label class="vis-switch" (click)="$event.stopPropagation()">
+              <input type="checkbox" [checked]="m.visible" (change)="toggleVisibility(m.modeId)" />
+              <span class="vis-switch-track"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Test metadata -->
+        <div class="meta-section">
+          <div class="meta-row">
+            <span class="meta-key">Referencia</span>
+            <span class="meta-val num">{{ referenceDistance }} m</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-key">Vueltas</span>
+            <span class="meta-val num">{{ lapCount }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-key">Modos</span>
+            <span class="meta-val num">{{ analytics!.length }}</span>
+          </div>
+        </div>
+
+        <!-- Signal GPS -->
+        <div class="sig-section">
+          <div class="section-eyebrow">Señal GPS</div>
+          <table class="sig-table">
+            <thead>
+              <tr>
+                <th>Modo</th>
+                <th>Freq</th>
+                <th>Muestras</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let m of analytics">
+                <td>
+                  <span class="dot-sm" [style.background]="m.color"></span>
+                  {{ m.modeName }}
+                </td>
+                <td class="num">{{ fmtHz(m.sampleHz) }}</td>
+                <td class="num">{{ m.nSamples }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </aside>
+
+      <!-- ── CENTER — TRACK ────────────────────────────────────────────────── -->
+      <main class="col-center">
+
+        <div class="track-header">
+          <div class="track-header-title">
+            <span class="track-eyebrow">Vista geoespacial</span>
+            <h2>Superposición en pista IAAF</h2>
+          </div>
+          <div class="track-tools">
+            <button class="tool-btn" [class.active]="trackStyle === 'realista'"
+              (click)="trackStyle = 'realista'">Realista</button>
+            <button class="tool-btn" [class.active]="trackStyle === 'esquematica'"
+              (click)="trackStyle = 'esquematica'">Esquema</button>
+            <button class="tool-btn" [class.active]="trackStyle === 'blueprint'"
+              (click)="trackStyle = 'blueprint'">Blueprint</button>
+          </div>
+        </div>
+
+        <div #trackStage class="track-stage" [class.track-stage-blueprint]="trackStyle === 'blueprint'"
+          [class.is-dragging]="isDragging" (mousemove)="onTrackMouseMove($event)" (mousedown)="onTrackMouseDown($event)"
+          (mouseup)="onTrackMouseUp()" (mouseleave)="onTrackMouseLeave()" (wheel)="onTrackWheel($event)">
+
+          <svg #trackSvg class="track-svg" width="100%" height="100%" [attr.viewBox]="trackViewBox"
+            preserveAspectRatio="xMidYMid meet" shape-rendering="geometricPrecision">
+
+            <defs>
+              <radialGradient id="tsa-surf" cx="0.5" cy="0.5" r="0.7">
+                <stop offset="0" stop-color="#CC5A3A" />
+                <stop offset="0.6" stop-color="#B84A30" />
+                <stop offset="1" stop-color="#9C3E27" />
+              </radialGradient>
+              <linearGradient id="tsa-field" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stop-color="#84A56F" />
+                <stop offset="1" stop-color="#638151" />
+              </linearGradient>
+              <pattern id="tsa-field-stripes" width="120" height="3" patternUnits="userSpaceOnUse">
+                <rect width="120" height="3" fill="transparent" />
+                <rect width="120" height="1.5" fill="#000" opacity="0.06" />
+              </pattern>
+              <pattern id="tsa-tex" width="1.2" height="1.2" patternUnits="userSpaceOnUse"
+                patternTransform="rotate(20)">
+                <rect width="1.2" height="1.2" fill="transparent" />
+                <circle cx="0.2" cy="0.3" r="0.05" fill="#7A2E18" opacity="0.35" />
+                <circle cx="0.8" cy="0.7" r="0.04" fill="#D87A60" opacity="0.30" />
+                <circle cx="0.5" cy="1.0" r="0.04" fill="#7A2E18" opacity="0.25" />
+                <circle cx="1.0" cy="0.2" r="0.05" fill="#FAF9F4" opacity="0.08" />
+              </pattern>
+              <pattern id="tsa-hatch" width="0.4" height="0.4" patternUnits="userSpaceOnUse"
+                patternTransform="rotate(50)">
+                <rect width="0.4" height="0.4" fill="transparent" />
+                <line x1="0" y1="0" x2="0" y2="0.4" stroke="#922F1E" stroke-width="0.025" opacity="0.18" />
+              </pattern>
+              <radialGradient id="tsa-vig" cx="0.5" cy="0.5" r="0.6">
+                <stop offset="0" stop-color="#000" stop-opacity="0" />
+                <stop offset="0.85" stop-color="#000" stop-opacity="0" />
+                <stop offset="1" stop-color="#000" stop-opacity="0.18" />
+              </radialGradient>
+              <pattern id="tsa-bp-grid" width="5" height="5" patternUnits="userSpaceOnUse">
+                <path d="M 5 0 L 0 0 0 5" fill="none" stroke="#1E4878" stroke-width="0.05" />
+              </pattern>
+              <filter id="tsa-shadow" x="-10%" y="-10%" width="120%" height="120%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="0.8" />
+                <feOffset dx="0" dy="0.4" result="off" />
+                <feComponentTransfer>
+                  <feFuncA type="linear" slope="0.35" />
+                </feComponentTransfer>
+                <feMerge>
+                  <feMergeNode />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Y axis flipped to math convention (north up) -->
+            <g transform="scale(1, -1)">
+
+              <!-- Blueprint grid -->
+              <g *ngIf="trackStyle === 'blueprint'">
+                <rect [attr.x]="STRAIGHT / -2 - R_INNER - LANE_W * N_LANES - 20"
+                  [attr.y]="-(R_INNER + LANE_W * N_LANES) - 20"
+                  [attr.width]="STRAIGHT + (R_INNER + LANE_W * N_LANES) * 2 + 40"
+                  [attr.height]="(R_INNER + LANE_W * N_LANES) * 2 + 40" fill="url(#tsa-bp-grid)" />
+              </g>
+
+              <!-- Field interior -->
+              <g *ngIf="trackStyle !== 'blueprint'">
+                <path [attr.d]="innerKerb" [attr.fill]="trackStyle === 'realista' ? 'url(#tsa-field)' : 'transparent'"
+                  stroke="none" />
+                <path *ngIf="trackStyle === 'realista'" [attr.d]="innerKerb" fill="url(#tsa-field-stripes)"
+                  stroke="none" />
+              </g>
+
+              <!-- Infield equipment (realista only) -->
+              <g *ngIf="trackStyle === 'realista'" opacity="0.92">
+                <rect [attr.x]="STRAIGHT / -2 + 4" y="-3" width="38" height="1.22" fill="#C25538" opacity="0.7" />
+                <rect [attr.x]="STRAIGHT / -2 + 4" y="-3" width="38" height="1.22" fill="none" stroke="#FAF9F4"
+                  stroke-width="0.08" opacity="0.7" />
+                <rect [attr.x]="STRAIGHT / -2 + 42" y="-3.4" width="3" height="2" fill="#E8D49A" stroke="#B89B5C"
+                  stroke-width="0.08" />
+                <circle [attr.cx]="STRAIGHT / 2 - 6" cy="14" r="1.07" fill="#D8D4C8" stroke="#FAF9F4"
+                  stroke-width="0.1" />
+                <circle cx="0" cy="0" r="0.3" fill="#FAF9F4" opacity="0.4" />
+              </g>
+
+              <!-- Track surface ring (realista) -->
+              <g *ngIf="trackStyle === 'realista'">
+                <path [attr.d]="trackRing" fill="url(#tsa-surf)" fill-rule="evenodd" filter="url(#tsa-shadow)" />
+                <path [attr.d]="trackRing" fill="url(#tsa-tex)" fill-rule="evenodd" opacity="0.85" />
+                <path [attr.d]="trackRing" fill="url(#tsa-hatch)" fill-rule="evenodd" opacity="0.7" />
+                <path [attr.d]="trackRing" fill="url(#tsa-vig)" fill-rule="evenodd" />
+              </g>
+              <!-- Track surface ring (esquematica) -->
+              <g *ngIf="trackStyle === 'esquematica'">
+                <path [attr.d]="trackRing" fill="#EDEBE3" fill-rule="evenodd" />
+              </g>
+
+              <!-- Lane separators -->
+              <g *ngFor="let lp of lanePaths">
+                <path [attr.d]="lp" fill="none"
+                  [attr.stroke]="trackStyle === 'blueprint' ? '#6FA9E8' : (trackStyle === 'realista' ? '#FAF9F4' : '#9F9B8C')"
+                  stroke-width="0.12"
+                  [attr.opacity]="trackStyle === 'blueprint' ? 0.6 : (trackStyle === 'realista' ? 0.95 : 0.6)" />
+              </g>
+
+              <!-- Inner kerb -->
+              <path [attr.d]="innerKerb" fill="none"
+                [attr.stroke]="trackStyle === 'blueprint' ? '#6FA9E8' : (trackStyle === 'realista' ? '#FAF9F4' : '#8A8678')"
+                stroke-width="0.192" [attr.opacity]="trackStyle === 'blueprint' ? 0.9 : 1" />
+              <!-- Outer kerb -->
+              <path [attr.d]="outerKerb" fill="none"
+                [attr.stroke]="trackStyle === 'blueprint' ? '#6FA9E8' : (trackStyle === 'realista' ? '#FAF9F4' : '#8A8678')"
+                stroke-width="0.168" [attr.opacity]="trackStyle === 'blueprint' ? 0.9 : 1" />
+
+              <!-- Lane 1 running line (ground truth, dashed) -->
+              <path [attr.d]="lane1Run" fill="none" [attr.stroke]="trackStyle === 'blueprint' ? '#BFE0FF' : '#14130F'"
+                stroke-width="0.18" stroke-dasharray="1.08 0.72"
+                [attr.opacity]="trackStyle === 'blueprint' ? 0.95 : 0.85" />
+
+              <!-- Start / Finish line -->
+              <line [attr.x1]="finishLine.x" [attr.x2]="finishLine.x" [attr.y1]="finishLine.y0"
+                [attr.y2]="finishLine.y1" [attr.stroke]="trackStyle === 'blueprint' ? '#BFE0FF' : '#FAF9F4'"
+                stroke-width="0.264"
+                [attr.opacity]="trackStyle === 'blueprint' ? 0.9 : (trackStyle === 'realista' ? 1 : 0.7)" />
+
+              <!-- Staggered 200 m start marks -->
+              <g *ngIf="trackStyle !== 'blueprint'">
+                <g *ngFor="let m of stagger200Marks">
+                  <line [attr.x1]="m.x1" [attr.y1]="m.y1" [attr.x2]="m.x2" [attr.y2]="m.y2"
+                    [attr.stroke]="trackStyle === 'realista' ? '#5FA86E' : '#9F9B8C'" stroke-width="0.192"
+                    opacity="0.85" />
+                </g>
+              </g>
+
+              <!-- 100 m line -->
+              <g *ngIf="trackStyle !== 'blueprint'">
+                <line [attr.x1]="line100m.x" [attr.y1]="line100m.y0" [attr.x2]="line100m.x" [attr.y2]="line100m.y1"
+                  [attr.stroke]="trackStyle === 'realista' ? '#3F6FB5' : '#9F9B8C'" stroke-width="0.168"
+                  opacity="0.9" />
+              </g>
+
+              <!-- Distance hash marks every 10 m (realista only) -->
+              <g *ngIf="trackStyle === 'realista'">
+                <g *ngFor="let m of distanceMarks">
+                  <line [attr.x1]="m.x1" [attr.y1]="m.y1" [attr.x2]="m.x2" [attr.y2]="m.y2" stroke="#FAF9F4"
+                    [attr.stroke-width]="m.major ? 0.108 : 0.066" [attr.opacity]="m.major ? 0.9 : 0.55" />
+                </g>
+              </g>
+
+              <!-- Lane numbers -->
+              <g *ngIf="trackStyle !== 'blueprint'">
+                <g *ngFor="let ln of laneNumbers">
+                  <rect [attr.x]="ln.cx - 0.55" [attr.y]="ln.cy - 0.5" width="1.1" height="1.0"
+                    [attr.fill]="trackStyle === 'realista' ? '#FAF9F4' : '#ffffff'"
+                    [attr.opacity]="trackStyle === 'realista' ? 0.92 : 0.7" rx="0.08" />
+                  <g [attr.transform]="'translate(' + ln.cx + ',' + (-ln.cy) + ') scale(1,-1)'">
+                    <text text-anchor="middle" dominant-baseline="central" font-size="0.85" font-weight="700"
+                      [attr.fill]="trackStyle === 'realista' ? '#9C3E27' : '#807D72'">{{ ln.n }}</text>
+                  </g>
+                </g>
+              </g>
+
+              <!-- GPS track overlays -->
+              <ng-container *ngFor="let mode of visibleAnalytics">
+                <g *ngFor="let run of mode.runs">
+                  <path [attr.d]="run.pathD" fill="none" [attr.stroke]="mode.color"
+                    [attr.stroke-width]="hoveredModeId === mode.modeId ? 0.6 : 0.38"
+                    [attr.stroke-opacity]="hoveredModeId && hoveredModeId !== mode.modeId ? 0.15 : 0.88"
+                    stroke-linejoin="round" stroke-linecap="round" />
+                </g>
+              </ng-container>
+
+              <!-- Hover crosshair -->
+              <g *ngIf="hoveredTrackPoint">
+                <circle [attr.cx]="hoveredTrackPoint.worldX" [attr.cy]="hoveredTrackPoint.worldY" r="0.7" fill="none"
+                  [attr.stroke]="hoveredTrackPoint.modeColor" stroke-width="0.2" />
+                <circle [attr.cx]="hoveredTrackPoint.worldX" [attr.cy]="hoveredTrackPoint.worldY" r="0.28"
+                  [attr.fill]="hoveredTrackPoint.modeColor" />
+              </g>
+
+            </g><!-- /scale(1,-1) -->
+          </svg><!-- /track-svg -->
+
+          <!-- Track info overlay (top-left) -->
+          <div class="track-overlay-info" [class.track-overlay-blueprint]="trackStyle === 'blueprint'">
+            <span>Pista</span><span class="v">IAAF 400 m · 8 carriles</span>
+            <span>Recta</span><span class="v">84.39 m</span>
+            <span>Radio carril 1</span><span class="v">36.50 m</span>
+            <span>Referencia</span><span class="v">{{ referenceDistance }} m</span>
+          </div>
+
+          <!-- Legend (bottom-right) -->
+          <div class="track-legend" [class.track-legend-blueprint]="trackStyle === 'blueprint'">
+            <div class="tleg-row" [class.tleg-blueprint]="trackStyle === 'blueprint'">
+              <span class="tleg-swatch tleg-swatch-dashed"></span>
+              <span>Carril 1 (verdad)</span>
+            </div>
+            <div class="tleg-row" *ngFor="let mode of analytics" [style.color]="mode.color">
+              <span class="tleg-swatch"></span>
+              <span>{{ mode.modeName }}</span>
+            </div>
+          </div>
+
+          <!-- Scale bar (bottom-left) -->
+          <div class="track-scale" [class.track-scale-blueprint]="trackStyle === 'blueprint'">
+            <span class="scale-zero">0</span>
+            <div class="track-scale-bar" [class.track-scale-bar-blueprint]="trackStyle === 'blueprint'"></div>
+            <span>20 m</span>
+          </div>
+
+          <!-- Zoom controls (top-right) -->
+          <div class="track-zoom-controls">
+            <button class="tool-btn" [class.tool-btn-blueprint]="trackStyle === 'blueprint'" (click)="zoomIn()"
+              title="Zoom in">+</button>
+            <button class="tool-btn" [class.tool-btn-blueprint]="trackStyle === 'blueprint'" (click)="zoomOut()"
+              title="Zoom out">−</button>
+            <button class="tool-btn tool-btn-reset" [class.tool-btn-blueprint]="trackStyle === 'blueprint'"
+              (click)="resetTrack()" title="Reset">⤺</button>
+          </div>
+
+          <!-- Hover tooltip -->
+          <div class="gps-tooltip" *ngIf="hoveredTrackPoint" [style.left.px]="hoveredTrackPoint.screenX"
+            [style.top.px]="hoveredTrackPoint.screenY">
+            <div class="tooltip-mode" [style.color]="hoveredTrackPoint.modeColor">{{ hoveredTrackPoint.modeName }}</div>
+            <div class="tooltip-err">⊥ {{ fmt(hoveredTrackPoint.err) }} m</div>
+          </div>
+
+        </div><!-- /track-stage -->
+      </main>
+
+      <!-- ── RIGHT METRICS PANEL ───────────────────────────────────────────── -->
+      <aside class="col-right">
+
+        <!-- 1. Aptitude verdict for selected mode -->
+        <ng-container *ngIf="selectedAnalytics as sel">
+          <div class="kpi-mode-header" [style.border-left-color]="sel.color">
+            <span class="kpi-mode-dot" [style.background]="sel.color"></span>
+            <span class="kpi-mode-name">{{ sel.modeName }}</span>
+          </div>
+          <ng-container *ngIf="trackAptitude(sel) as apt">
+
+          </ng-container>
+          <!-- Quick metrics strip -->
+          <div class="apt-metrics-strip">
+            <div class="apt-metric">
+              <span class="apt-metric-label" title="Root Mean Square Error perpendicular">RMSE ⊥</span>
+              <span class="apt-metric-val num">{{ fmt(sel.rmse) }} m</span>
+            </div>
+            <div class="apt-metric">
+              <span class="apt-metric-label" title="Percentil 95 del error perpendicular">P95 ⊥</span>
+              <span class="apt-metric-val num">{{ fmt(sel.p95Err) }} m</span>
+            </div>
+            <div class="apt-metric">
+              <span class="apt-metric-label" title="Mean Absolute Percentage Error de distancia">MAPE</span>
+              <span class="apt-metric-val num" [class.mape-ok]="sel.mape < 1"
+                [class.mape-warn]="sel.mape >= 1 && sel.mape < 2" [class.mape-bad]="sel.mape >= 2">{{ fmt(sel.mape)
+                }}%</span>
+            </div>
+            <div class="apt-metric">
+              <span class="apt-metric-label">Δ Dist</span>
+              <span class="apt-metric-val num" [class.over]="sel.deltaDist > 0" [class.under]="sel.deltaDist < 0">{{
+                fmtSign(sel.deltaDist) }} m</span>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- 2. Histogram -->
+        <div class="hist-section">
+          <div class="section-eyebrow">Distribución del error ⊥ <span class="perp-info" data-tooltip="⊥ = distancia perpendicular de cada punto GPS al carril 1 (verdad del suelo)">ⓘ</span></div>
+          <div class="section-desc">Distancia perpendicular de cada punto GPS al carril 1 (verdad del suelo). Barras más
+            a la izquierda = más preciso.</div>
+          <div *ngFor="let m of visibleAnalytics" class="hist-mode-row">
+            <div class="hist-label-col">
+              <span class="dot-sm" [style.background]="m.color"></span>
+              <span class="hist-mode-name">{{ m.modeName }}</span>
+            </div>
+            <div class="hist-bars-col">
+              <div class="hist-bar-wrap" *ngFor="let bin of m.hist">
+                <div class="hist-bar" [style.height]="histBarHeight(bin)" [style.background]="m.color">
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- X axis labels: 12 bins × 0.5m = 0–6m -->
+          <div class="hist-axis-row">
+            <div class="hist-label-col"></div>
+            <div class="hist-xaxis">
+              <span class="hist-xtick">0m</span>
+              <span class="hist-xtick">1m</span>
+              <span class="hist-xtick">2m</span>
+              <span class="hist-xtick">3m</span>
+              <span class="hist-xtick">4m</span>
+              <span class="hist-xtick">5m</span>
+              <span class="hist-xtick">6m</span>
+            </div>
+          </div>
+          <!-- Benchmark reference -->
+          <div class="chart-benchmark">
+            <span class="bm-item bm-good">● &lt;1m excelente</span>
+            <span class="bm-item bm-ok">● 1–3m bueno</span>
+            <span class="bm-item bm-warn">● 3–5m moderado</span>
+            <span class="bm-item bm-bad">● &gt;5m deficiente</span>
+            <span class="bm-note">(GPS consumo típico: 2–3 m)</span>
+          </div>
+        </div>
+
+        <!-- 3. Error timeline -->
+        <div class="timeline-section">
+          <div class="section-eyebrow">Error ⊥ a lo largo del recorrido</div>
+          <div class="section-desc">Cómo varía la precisión a lo largo del recorrido. Las líneas verticales punteadas
+            marcan el inicio de cada vuelta.</div>
+          <svg class="timeline-svg" [attr.viewBox]="timelineViewBox" width="100%" preserveAspectRatio="xMidYMid meet">
+
+            <!-- Y-axis unit label -->
+            <text x="6" y="50" text-anchor="middle" dominant-baseline="middle" font-size="6" fill="#B5B1A3"
+              transform="rotate(-90, 6, 50)">Error ⊥ (m)</text>
+
+            <!-- Y-axis tick labels -->
+            <text *ngFor="let tick of timelineYTicks" [attr.x]="23" [attr.y]="tlSy(tick)" text-anchor="end"
+              dominant-baseline="middle" font-size="7" fill="#807D72">{{ tick }}</text>
+
+            <!-- Threshold reference lines (1m and 3m, only if within visible range) -->
+            <ng-container *ngFor="let thr of timelineThresholds">
+              <line [attr.x1]="26" [attr.y1]="thr.y" x2="318" [attr.y2]="thr.y" [attr.stroke]="thr.color"
+                stroke-width="0.6" stroke-dasharray="3 2" [attr.opacity]="thr.opacity" />
+              <text x="330" [attr.y]="thr.y" text-anchor="end" dominant-baseline="middle" font-size="6"
+                [attr.fill]="thr.color">{{ thr.label }}</text>
+            </ng-container>
+
+            <!-- Lap marker vertical lines -->
+            <line *ngFor="let lapD of timelineLapMarkers" [attr.x1]="tlSx(lapD)" y1="8" [attr.x2]="tlSx(lapD)" y2="92"
+              stroke="#B5B1A3" stroke-width="0.5" stroke-dasharray="2 2" />
+
+            <!-- Error paths per visible mode -->
+            <path *ngFor="let tp of timelinePaths" [attr.d]="tp.d" fill="none" [attr.stroke]="tp.color" stroke-width="1"
+              [attr.opacity]="tp.dim ? 0.2 : 0.85" stroke-linejoin="round" />
+
+            <!-- X-axis label -->
+            <text x="183" y="107" text-anchor="middle" font-size="7" fill="#807D72">Distancia acumulada (m)</text>
+
+          </svg>
+        </div>
+
+        <!-- 4. (heatmap removed) -->
+
+      </aside>
+
+    </div><!-- /analytical-top -->
+
+    <!-- ── FULL RANKING TABLE ──────────────────────────────────────────────── -->
+    <section class="rank-full">
+      <div class="rank-full-header">
+        <div>
+          <span class="rank-full-eyebrow">Análisis comparativo</span>
+          <h2 class="rank-full-title">Clasificación completa</h2>
+        </div>
+        <span class="rank-full-sub">Ordenado por RMSE ⊥ · Referencia {{ referenceDistance }} m · Competición: RMSE ≤ 1m,
+          MAPE &lt; 0.3% · Excelente: ≤ 2m, &lt; 0.7% · Apto: ≤ 4m, &lt; 1.5%</span>
       </div>
 
-      <!-- Mode list sorted by mean error -->
-      <div class="mode-list">
-        <div class="mode-row"
-             *ngFor="let m of sortedByMeanErr"
-             [class.selected]="m.selected"
-             [class.hovered]="hoveredModeId === m.modeId"
-             [class.dimmed]="!m.visible"
-             (click)="selectMode(m.modeId)"
-             (mouseenter)="hoverMode(m.modeId); selectMode(m.modeId)"
-             (mouseleave)="hoverMode(null)">
-          <span class="mode-dot" [style.background]="m.color"></span>
-          <span class="mode-name">{{ m.modeName }}</span>
-          <span class="mode-mean-err num">{{ fmt(m.meanErr) }} m</span>
-          <label class="vis-switch" (click)="$event.stopPropagation()">
-            <input type="checkbox" [checked]="m.visible" (change)="toggleVisibility(m.modeId)" />
-            <span class="vis-switch-track"></span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Test metadata -->
-      <div class="meta-section">
-        <div class="meta-row">
-          <span class="meta-key">Referencia</span>
-          <span class="meta-val num">{{ referenceDistance }} m</span>
-        </div>
-        <div class="meta-row">
-          <span class="meta-key">Vueltas</span>
-          <span class="meta-val num">{{ lapCount }}</span>
-        </div>
-        <div class="meta-row">
-          <span class="meta-key">Modos</span>
-          <span class="meta-val num">{{ analytics!.length }}</span>
-        </div>
-      </div>
-
-      <!-- Signal GPS -->
-      <div class="sig-section">
-        <div class="section-eyebrow">Señal GPS</div>
-        <table class="sig-table">
+      <div class="rank-table-wrap">
+        <table class="rank-full-table">
           <thead>
             <tr>
-              <th>Modo</th>
-              <th>Freq</th>
-              <th>Muestras</th>
+              <th class="rft-pos">#</th>
+              <th class="rft-name">Modo GPS</th>
+              <th class="rft-num" title="Root Mean Square Error perpendicular — métrica principal GNSS">RMSE ⊥</th>
+              <th class="rft-num" title="Percentil 95 del error perpendicular">P95 ⊥</th>
+              <th class="rft-num" title="Error perpendicular medio">Media ⊥</th>
+              <th class="rft-num" title="Error perpendicular máximo">Máx ⊥</th>
+              <th class="rft-num" title="Distancia GPS registrada">Dist GPS</th>
+              <th class="rft-num" title="Diferencia con distancia de referencia">Δ Dist</th>
+              <th class="rft-num" title="Mean Absolute Percentage Error de distancia · &lt;1% excelente · &lt;2% apto">
+                MAPE%</th>
+              <th class="rft-num" title="Frecuencia de muestreo GPS">Frec.</th>
+              <th class="rft-apt" title="Criterios: RMSE ≤ 4m, MAPE &lt; 2%, P95 ≤ 6m">Aptitud pista</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let m of analytics">
-              <td>
-                <span class="dot-sm" [style.background]="m.color"></span>
-                {{ m.modeName }}
+            <tr *ngFor="let m of sortedByRmse; let i = index" [class.rank-tr-selected]="m.selected"
+              (click)="selectMode(m.modeId)" (mouseenter)="hoverMode(m.modeId)"
+              (mouseleave)="hoverMode(null)">
+
+              <td class="rft-td-pos">
+                <span class="rank-badge" [class.rank-gold]="i === 0" [class.rank-silver]="i === 1"
+                  [class.rank-bronze]="i === 2">{{ i + 1 }}</span>
               </td>
-              <td class="num">{{ fmtHz(m.sampleHz) }}</td>
-              <td class="num">{{ m.nSamples }}</td>
+
+              <td class="rft-td-name">
+                <span class="dot-sm" [style.background]="m.color"></span>
+                <span class="rft-mode-name">{{ m.modeName }}</span>
+              </td>
+
+              <!-- RMSE — primary ranking metric with bar -->
+              <td class="rft-td-bar">
+                <div class="rft-bar-row">
+                  <span class="num">{{ fmt(m.rmse) }} m</span>
+                  <div class="mbar-track">
+                    <div class="mbar" [style.background]="m.color"
+                      [style.width]="rankBarPct(m.rmse, sortedByRmse[sortedByRmse.length-1].rmse)"></div>
+                  </div>
+                </div>
+              </td>
+
+              <td class="rft-td-num num">{{ fmt(m.p95Err) }} m</td>
+              <td class="rft-td-num num">{{ fmt(m.meanErr) }} m</td>
+              <td class="rft-td-num num">{{ fmt(m.maxErr) }} m</td>
+              <td class="rft-td-num num">{{ fmt(m.recDist, 0) }} m</td>
+
+              <td class="rft-td-num num" [class.over]="m.deltaDist > 0" [class.under]="m.deltaDist < 0">
+                {{ fmtSign(m.deltaDist) }} m
+              </td>
+
+              <td class="rft-td-num num" [class.mape-ok]="m.mape < 1" [class.mape-warn]="m.mape >= 1 && m.mape < 2"
+                [class.mape-bad]="m.mape >= 2">
+                {{ fmt(m.mape) }}%
+              </td>
+
+              <td class="rft-td-num num">{{ fmtHz(m.sampleHz) }}</td>
+
+              <td class="rft-td-apt">
+                <ng-container *ngIf="trackAptitude(m) as apt">
+                  <span class="apt-chip" [class.apt-chip-competicion]="apt.level === 'competicion'"
+                    [class.apt-chip-excelente]="apt.level === 'excelente'" [class.apt-chip-apto]="apt.level === 'apto'"
+                    [class.apt-chip-marginal]="apt.level === 'marginal'"
+                    [class.apt-chip-no-apto]="apt.level === 'no-apto'"
+                    [title]="apt.sublabel + (apt.failing.length ? ' · ' + apt.failing.join(' · ') : '')">
+                    {{ apt.label }}
+                  </span>
+                </ng-container>
+              </td>
+
             </tr>
           </tbody>
         </table>
       </div>
-
-    </aside>
-
-    <!-- ── CENTER — TRACK ────────────────────────────────────────────────── -->
-    <main class="col-center">
-
-      <div class="track-header">
-        <div class="track-header-title">
-          <span class="track-eyebrow">Vista geoespacial</span>
-          <h2>Superposición en pista IAAF</h2>
-        </div>
-        <div class="track-tools">
-          <button class="tool-btn" [class.active]="trackStyle === 'realista'"
-                  (click)="trackStyle = 'realista'">Realista</button>
-          <button class="tool-btn" [class.active]="trackStyle === 'esquematica'"
-                  (click)="trackStyle = 'esquematica'">Esquema</button>
-          <button class="tool-btn" [class.active]="trackStyle === 'blueprint'"
-                  (click)="trackStyle = 'blueprint'">Blueprint</button>
-        </div>
-      </div>
-
-      <div #trackStage class="track-stage"
-           [class.track-stage-blueprint]="trackStyle === 'blueprint'"
-           [class.is-dragging]="isDragging"
-           (mousemove)="onTrackMouseMove($event)"
-           (mousedown)="onTrackMouseDown($event)"
-           (mouseup)="onTrackMouseUp()"
-           (mouseleave)="onTrackMouseLeave()"
-           (wheel)="onTrackWheel($event)">
-
-        <svg #trackSvg class="track-svg"
-             width="100%" height="100%"
-             [attr.viewBox]="trackViewBox"
-             preserveAspectRatio="xMidYMid meet"
-             shape-rendering="geometricPrecision">
-
-          <defs>
-            <radialGradient id="tsa-surf" cx="0.5" cy="0.5" r="0.7">
-              <stop offset="0"   stop-color="#CC5A3A" />
-              <stop offset="0.6" stop-color="#B84A30" />
-              <stop offset="1"   stop-color="#9C3E27" />
-            </radialGradient>
-            <linearGradient id="tsa-field" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0" stop-color="#84A56F" />
-              <stop offset="1" stop-color="#638151" />
-            </linearGradient>
-            <pattern id="tsa-field-stripes" width="120" height="3" patternUnits="userSpaceOnUse">
-              <rect width="120" height="3" fill="transparent" />
-              <rect width="120" height="1.5" fill="#000" opacity="0.06" />
-            </pattern>
-            <pattern id="tsa-tex" width="1.2" height="1.2" patternUnits="userSpaceOnUse" patternTransform="rotate(20)">
-              <rect width="1.2" height="1.2" fill="transparent" />
-              <circle cx="0.2" cy="0.3" r="0.05" fill="#7A2E18" opacity="0.35" />
-              <circle cx="0.8" cy="0.7" r="0.04" fill="#D87A60" opacity="0.30" />
-              <circle cx="0.5" cy="1.0" r="0.04" fill="#7A2E18" opacity="0.25" />
-              <circle cx="1.0" cy="0.2" r="0.05" fill="#FAF9F4" opacity="0.08" />
-            </pattern>
-            <pattern id="tsa-hatch" width="0.4" height="0.4" patternUnits="userSpaceOnUse" patternTransform="rotate(50)">
-              <rect width="0.4" height="0.4" fill="transparent" />
-              <line x1="0" y1="0" x2="0" y2="0.4" stroke="#922F1E" stroke-width="0.025" opacity="0.18" />
-            </pattern>
-            <radialGradient id="tsa-vig" cx="0.5" cy="0.5" r="0.6">
-              <stop offset="0"    stop-color="#000" stop-opacity="0" />
-              <stop offset="0.85" stop-color="#000" stop-opacity="0" />
-              <stop offset="1"    stop-color="#000" stop-opacity="0.18" />
-            </radialGradient>
-            <pattern id="tsa-bp-grid" width="5" height="5" patternUnits="userSpaceOnUse">
-              <path d="M 5 0 L 0 0 0 5" fill="none" stroke="#1E4878" stroke-width="0.05" />
-            </pattern>
-            <filter id="tsa-shadow" x="-10%" y="-10%" width="120%" height="120%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="0.8" />
-              <feOffset dx="0" dy="0.4" result="off" />
-              <feComponentTransfer><feFuncA type="linear" slope="0.35" /></feComponentTransfer>
-              <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
-            </filter>
-          </defs>
-
-          <!-- Y axis flipped to math convention (north up) -->
-          <g transform="scale(1, -1)">
-
-            <!-- Blueprint grid -->
-            <g *ngIf="trackStyle === 'blueprint'">
-              <rect [attr.x]="STRAIGHT / -2 - R_INNER - LANE_W * N_LANES - 20"
-                    [attr.y]="-(R_INNER + LANE_W * N_LANES) - 20"
-                    [attr.width]="STRAIGHT + (R_INNER + LANE_W * N_LANES) * 2 + 40"
-                    [attr.height]="(R_INNER + LANE_W * N_LANES) * 2 + 40"
-                    fill="url(#tsa-bp-grid)" />
-            </g>
-
-            <!-- Field interior -->
-            <g *ngIf="trackStyle !== 'blueprint'">
-              <path [attr.d]="innerKerb"
-                    [attr.fill]="trackStyle === 'realista' ? 'url(#tsa-field)' : 'transparent'"
-                    stroke="none" />
-              <path *ngIf="trackStyle === 'realista'"
-                    [attr.d]="innerKerb"
-                    fill="url(#tsa-field-stripes)" stroke="none" />
-            </g>
-
-            <!-- Infield equipment (realista only) -->
-            <g *ngIf="trackStyle === 'realista'" opacity="0.92">
-              <rect [attr.x]="STRAIGHT / -2 + 4" y="-3" width="38" height="1.22"
-                    fill="#C25538" opacity="0.7" />
-              <rect [attr.x]="STRAIGHT / -2 + 4" y="-3" width="38" height="1.22"
-                    fill="none" stroke="#FAF9F4" stroke-width="0.08" opacity="0.7" />
-              <rect [attr.x]="STRAIGHT / -2 + 42" y="-3.4" width="3" height="2"
-                    fill="#E8D49A" stroke="#B89B5C" stroke-width="0.08" />
-              <circle [attr.cx]="STRAIGHT / 2 - 6" cy="14" r="1.07"
-                      fill="#D8D4C8" stroke="#FAF9F4" stroke-width="0.1" />
-              <circle cx="0" cy="0" r="0.3" fill="#FAF9F4" opacity="0.4" />
-            </g>
-
-            <!-- Track surface ring (realista) -->
-            <g *ngIf="trackStyle === 'realista'">
-              <path [attr.d]="trackRing" fill="url(#tsa-surf)" fill-rule="evenodd" filter="url(#tsa-shadow)" />
-              <path [attr.d]="trackRing" fill="url(#tsa-tex)"  fill-rule="evenodd" opacity="0.85" />
-              <path [attr.d]="trackRing" fill="url(#tsa-hatch)" fill-rule="evenodd" opacity="0.7" />
-              <path [attr.d]="trackRing" fill="url(#tsa-vig)"  fill-rule="evenodd" />
-            </g>
-            <!-- Track surface ring (esquematica) -->
-            <g *ngIf="trackStyle === 'esquematica'">
-              <path [attr.d]="trackRing" fill="#EDEBE3" fill-rule="evenodd" />
-            </g>
-
-            <!-- Lane separators -->
-            <g *ngFor="let lp of lanePaths">
-              <path [attr.d]="lp" fill="none"
-                    [attr.stroke]="trackStyle === 'blueprint' ? '#6FA9E8' : (trackStyle === 'realista' ? '#FAF9F4' : '#9F9B8C')"
-                    stroke-width="0.12"
-                    [attr.opacity]="trackStyle === 'blueprint' ? 0.6 : (trackStyle === 'realista' ? 0.95 : 0.6)" />
-            </g>
-
-            <!-- Inner kerb -->
-            <path [attr.d]="innerKerb" fill="none"
-                  [attr.stroke]="trackStyle === 'blueprint' ? '#6FA9E8' : (trackStyle === 'realista' ? '#FAF9F4' : '#8A8678')"
-                  stroke-width="0.192" [attr.opacity]="trackStyle === 'blueprint' ? 0.9 : 1" />
-            <!-- Outer kerb -->
-            <path [attr.d]="outerKerb" fill="none"
-                  [attr.stroke]="trackStyle === 'blueprint' ? '#6FA9E8' : (trackStyle === 'realista' ? '#FAF9F4' : '#8A8678')"
-                  stroke-width="0.168" [attr.opacity]="trackStyle === 'blueprint' ? 0.9 : 1" />
-
-            <!-- Lane 1 running line (ground truth, dashed) -->
-            <path [attr.d]="lane1Run" fill="none"
-                  [attr.stroke]="trackStyle === 'blueprint' ? '#BFE0FF' : '#14130F'"
-                  stroke-width="0.18" stroke-dasharray="1.08 0.72"
-                  [attr.opacity]="trackStyle === 'blueprint' ? 0.95 : 0.85" />
-
-            <!-- Start / Finish line -->
-            <line [attr.x1]="finishLine.x" [attr.x2]="finishLine.x"
-                  [attr.y1]="finishLine.y0" [attr.y2]="finishLine.y1"
-                  [attr.stroke]="trackStyle === 'blueprint' ? '#BFE0FF' : '#FAF9F4'"
-                  stroke-width="0.264"
-                  [attr.opacity]="trackStyle === 'blueprint' ? 0.9 : (trackStyle === 'realista' ? 1 : 0.7)" />
-
-            <!-- Staggered 200 m start marks -->
-            <g *ngIf="trackStyle !== 'blueprint'">
-              <g *ngFor="let m of stagger200Marks">
-                <line [attr.x1]="m.x1" [attr.y1]="m.y1" [attr.x2]="m.x2" [attr.y2]="m.y2"
-                      [attr.stroke]="trackStyle === 'realista' ? '#5FA86E' : '#9F9B8C'"
-                      stroke-width="0.192" opacity="0.85" />
-              </g>
-            </g>
-
-            <!-- 100 m line -->
-            <g *ngIf="trackStyle !== 'blueprint'">
-              <line [attr.x1]="line100m.x" [attr.y1]="line100m.y0"
-                    [attr.x2]="line100m.x" [attr.y2]="line100m.y1"
-                    [attr.stroke]="trackStyle === 'realista' ? '#3F6FB5' : '#9F9B8C'"
-                    stroke-width="0.168" opacity="0.9" />
-            </g>
-
-            <!-- Distance hash marks every 10 m (realista only) -->
-            <g *ngIf="trackStyle === 'realista'">
-              <g *ngFor="let m of distanceMarks">
-                <line [attr.x1]="m.x1" [attr.y1]="m.y1" [attr.x2]="m.x2" [attr.y2]="m.y2"
-                      stroke="#FAF9F4"
-                      [attr.stroke-width]="m.major ? 0.108 : 0.066"
-                      [attr.opacity]="m.major ? 0.9 : 0.55" />
-              </g>
-            </g>
-
-            <!-- Lane numbers -->
-            <g *ngIf="trackStyle !== 'blueprint'">
-              <g *ngFor="let ln of laneNumbers">
-                <rect [attr.x]="ln.cx - 0.55" [attr.y]="ln.cy - 0.5" width="1.1" height="1.0"
-                      [attr.fill]="trackStyle === 'realista' ? '#FAF9F4' : '#ffffff'"
-                      [attr.opacity]="trackStyle === 'realista' ? 0.92 : 0.7" rx="0.08" />
-                <g [attr.transform]="'translate(' + ln.cx + ',' + (-ln.cy) + ') scale(1,-1)'">
-                  <text text-anchor="middle" dominant-baseline="central"
-                        font-size="0.85" font-weight="700"
-                        [attr.fill]="trackStyle === 'realista' ? '#9C3E27' : '#807D72'">{{ ln.n }}</text>
-                </g>
-              </g>
-            </g>
-
-            <!-- GPS track overlays -->
-            <ng-container *ngFor="let mode of visibleAnalytics">
-              <g *ngFor="let run of mode.runs">
-                <path [attr.d]="run.pathD"
-                      fill="none"
-                      [attr.stroke]="mode.color"
-                      [attr.stroke-width]="hoveredModeId === mode.modeId ? 0.6 : 0.38"
-                      [attr.stroke-opacity]="hoveredModeId && hoveredModeId !== mode.modeId ? 0.15 : 0.88"
-                      stroke-linejoin="round"
-                      stroke-linecap="round" />
-              </g>
-            </ng-container>
-
-            <!-- Hover crosshair -->
-            <g *ngIf="hoveredTrackPoint">
-              <circle [attr.cx]="hoveredTrackPoint.worldX" [attr.cy]="hoveredTrackPoint.worldY"
-                      r="0.7" fill="none"
-                      [attr.stroke]="hoveredTrackPoint.modeColor" stroke-width="0.2" />
-              <circle [attr.cx]="hoveredTrackPoint.worldX" [attr.cy]="hoveredTrackPoint.worldY"
-                      r="0.28" [attr.fill]="hoveredTrackPoint.modeColor" />
-            </g>
-
-          </g><!-- /scale(1,-1) -->
-        </svg><!-- /track-svg -->
-
-        <!-- Track info overlay (top-left) -->
-        <div class="track-overlay-info" [class.track-overlay-blueprint]="trackStyle === 'blueprint'">
-          <span>Pista</span><span class="v">IAAF 400 m · 8 carriles</span>
-          <span>Recta</span><span class="v">84.39 m</span>
-          <span>Radio carril 1</span><span class="v">36.50 m</span>
-          <span>Referencia</span><span class="v">{{ referenceDistance }} m</span>
-        </div>
-
-        <!-- Legend (bottom-right) -->
-        <div class="track-legend" [class.track-legend-blueprint]="trackStyle === 'blueprint'">
-          <div class="tleg-row" [class.tleg-blueprint]="trackStyle === 'blueprint'">
-            <span class="tleg-swatch tleg-swatch-dashed"></span>
-            <span>Carril 1 (verdad)</span>
-          </div>
-          <div class="tleg-row" *ngFor="let mode of analytics" [style.color]="mode.color">
-            <span class="tleg-swatch"></span>
-            <span>{{ mode.modeName }}</span>
-          </div>
-        </div>
-
-        <!-- Scale bar (bottom-left) -->
-        <div class="track-scale" [class.track-scale-blueprint]="trackStyle === 'blueprint'">
-          <span class="scale-zero">0</span>
-          <div class="track-scale-bar" [class.track-scale-bar-blueprint]="trackStyle === 'blueprint'"></div>
-          <span>20 m</span>
-        </div>
-
-        <!-- Zoom controls (top-right) -->
-        <div class="track-zoom-controls">
-          <button class="tool-btn" [class.tool-btn-blueprint]="trackStyle === 'blueprint'" (click)="zoomIn()"  title="Zoom in">+</button>
-          <button class="tool-btn" [class.tool-btn-blueprint]="trackStyle === 'blueprint'" (click)="zoomOut()" title="Zoom out">−</button>
-          <button class="tool-btn tool-btn-reset" [class.tool-btn-blueprint]="trackStyle === 'blueprint'" (click)="resetTrack()" title="Reset">⤺</button>
-        </div>
-
-        <!-- Hover tooltip -->
-        <div class="gps-tooltip" *ngIf="hoveredTrackPoint"
-             [style.left.px]="hoveredTrackPoint.screenX"
-             [style.top.px]="hoveredTrackPoint.screenY">
-          <div class="tooltip-mode" [style.color]="hoveredTrackPoint.modeColor">{{ hoveredTrackPoint.modeName }}</div>
-          <div class="tooltip-err">⊥ {{ fmt(hoveredTrackPoint.err) }} m</div>
-        </div>
-
-      </div><!-- /track-stage -->
-    </main>
-
-    <!-- ── RIGHT METRICS PANEL ───────────────────────────────────────────── -->
-    <aside class="col-right">
-
-      <!-- ⊥ definition note -->
-      <div class="perp-note">⊥ = distancia perpendicular al carril 1 (línea de referencia)</div>
-
-      <!-- 1. Aptitude verdict for selected mode -->
-      <ng-container *ngIf="selectedAnalytics as sel">
-        <div class="kpi-mode-header" [style.border-left-color]="sel.color">
-          <span class="kpi-mode-dot" [style.background]="sel.color"></span>
-          <span class="kpi-mode-name">{{ sel.modeName }}</span>
-        </div>
-        <ng-container *ngIf="trackAptitude(sel) as apt">
-          <div class="apt-verdict"
-               [class.apt-competicion]="apt.level === 'competicion'"
-               [class.apt-excelente]="apt.level === 'excelente'"
-               [class.apt-apto]="apt.level === 'apto'"
-               [class.apt-marginal]="apt.level === 'marginal'"
-               [class.apt-no-apto]="apt.level === 'no-apto'">
-            <div class="apt-icon-wrap">
-              <span class="apt-icon">{{ apt.level === 'no-apto' ? '✗' : apt.level === 'marginal' ? '~' : '✓' }}</span>
-            </div>
-            <div class="apt-body">
-              <span class="apt-label">{{ apt.label }} para pista</span>
-              <span class="apt-sublabel">{{ apt.sublabel }}</span>
-              <ul class="apt-failing" *ngIf="apt.failing.length">
-                <li *ngFor="let f of apt.failing">{{ f }}</li>
-              </ul>
-            </div>
-          </div>
-        </ng-container>
-        <!-- Quick metrics strip -->
-        <div class="apt-metrics-strip">
-          <div class="apt-metric">
-            <span class="apt-metric-label" title="Root Mean Square Error perpendicular">RMSE ⊥</span>
-            <span class="apt-metric-val num">{{ fmt(sel.rmse) }} m</span>
-          </div>
-          <div class="apt-metric">
-            <span class="apt-metric-label" title="Percentil 95 del error perpendicular">P95 ⊥</span>
-            <span class="apt-metric-val num">{{ fmt(sel.p95Err) }} m</span>
-          </div>
-          <div class="apt-metric">
-            <span class="apt-metric-label" title="Mean Absolute Percentage Error de distancia">MAPE</span>
-            <span class="apt-metric-val num"
-                  [class.mape-ok]="sel.mape < 1"
-                  [class.mape-warn]="sel.mape >= 1 && sel.mape < 2"
-                  [class.mape-bad]="sel.mape >= 2">{{ fmt(sel.mape) }}%</span>
-          </div>
-          <div class="apt-metric">
-            <span class="apt-metric-label">Δ Dist</span>
-            <span class="apt-metric-val num"
-                  [class.over]="sel.deltaDist > 0"
-                  [class.under]="sel.deltaDist < 0">{{ fmtSign(sel.deltaDist) }} m</span>
-          </div>
-        </div>
-      </ng-container>
-
-      <!-- 2. Histogram -->
-      <div class="hist-section">
-        <div class="section-eyebrow">Distribución del error ⊥</div>
-        <div class="section-desc">Distancia perpendicular de cada punto GPS al carril 1 (verdad del suelo). Barras más a la izquierda = más preciso.</div>
-        <div *ngFor="let m of visibleAnalytics" class="hist-mode-row">
-          <div class="hist-label-col">
-            <span class="dot-sm" [style.background]="m.color"></span>
-            <span class="hist-mode-name">{{ m.modeName }}</span>
-          </div>
-          <div class="hist-bars-col">
-            <div class="hist-bar-wrap" *ngFor="let bin of m.hist">
-              <div class="hist-bar"
-                   [style.height]="histBarHeight(bin)"
-                   [style.background]="m.color">
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- X axis labels: 12 bins × 0.5m = 0–6m -->
-        <div class="hist-axis-row">
-          <div class="hist-label-col"></div>
-          <div class="hist-xaxis">
-            <span class="hist-xtick">0m</span>
-            <span class="hist-xtick">1m</span>
-            <span class="hist-xtick">2m</span>
-            <span class="hist-xtick">3m</span>
-            <span class="hist-xtick">4m</span>
-            <span class="hist-xtick">5m</span>
-            <span class="hist-xtick">6m</span>
-          </div>
-        </div>
-        <!-- Benchmark reference -->
-        <div class="chart-benchmark">
-          <span class="bm-item bm-good">● &lt;1m excelente</span>
-          <span class="bm-item bm-ok">● 1–3m bueno</span>
-          <span class="bm-item bm-warn">● 3–5m moderado</span>
-          <span class="bm-item bm-bad">● &gt;5m deficiente</span>
-          <span class="bm-note">(GPS consumo típico: 2–3 m)</span>
-        </div>
-      </div>
-
-      <!-- 3. Error timeline -->
-      <div class="timeline-section">
-        <div class="section-eyebrow">Error ⊥ a lo largo del recorrido</div>
-        <div class="section-desc">Cómo varía la precisión a lo largo del recorrido. Las líneas verticales punteadas marcan el inicio de cada vuelta.</div>
-        <svg class="timeline-svg"
-             [attr.viewBox]="timelineViewBox"
-             width="100%"
-             preserveAspectRatio="xMidYMid meet">
-
-          <!-- Y-axis unit label -->
-          <text x="6" y="50" text-anchor="middle" dominant-baseline="middle"
-                font-size="6" fill="#B5B1A3" transform="rotate(-90, 6, 50)">Error ⊥ (m)</text>
-
-          <!-- Y-axis tick labels -->
-          <text *ngFor="let tick of timelineYTicks"
-                [attr.x]="23"
-                [attr.y]="tlSy(tick)"
-                text-anchor="end"
-                dominant-baseline="middle"
-                font-size="7"
-                fill="#807D72">{{ tick }}</text>
-
-          <!-- Threshold reference lines (1m and 3m, only if within visible range) -->
-          <ng-container *ngFor="let thr of timelineThresholds">
-            <line [attr.x1]="26" [attr.y1]="thr.y"
-                  x2="318" [attr.y2]="thr.y"
-                  [attr.stroke]="thr.color"
-                  stroke-width="0.6" stroke-dasharray="3 2" [attr.opacity]="thr.opacity" />
-            <text x="330" [attr.y]="thr.y"
-                  text-anchor="end" dominant-baseline="middle"
-                  font-size="6" [attr.fill]="thr.color">{{ thr.label }}</text>
-          </ng-container>
-
-          <!-- Lap marker vertical lines -->
-          <line *ngFor="let lapD of timelineLapMarkers"
-                [attr.x1]="tlSx(lapD)" y1="8"
-                [attr.x2]="tlSx(lapD)" y2="92"
-                stroke="#B5B1A3" stroke-width="0.5" stroke-dasharray="2 2" />
-
-          <!-- Error paths per visible mode -->
-          <path *ngFor="let tp of timelinePaths"
-                [attr.d]="tp.d"
-                fill="none"
-                [attr.stroke]="tp.color"
-                stroke-width="1"
-                [attr.opacity]="tp.dim ? 0.2 : 0.85"
-                stroke-linejoin="round" />
-
-          <!-- X-axis label -->
-          <text x="183" y="107"
-                text-anchor="middle"
-                font-size="7"
-                fill="#807D72">Distancia acumulada (m)</text>
-
-        </svg>
-      </div>
-
-      <!-- 4. (heatmap removed) -->
-
-    </aside>
-
-  </div><!-- /analytical-top -->
-
-  <!-- ── FULL RANKING TABLE ──────────────────────────────────────────────── -->
-  <section class="rank-full">
-    <div class="rank-full-header">
-      <div>
-        <span class="rank-full-eyebrow">Análisis comparativo</span>
-        <h2 class="rank-full-title">Clasificación completa</h2>
-      </div>
-      <span class="rank-full-sub">Ordenado por RMSE ⊥ · Referencia {{ referenceDistance }} m · Competición: RMSE ≤ 1m, MAPE &lt; 0.3% · Excelente: ≤ 2m, &lt; 0.7% · Apto: ≤ 4m, &lt; 1.5%</span>
-    </div>
-
-    <div class="rank-table-wrap">
-      <table class="rank-full-table">
-        <thead>
-          <tr>
-            <th class="rft-pos">#</th>
-            <th class="rft-name">Modo GPS</th>
-            <th class="rft-num" title="Root Mean Square Error perpendicular — métrica principal GNSS">RMSE ⊥</th>
-            <th class="rft-num" title="Percentil 95 del error perpendicular">P95 ⊥</th>
-            <th class="rft-num" title="Error perpendicular medio">Media ⊥</th>
-            <th class="rft-num" title="Error perpendicular máximo">Máx ⊥</th>
-            <th class="rft-num" title="Distancia GPS registrada">Dist GPS</th>
-            <th class="rft-num" title="Diferencia con distancia de referencia">Δ Dist</th>
-            <th class="rft-num" title="Mean Absolute Percentage Error de distancia · &lt;1% excelente · &lt;2% apto">MAPE%</th>
-            <th class="rft-num" title="Frecuencia de muestreo GPS">Frec.</th>
-            <th class="rft-apt" title="Criterios: RMSE ≤ 4m, MAPE &lt; 2%, P95 ≤ 6m">Aptitud pista</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let m of sortedByRmse; let i = index"
-              [class.rank-tr-selected]="m.selected"
-              (click)="selectMode(m.modeId)"
-              (mouseenter)="hoverMode(m.modeId); selectMode(m.modeId)"
-              (mouseleave)="hoverMode(null)">
-
-            <td class="rft-td-pos">
-              <span class="rank-badge"
-                    [class.rank-gold]="i === 0"
-                    [class.rank-silver]="i === 1"
-                    [class.rank-bronze]="i === 2">{{ i + 1 }}</span>
-            </td>
-
-            <td class="rft-td-name">
-              <span class="dot-sm" [style.background]="m.color"></span>
-              <span class="rft-mode-name">{{ m.modeName }}</span>
-            </td>
-
-            <!-- RMSE — primary ranking metric with bar -->
-            <td class="rft-td-bar">
-              <div class="rft-bar-row">
-                <span class="num">{{ fmt(m.rmse) }} m</span>
-                <div class="mbar-track">
-                  <div class="mbar" [style.background]="m.color"
-                       [style.width]="rankBarPct(m.rmse, sortedByRmse[sortedByRmse.length-1].rmse)"></div>
-                </div>
-              </div>
-            </td>
-
-            <td class="rft-td-num num">{{ fmt(m.p95Err) }} m</td>
-            <td class="rft-td-num num">{{ fmt(m.meanErr) }} m</td>
-            <td class="rft-td-num num">{{ fmt(m.maxErr) }} m</td>
-            <td class="rft-td-num num">{{ fmt(m.recDist, 0) }} m</td>
-
-            <td class="rft-td-num num" [class.over]="m.deltaDist > 0" [class.under]="m.deltaDist < 0">
-              {{ fmtSign(m.deltaDist) }} m
-            </td>
-
-            <td class="rft-td-num num"
-                [class.mape-ok]="m.mape < 1"
-                [class.mape-warn]="m.mape >= 1 && m.mape < 2"
-                [class.mape-bad]="m.mape >= 2">
-              {{ fmt(m.mape) }}%
-            </td>
-
-            <td class="rft-td-num num">{{ fmtHz(m.sampleHz) }}</td>
-
-            <td class="rft-td-apt">
-              <ng-container *ngIf="trackAptitude(m) as apt">
-                <span class="apt-chip"
-                      [class.apt-chip-competicion]="apt.level === 'competicion'"
-                      [class.apt-chip-excelente]="apt.level === 'excelente'"
-                      [class.apt-chip-apto]="apt.level === 'apto'"
-                      [class.apt-chip-marginal]="apt.level === 'marginal'"
-                      [class.apt-chip-no-apto]="apt.level === 'no-apto'"
-                      [title]="apt.sublabel + (apt.failing.length ? ' · ' + apt.failing.join(' · ') : '')">
-                  {{ apt.label }}
-                </span>
-              </ng-container>
-            </td>
-
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+    </section>
 
   </div><!-- /analytical -->
 </ng-container>
