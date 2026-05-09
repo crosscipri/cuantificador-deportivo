@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AggregateResult, Device, Session, SportType, SessionDifficulty, OverviewEntry } from '../models/session.model';
+import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry } from '../models/session.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -100,5 +100,25 @@ export class ApiService {
       session_ids:   sessionIds,
       training_type: trainingType,
     });
+  }
+
+  // ── AI Analysis (session) ─────────────────────────────────────────────────
+
+  getSessionAiAnalysis(sessionId: string): Observable<AiAnalysis> {
+    return this.http.get<AiAnalysis>(`${this.base}/sessions/${sessionId}/ai-analysis`);
+  }
+
+  generateSessionAiAnalysis(sessionId: string): Observable<AiAnalysis> {
+    return this.http.post<AiAnalysis>(`${this.base}/sessions/${sessionId}/ai-analysis`, {});
+  }
+
+  // ── AI Verdict (device) ───────────────────────────────────────────────────
+
+  getDeviceAiVerdict(deviceId: string): Observable<AiVerdict> {
+    return this.http.get<AiVerdict>(`${this.base}/devices/${deviceId}/ai-verdict`);
+  }
+
+  generateDeviceAiVerdict(deviceId: string): Observable<AiVerdict> {
+    return this.http.post<AiVerdict>(`${this.base}/devices/${deviceId}/ai-verdict`, {});
   }
 }

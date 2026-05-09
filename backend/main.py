@@ -18,6 +18,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from analyzer import (analyze_session, generate_aggregate_analysis,
                       generate_overview_chart, _weighted_global_score)
+from ai_analyzer import generate_session_ai_analysis, generate_device_ai_verdict
 
 load_dotenv()
 
@@ -80,6 +81,23 @@ def _ser(doc: dict, *, keep_fc: bool = False) -> dict:
     # Never expose raw binary file bytes in API responses
     doc.pop("device_file_bytes", None)
     doc.pop("reference_file_bytes", None)
+    # Expose only lightweight AI metadata in session list / detail responses;
+    # the full payload is returned by dedicated /ai-analysis endpoints.
+    ai = doc.pop("ai_analysis", None)
+    if ai:
+        doc["has_ai_analysis"]   = True
+        doc["ai_analysis_at"]    = ai.get("generated_at")
+        doc["ai_analysis_model"] = ai.get("model")
+    else:
+        doc["has_ai_analysis"] = False
+    # Same for device ai_verdict
+    verdict = doc.pop("ai_verdict", None)
+    if verdict:
+        doc["has_ai_verdict"]   = True
+        doc["ai_verdict_at"]    = verdict.get("generated_at")
+        doc["ai_verdict_model"] = verdict.get("model")
+    else:
+        doc["has_ai_verdict"] = False
     return doc
 
 
@@ -589,4 +607,97 @@ async def create_aggregate(body: dict) -> dict:
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AI ANALYSIS  (session-level)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/sessions/{session_id}/ai-analysis")
+async def get_session_ai_analysis(session_id: str) -> dict:
+    """Return stored AI analysis for a session, or 404 if not generated yet."""
+    doc = await db().sessions.find_one(
+        {"_id": _oid(session_id)},
+        {"ai_analysis": 1},
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+    ai = doc.get("ai_analysis")
+    if not ai:
+        raise HTTPException(status_code=404, detail="Análisis IA no generado aún")
+    return ai
+
+
+@app.post("/api/sessions/{session_id}/ai-analysis", status_code=200)
+async def create_session_ai_analysis(session_id: str) -> dict:
+    """Generate (or re-generate) the AI analysis for a session."""
+    doc = await db().sessions.find_one({"_id": _oid(session_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+
+    try:
+        result = await generate_session_ai_analysis(doc)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error al llamar a GPT: {exc}")
+
+    await db().sessions.update_one(
+        {"_id": _oid(session_id)},
+        {"$set": {"ai_analysis": result}},
+    )
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AI VERDICT  (device-level)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/devices/{device_id}/ai-verdict")
+async def get_device_ai_verdict(device_id: str) -> dict:
+    """Return stored AI verdict for a device, or 404 if not generated yet."""
+    doc = await db().devices.find_one(
+        {"_id": _oid(device_id)},
+        {"ai_verdict": 1},
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+    verdict = doc.get("ai_verdict")
+    if not verdict:
+        raise HTTPException(status_code=404, detail="Veredicto IA no generado aún")
+    return verdict
+
+
+@app.post("/api/devices/{device_id}/ai-verdict", status_code=200)
+async def create_device_ai_verdict(device_id: str) -> dict:
+    """Generate (or re-generate) the AI verdict for a device using all its sessions."""
+    dev_doc = await db().devices.find_one({"_id": _oid(device_id)})
+    if not dev_doc:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+
+    sessions = [
+        s async for s in db().sessions.find(
+            {"device_id": _oid(device_id)},
+            {"metrics": 1, "zones": 1, "lag": 1, "sport_type": 1,
+             "session_difficulty": 1, "training_type": 1, "session_name": 1},
+        )
+    ]
+    if not sessions:
+        raise HTTPException(status_code=422,
+                            detail="El dispositivo no tiene sesiones para analizar")
+
+    try:
+        result = await generate_device_ai_verdict(
+            dev_doc["name"], dev_doc["reference_name"], sessions,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error al llamar a GPT: {exc}")
+
+    await db().devices.update_one(
+        {"_id": _oid(device_id)},
+        {"$set": {"ai_verdict": result}},
+    )
     return result

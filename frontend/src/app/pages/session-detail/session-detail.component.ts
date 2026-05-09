@@ -9,7 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 
 import { ApiService } from '../../services/api.service';
-import { Session, metricQuality, SportType, SessionDifficulty,
+import { Session, AiAnalysis, AiCalificacion, metricQuality, SportType, SessionDifficulty,
          SPORT_TYPE_LABELS, DIFFICULTY_LABELS,
          TRAINING_TYPES_BY_SPORT, SPORT_HAS_DIFFICULTY, GYM_DIFFICULTY,
 } from '../../models/session.model';
@@ -55,6 +55,13 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   saving      = false;
   private sportSub?: Subscription;
   reanalyzing = false;
+
+  // ── AI analysis ───────────────────────────────────────────────────────────
+  activeTab: 'stats' | 'ai' = 'stats';
+  aiAnalysis:  AiAnalysis | null = null;
+  aiLoading  = false;
+  aiError    = '';
+  aiGenerating = false;
   editForm = this.fb.group({
     session_name:       [''],
     training_type:      ['', Validators.required],
@@ -100,13 +107,79 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   }
 
   loadSession(id: string): void {
-    this.loading = true;
-    this.error   = '';
-    this.session = null;
+    this.loading     = true;
+    this.error       = '';
+    this.session     = null;
+    this.aiAnalysis  = null;
+    this.aiError     = '';
     this.api.getSession(id).subscribe({
-      next:  s  => { this.session = s; this.loading = false; },
+      next: s => {
+        this.session = s;
+        this.loading = false;
+        if (s.has_ai_analysis) {
+          this.loadAiAnalysis(id);
+        } else {
+          this.triggerAiAnalysis(id);
+        }
+      },
       error: () => { this.error = 'No se pudo cargar la sesión.'; this.loading = false; },
     });
+  }
+
+  loadAiAnalysis(sessionId: string): void {
+    this.aiLoading = true;
+    this.aiError   = '';
+    this.api.getSessionAiAnalysis(sessionId).subscribe({
+      next:  a  => { this.aiAnalysis = a; this.aiLoading = false; },
+      error: () => { this.aiLoading = false; },
+    });
+  }
+
+  triggerAiAnalysis(sessionId: string): void {
+    this.aiLoading    = true;
+    this.aiGenerating = true;
+    this.aiError      = '';
+    this.api.generateSessionAiAnalysis(sessionId).subscribe({
+      next: a => {
+        this.aiAnalysis   = a;
+        this.aiLoading    = false;
+        this.aiGenerating = false;
+        if (this.session) this.session.has_ai_analysis = true;
+      },
+      error: err => {
+        this.aiError      = err.error?.detail || 'Error al generar el análisis IA';
+        this.aiLoading    = false;
+        this.aiGenerating = false;
+      },
+    });
+  }
+
+  reAnalyzeAi(): void {
+    if (!this.session) return;
+    this.aiAnalysis = null;
+    this.triggerAiAnalysis(this.session.id);
+    this.activeTab = 'ai';
+  }
+
+  aiCalClass(cal: AiCalificacion | undefined): string {
+    const map: Record<AiCalificacion, string> = {
+      excelente: 'good',
+      bueno:     'warn',
+      moderado:  'orange',
+      deficiente: 'bad',
+    };
+    return cal ? (map[cal] ?? '') : '';
+  }
+
+  aiAnnotationIcon(tipo: string): string {
+    const icons: Record<string, string> = {
+      lag:               '⏱',
+      overshooting:      '↑',
+      cadence_lock:      '🔒',
+      alta_discrepancia: '⚠',
+      recuperacion_lenta:'↓',
+    };
+    return icons[tipo] ?? '•';
   }
 
   navigateTo(id: string): void {

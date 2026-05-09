@@ -72,6 +72,10 @@ export interface Device {
   session_count: number;
   training_types: TrainingTypeSummary[];
   last_spark?: SparkData;
+  // AI verdict metadata (lightweight)
+  has_ai_verdict?:   boolean;
+  ai_verdict_at?:    string;
+  ai_verdict_model?: string;
 }
 
 export type SportType       = 'running' | 'cycling' | 'gym';
@@ -128,6 +132,68 @@ export const TRAINING_TYPES_BY_SPORT: Record<SportType, string[]> = {
   ],
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// AI ANALYSIS TYPES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type AiCalificacion = 'excelente' | 'bueno' | 'moderado' | 'deficiente';
+
+export interface AiAnnotation {
+  tiempo_inicio: number;
+  tiempo_fin:    number;
+  tipo:          'lag' | 'overshooting' | 'cadence_lock' | 'alta_discrepancia' | 'recuperacion_lenta';
+  descripcion:   string;
+  severidad:     'leve' | 'moderada' | 'severa';
+}
+
+export interface AiReport {
+  resumen_ejecutivo:   string;
+  validez_general:     string;
+  bland_altman:        string;
+  error_por_zonas:     string;
+  lag_analisis:        string;
+  fenomenos_detectados: string;
+  recomendacion_practica: string;
+}
+
+export interface AiAnalysis {
+  report: {
+    informe:                 AiReport;
+    anotaciones_temporales:  AiAnnotation[];
+    veredicto_sesion: {
+      calificacion: AiCalificacion;
+      etiqueta:     string;
+      para_quien:   string;
+    };
+  };
+  annotated_charts: {
+    temporal:   string;  // base64 PNG
+    validation: string;  // base64 PNG
+  };
+  generated_at: string;
+  model:        string;
+}
+
+export interface AiVerdictData {
+  veredicto_general:       string;
+  calificacion_final:      AiCalificacion;
+  etiqueta_final:          string;
+  fortalezas:              string[];
+  debilidades:             string[];
+  por_tipo_entrenamiento:  Record<string, string>;
+  perfil_deportista_ideal: string;
+  no_recomendado_para:     string;
+  comparativa_literatura:  string;
+  recomendacion_final:     string;
+}
+
+export interface AiVerdict {
+  verdict:           AiVerdictData;
+  generated_at:      string;
+  model:             string;
+  sessions_analyzed: number;
+}
+
 export interface Session {
   id: string;
   device_id: string;
@@ -146,6 +212,10 @@ export interface Session {
   charts: Charts;
   fc_data?: FcData;    // only present in GET /api/sessions/:id
   spark_data?: SparkData; // 20-point sparkline, present in list responses
+  // AI analysis metadata (lightweight — full payload via /ai-analysis endpoint)
+  has_ai_analysis?:   boolean;
+  ai_analysis_at?:    string;
+  ai_analysis_model?: string;
 }
 
 export interface AggregateResult {

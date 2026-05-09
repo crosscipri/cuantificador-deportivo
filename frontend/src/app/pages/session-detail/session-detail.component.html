@@ -62,6 +62,22 @@
       <p class="v-text" style="margin-top:6px">{{ verdictText(session) }}</p>
     </div>
 
+    <!-- ── Tab bar ── -->
+    <div class="tab-bar" *ngIf="!editing">
+      <button class="tab-btn" [class.active]="activeTab === 'stats'" (click)="activeTab = 'stats'">
+        Estadísticas científicas
+      </button>
+      <button class="tab-btn" [class.active]="activeTab === 'ai'" (click)="activeTab = 'ai'">
+        Informe IA
+        <span class="tab-badge" *ngIf="aiGenerating">
+          <span class="spinner-xs"></span>
+        </span>
+        <span class="tab-chip good" *ngIf="!aiGenerating && aiAnalysis">
+          {{ aiAnalysis.report?.veredicto_sesion?.calificacion }}
+        </span>
+      </button>
+    </div>
+
     <!-- ── Edit form ── -->
     <div class="edit-card" *ngIf="editing">
       <form [formGroup]="editForm" class="edit-form">
@@ -100,6 +116,11 @@
         </button>
       </div>
     </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         STATS TAB
+         ══════════════════════════════════════════════════════════════════════ -->
+    <ng-container *ngIf="activeTab === 'stats'">
 
     <!-- ── § 1 · Hero metrics ── -->
     <div class="section-header">
@@ -254,6 +275,157 @@
         </tbody>
       </table>
     </div>
+
+    </ng-container><!-- /stats tab -->
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         AI TAB
+         ══════════════════════════════════════════════════════════════════════ -->
+    <ng-container *ngIf="activeTab === 'ai'">
+
+      <!-- Loading / generating -->
+      <div class="ai-loading" *ngIf="aiLoading">
+        <div class="spinner"></div>
+        <p class="ai-loading-txt" *ngIf="aiGenerating">
+          Generando informe con GPT-4o… esto puede tardar unos segundos.
+        </p>
+        <p class="ai-loading-txt" *ngIf="!aiGenerating">Cargando informe…</p>
+      </div>
+
+      <!-- Error -->
+      <div class="ai-error" *ngIf="aiError && !aiLoading">
+        <div class="ai-error-icon">⚠</div>
+        <p>{{ aiError }}</p>
+        <button class="ec-btn" (click)="reAnalyzeAi()">Reintentar</button>
+      </div>
+
+      <!-- Report -->
+      <ng-container *ngIf="aiAnalysis && !aiLoading">
+
+        <!-- Veredicto IA -->
+        <div class="ai-verdict-banner"
+             [ngClass]="aiCalClass(aiAnalysis.report?.veredicto_sesion?.calificacion)">
+          <div class="ai-verdict-left">
+            <div class="ai-verdict-label">Veredicto IA · {{ session.device_name }}</div>
+            <div class="ai-verdict-title">
+              {{ aiAnalysis.report?.veredicto_sesion?.etiqueta }}
+            </div>
+            <div class="ai-verdict-sub">
+              {{ aiAnalysis.report?.veredicto_sesion?.para_quien }}
+            </div>
+          </div>
+          <div class="ai-verdict-cal">
+            {{ aiAnalysis.report?.veredicto_sesion?.calificacion | titlecase }}
+          </div>
+        </div>
+
+        <!-- Report sections -->
+        <div class="ai-sections">
+
+          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.resumen_ejecutivo">
+            <div class="ai-sec-title">Resumen ejecutivo</div>
+            <p class="ai-sec-body">{{ aiAnalysis.report.informe.resumen_ejecutivo }}</p>
+          </div>
+
+          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.validez_general">
+            <div class="ai-sec-title">Validez general · CCC / ICC / r</div>
+            <p class="ai-sec-body">{{ aiAnalysis.report.informe.validez_general }}</p>
+          </div>
+
+          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.bland_altman">
+            <div class="ai-sec-title">Análisis Bland–Altman</div>
+            <p class="ai-sec-body">{{ aiAnalysis.report.informe.bland_altman }}</p>
+          </div>
+
+          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.error_por_zonas">
+            <div class="ai-sec-title">Error por zonas de intensidad</div>
+            <p class="ai-sec-body">{{ aiAnalysis.report.informe.error_por_zonas }}</p>
+          </div>
+
+          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.lag_analisis">
+            <div class="ai-sec-title">Lag temporal</div>
+            <p class="ai-sec-body">{{ aiAnalysis.report.informe.lag_analisis }}</p>
+          </div>
+
+          <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.fenomenos_detectados">
+            <div class="ai-sec-title">Fenómenos detectados</div>
+            <p class="ai-sec-body">{{ aiAnalysis.report.informe.fenomenos_detectados }}</p>
+          </div>
+
+          <div class="ai-section-card accent" *ngIf="aiAnalysis.report?.informe?.recomendacion_practica">
+            <div class="ai-sec-title">Recomendación práctica</div>
+            <p class="ai-sec-body">{{ aiAnalysis.report.informe.recomendacion_practica }}</p>
+          </div>
+
+        </div>
+
+        <!-- Annotations list -->
+        <ng-container *ngIf="aiAnalysis.report?.anotaciones_temporales?.length">
+          <div class="section-header">
+            <div class="section-inner">
+              <h2>Momentos anotados por IA</h2>
+              <span class="section-sub">puntos de interés en la serie temporal</span>
+            </div>
+            <div class="divider"></div>
+          </div>
+          <div class="ai-annotations">
+            <div class="ai-ann-item"
+                 *ngFor="let ann of aiAnalysis.report.anotaciones_temporales"
+                 [ngClass]="'ann-' + ann.tipo">
+              <span class="ann-icon">{{ aiAnnotationIcon(ann.tipo) }}</span>
+              <span class="ann-time">
+                {{ (ann.tiempo_inicio / 60) | number:'1.0-0' }}:{{ (ann.tiempo_inicio % 60) | number:'2.0-0' }}
+                –
+                {{ (ann.tiempo_fin / 60) | number:'1.0-0' }}:{{ (ann.tiempo_fin % 60) | number:'2.0-0' }}
+              </span>
+              <span class="ann-tipo">{{ ann.tipo | titlecase }}</span>
+              <span class="ann-sev" [ngClass]="'sev-' + ann.severidad">{{ ann.severidad }}</span>
+              <span class="ann-desc">{{ ann.descripcion }}</span>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- Annotated temporal chart -->
+        <div class="section-header" *ngIf="aiAnalysis.annotated_charts?.temporal">
+          <div class="section-inner">
+            <h2>FC anotada por IA</h2>
+            <span class="section-sub">zonas de discrepancia señaladas · verde ≤5 bpm · naranja ≤10 · rojo >10</span>
+          </div>
+          <div class="divider"></div>
+        </div>
+        <div class="chart-card" *ngIf="aiAnalysis.annotated_charts?.temporal">
+          <img [src]="'data:image/png;base64,' + aiAnalysis.annotated_charts.temporal"
+               class="ai-chart-img" alt="FC anotada IA" />
+        </div>
+
+        <!-- Annotated validation chart -->
+        <div class="section-header" *ngIf="aiAnalysis.annotated_charts?.validation">
+          <div class="section-inner">
+            <h2>Validación anotada por IA</h2>
+            <span class="section-sub">Bland–Altman con tendencia proporcional · error por zonas</span>
+          </div>
+          <div class="divider"></div>
+        </div>
+        <div class="chart-card" *ngIf="aiAnalysis.annotated_charts?.validation">
+          <img [src]="'data:image/png;base64,' + aiAnalysis.annotated_charts.validation"
+               class="ai-chart-img" alt="Validación anotada IA" />
+        </div>
+
+        <!-- Footer -->
+        <div class="ai-footer">
+          <span class="ai-footer-meta">
+            Generado el {{ aiAnalysis.generated_at | date:'dd/MM/yyyy HH:mm' }}
+            · Modelo: {{ aiAnalysis.model }}
+          </span>
+          <button class="ec-btn" (click)="reAnalyzeAi()" [disabled]="aiLoading || aiGenerating">
+            <span *ngIf="aiGenerating" class="spinner-xs"></span>
+            {{ aiGenerating ? 'Analizando…' : '↻ Volver a analizar' }}
+          </button>
+        </div>
+
+      </ng-container>
+
+    </ng-container><!-- /ai tab -->
 
   </ng-container>
 
