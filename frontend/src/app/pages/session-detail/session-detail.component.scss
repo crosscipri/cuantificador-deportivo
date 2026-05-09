@@ -704,6 +704,33 @@
   }
 }
 
+// ── AI report header (PDF button) ─────────────────────────────────
+.ai-report-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.ai-pdf-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: var(--accent);
+    color: #fff;
+  }
+}
+
 // ── AI sections grid ──────────────────────────────────────────────
 .ai-sections {
   display: grid;

@@ -302,6 +302,13 @@
       <!-- Report -->
       <ng-container *ngIf="aiAnalysis && !aiLoading">
 
+        <!-- Cabecera del informe IA -->
+        <div class="ai-report-header">
+          <button class="ec-btn ai-pdf-btn" (click)="downloadPdf()" title="Descargar informe como PDF">
+            ↓ Descargar PDF
+          </button>
+        </div>
+
         <!-- Veredicto IA -->
         <div class="ai-verdict-banner"
              [ngClass]="aiCalClass(aiAnalysis.report?.veredicto_sesion?.calificacion)">

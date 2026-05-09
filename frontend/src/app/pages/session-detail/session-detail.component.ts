@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 
 import { ApiService } from '../../services/api.service';
+import { ReportPdfService } from '../../services/report-pdf.service';
 import { Session, AiAnalysis, AiCalificacion, metricQuality, SportType, SessionDifficulty,
          SPORT_TYPE_LABELS, DIFFICULTY_LABELS,
          TRAINING_TYPES_BY_SPORT, SPORT_HAS_DIFFICULTY, GYM_DIFFICULTY,
@@ -103,6 +104,7 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
     private api: ApiService,
     private fb: FormBuilder,
     private snack: MatSnackBar,
+    private reportPdf: ReportPdfService,
   ) {}
 
   ngOnInit(): void {
@@ -171,6 +173,11 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
     this.aiAnalysis = null;
     this.triggerAiAnalysis(this.session.id);
     this.activeTab = 'ai';
+  }
+
+  downloadPdf(): void {
+    if (!this.session || !this.aiAnalysis) return;
+    this.reportPdf.download(this.session, this.aiAnalysis);
   }
 
   aiCalClass(cal: AiCalificacion | undefined): string {
