@@ -33,9 +33,13 @@ interface GpsModeAnalytics {
   runs: AnalyticsRun[];
   allPoints: AnalyticsPoint[];  // all runs merged for stats
   meanErr: number; maxErr: number;
+  rmse: number;      // sqrt(mean(err²)) — penalises large deviations
+  p95Err: number;    // 95th-percentile perpendicular error
+  std: number;       // std dev of perpendicular errors
   recDist: number;   // recorded GPS distance (avg across runs)
   trueDist: number;  // reference distance
   deltaDist: number; // recDist - trueDist
+  mape: number;      // |deltaDist| / trueDist * 100  (%)
   sampleHz: number;  // samples/s (0 if no time data)
   nSamples: number;
   hist: number[];         // 12 bins, 0–6 m at 0.5 m each
@@ -187,6 +191,17 @@ export class GpsTrackAnalysisComponent implements OnInit {
   get timelineYTicks(): number[] {
     const yMax = this.timelineMaxErr;
     return [0, yMax / 2, yMax];
+  }
+
+  get timelineThresholds(): { y: string; label: string; color: string; opacity: number }[] {
+    const refs = [
+      { value: 1, label: '1m', color: '#10b981', opacity: 0.55 },
+      { value: 3, label: '3m', color: '#f59e0b', opacity: 0.55 },
+    ];
+    const maxE = this.timelineMaxErr || 6;
+    return refs
+      .filter(r => r.value < maxE * 0.95)
+      .map(r => ({ ...r, y: this.tlSy(r.value) }));
   }
 
   get timelineLapMarkers(): number[] {
@@ -460,10 +475,18 @@ export class GpsTrackAnalysisComponent implements OnInit {
       });
 
       // Aggregate stats
-      const errs = allModePoints.map(p => p.err);
-      const meanErr = errs.length ? errs.reduce((a, b) => a + b, 0) / errs.length : 0;
+      const errs    = allModePoints.map(p => p.err);
+      const n       = errs.length || 1;
+      const meanErr = errs.length ? errs.reduce((a, b) => a + b, 0) / n : 0;
       const maxErr  = errs.length ? Math.max(...errs) : 0;
+      const rmse    = Math.sqrt(errs.reduce((s, e) => s + e * e, 0) / n);
+      const std     = Math.sqrt(errs.reduce((s, e) => s + (e - meanErr) ** 2, 0) / n);
+      const sorted  = [...errs].sort((a, b) => a - b);
+      const p95Err  = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0;
       const recDist = mode.files.reduce((s, r) => s + r.distance_m, 0) / Math.max(mode.files.length, 1);
+      const mape    = this.referenceDistance > 0
+        ? (Math.abs(recDist - this.referenceDistance) / this.referenceDistance) * 100
+        : 0;
 
       // Sample Hz
       let sampleHz = 0;
@@ -492,11 +515,15 @@ export class GpsTrackAnalysisComponent implements OnInit {
         modeId: mode.id, modeName: mode.name, color: mode.color,
         visible: true, selected: mi === 0,
         runs, allPoints: allModePoints,
-        meanErr:   Math.round(meanErr  * 100) / 100,
-        maxErr:    Math.round(maxErr   * 100) / 100,
-        recDist:   Math.round(recDist  * 10)  / 10,
+        meanErr:   Math.round(meanErr * 100) / 100,
+        maxErr:    Math.round(maxErr  * 100) / 100,
+        rmse:      Math.round(rmse    * 100) / 100,
+        p95Err:    Math.round(p95Err  * 100) / 100,
+        std:       Math.round(std     * 100) / 100,
+        recDist:   Math.round(recDist * 10)  / 10,
         trueDist:  this.referenceDistance,
         deltaDist: Math.round((recDist - this.referenceDistance) * 10) / 10,
+        mape:      Math.round(mape    * 100) / 100,
         sampleHz:  Math.round(sampleHz * 100) / 100,
         nSamples:  allModePoints.length,
         hist, heatmapBins,
@@ -521,7 +548,7 @@ export class GpsTrackAnalysisComponent implements OnInit {
 
   onTrackMouseMove(e: MouseEvent): void {
     if (this.svgDrag) {
-      const bb = trackBbox(); const PAD = 12;
+      const bb  = trackBbox(); const PAD = 12;
       const bvW = bb.maxX - bb.minX + PAD * 2;
       const bvH = bb.maxY - bb.minY + PAD * 2;
       const el  = this.trackStageEl?.nativeElement;
@@ -529,7 +556,7 @@ export class GpsTrackAnalysisComponent implements OnInit {
       const dx = (e.clientX - this.svgDrag.startX) * (bvW / this.trackZoom) / el.clientWidth;
       const dy = (e.clientY - this.svgDrag.startY) * (bvH / this.trackZoom) / el.clientHeight;
       this.trackPanX = this.svgDrag.panX - dx;
-      this.trackPanY = this.svgDrag.panY + dy;
+      this.trackPanY = this.svgDrag.panY - dy;  // Y screen = -Y world (flip)
       return;
     }
     if (!this.analytics || !this.trackSvgEl) return;
@@ -569,7 +596,32 @@ export class GpsTrackAnalysisComponent implements OnInit {
   onTrackMouseLeave(): void { this.svgDrag = null; this.hoveredTrackPoint = null; }
   onTrackWheel(e: WheelEvent): void {
     e.preventDefault();
-    this.trackZoom = Math.max(0.6, Math.min(8, this.trackZoom * (e.deltaY > 0 ? 0.9 : 1.1)));
+    // Smooth continuous zoom: small deltaY (trackpad) = tiny step, large (wheel) = bigger step
+    const factor  = Math.pow(0.997, e.deltaY);
+    const newZoom = Math.max(0.6, Math.min(8, this.trackZoom * factor));
+
+    // Zoom towards cursor position (like Google Maps)
+    const el = this.trackStageEl?.nativeElement;
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const bb   = trackBbox(); const PAD = 12;
+      const bvW  = bb.maxX - bb.minX + PAD * 2;
+      const bvH  = bb.maxY - bb.minY + PAD * 2;
+      const mx   = (e.clientX - rect.left)  / el.clientWidth;   // [0,1]
+      const my   = (e.clientY - rect.top)   / el.clientHeight;  // [0,1]
+      const cx   = bb.minX - PAD + bvW / 2 + this.trackPanX;
+      const cy   = bb.minY - PAD + bvH / 2 + this.trackPanY;
+      // World point under cursor before zoom
+      const vx   = cx + (mx - 0.5) * bvW / this.trackZoom;
+      const vy   = cy + (my - 0.5) * bvH / this.trackZoom;
+      // Keep that point under cursor after zoom
+      const cx2  = vx - (mx - 0.5) * bvW / newZoom;
+      const cy2  = vy - (my - 0.5) * bvH / newZoom;
+      this.trackPanX = cx2 - (bb.minX - PAD + bvW / 2);
+      this.trackPanY = cy2 - (bb.minY - PAD + bvH / 2);
+    }
+
+    this.trackZoom = newZoom;
   }
   resetTrack(): void { this.trackZoom = 1; this.trackPanX = 0; this.trackPanY = 0; }
   zoomIn():  void { this.trackZoom = Math.min(8, this.trackZoom * 1.25); }
@@ -588,5 +640,36 @@ export class GpsTrackAnalysisComponent implements OnInit {
   rankBarPct(value: number, worst?: number): string {
     const w = worst ?? Math.max(...(this.analytics ?? []).map(m => m.meanErr), 0.01);
     return `${Math.round((value / w) * 100)}%`;
+  }
+
+  trackAptitude(m: GpsModeAnalytics): { level: 'competicion' | 'excelente' | 'apto' | 'marginal' | 'no-apto'; label: string; sublabel: string; failing: string[] } {
+    // Tiered thresholds — tightest first
+    if (m.rmse <= 1.0 && m.mape < 0.3 && m.p95Err <= 2.0)
+      return { level: 'competicion', label: 'Competición', sublabel: 'Precisión de nivel competitivo: válido para análisis de carril y crono oficial', failing: [] };
+
+    if (m.rmse <= 2.0 && m.mape < 0.7 && m.p95Err <= 3.5)
+      return { level: 'excelente',   label: 'Excelente',   sublabel: 'Error muy bajo: óptimo para entrenamiento de pista y análisis de técnica', failing: [] };
+
+    if (m.rmse <= 4.0 && m.mape < 1.5 && m.p95Err <= 6.0)
+      return { level: 'apto',        label: 'Apto',        sublabel: 'Cumple criterios de uso deportivo: válido para medición de distancia en pista', failing: [] };
+
+    if (m.rmse <= 6.0 && m.mape < 3.0)
+      return { level: 'marginal',    label: 'Marginal',    sublabel: 'Error elevado: solo distancia aproximada, no recomendado para análisis de precisión',
+               failing: [
+                 ...(m.rmse   > 4.0 ? [`RMSE ${this.fmt(m.rmse)} m (apto ≤ 4 m)`]    : []),
+                 ...(m.mape   >= 1.5 ? [`MAPE ${this.fmt(m.mape)}% (apto < 1.5%)`]   : []),
+                 ...(m.p95Err > 6.0  ? [`P95 ${this.fmt(m.p95Err)} m (apto ≤ 6 m)`]  : []),
+               ] };
+
+    const failing = [
+      ...(m.rmse   > 6.0 ? [`RMSE ${this.fmt(m.rmse)} m (lím. 6 m)`]   : []),
+      ...(m.mape   >= 3.0 ? [`MAPE ${this.fmt(m.mape)}% (lím. 3%)`]    : []),
+      ...(m.p95Err > 8.0  ? [`P95 ${this.fmt(m.p95Err)} m (lím. 8 m)`] : []),
+    ];
+    return { level: 'no-apto', label: 'No apto', sublabel: 'No cumple los criterios mínimos para uso en pista de atletismo', failing };
+  }
+
+  get sortedByRmse(): GpsModeAnalytics[] {
+    return [...(this.analytics ?? [])].sort((a, b) => a.rmse - b.rmse);
   }
 }

@@ -399,46 +399,58 @@
   flex-shrink: 0;
 }
 
-.cmp-section {
+// ── Unified rank table ───────────────────────────────────────────────────────
+
+.rank-table-section {
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
 }
 
-.cmp-table {
+.rank-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 11px;
+
+  .rank-th-pos  { width: 30px; }
+  .rank-th-name { min-width: 80px; }
+  .rank-th-num  { width: 52px; text-align: right; }
 
   th {
-    padding: 8px 12px;
-    text-align: left;
-    font-size: 10px;
-    font-weight: 600;
+    padding: 7px 8px;
+    font-size: 9px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.07em;
     color: var(--ink-4);
     border-bottom: 1px solid var(--border);
     background: var(--bg);
     white-space: nowrap;
+    &.rank-th-num { padding-right: 12px; }
   }
 
   td {
-    padding: 8px 12px;
+    padding: 7px 8px;
     color: var(--ink-2);
     border-bottom: 1px solid var(--bg);
     vertical-align: middle;
     white-space: nowrap;
-
-    &:first-child {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--ink);
-      font-weight: 500;
-    }
   }
 
+  .rank-td-pos  { text-align: center; }
+  .rank-td-name { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--ink); }
+  .rank-td-num  { text-align: right; padding-right: 12px; }
+
   tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover td { background: var(--bg); }
+  tbody tr:hover td { background: var(--bg); cursor: default; }
+  .rank-tr-selected td { background: var(--bg); box-shadow: inset 3px 0 0 var(--ink-2); }
+  .rank-tr-dimmed { opacity: 0.4; }
+}
+
+.rank-mode-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
 }
 
 .meta-section {
@@ -676,17 +688,146 @@
 // RIGHT METRICS PANEL
 // ══════════════════════════════════════════════════════════════════════════════
 
+// ── Aptitude verdict block ────────────────────────────────────────────────────
+
+.apt-verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.apt-icon-wrap {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.apt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.apt-label {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.apt-sublabel {
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+.apt-failing {
+  margin: 4px 0 0;
+  padding: 0 0 0 14px;
+  font-size: 10px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  list-style: disc;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.apt-competicion {
+  .apt-icon-wrap { background: #A7F3D0; color: #064E3B; }
+  .apt-label     { color: #064E3B; }
+}
+.apt-excelente {
+  .apt-icon-wrap { background: #D1FAE5; color: #065F46; }
+  .apt-label     { color: #065F46; }
+}
+.apt-apto {
+  .apt-icon-wrap { background: #DBEAFE; color: #1D4ED8; }
+  .apt-label     { color: #1D4ED8; }
+}
+.apt-marginal {
+  .apt-icon-wrap { background: #FEF3C7; color: #92400E; }
+  .apt-label     { color: #92400E; }
+}
+.apt-no-apto {
+  .apt-icon-wrap { background: #FEE2E2; color: #991B1B; }
+  .apt-label     { color: #991B1B; }
+}
+
+.apt-metrics-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--border);
+}
+
+.apt-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 14px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  &:nth-child(2n)  { border-right: none; }
+  &:nth-child(n+3) { border-bottom: none; }
+}
+
+.apt-metric-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  cursor: help;
+}
+
+.apt-metric-val {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.kpi-mode-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+}
+
+.kpi-mode-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.kpi-mode-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .kpi-block {
   display: grid;
   grid-template-columns: 1fr 1fr;
   border-bottom: 1px solid var(--border);
+
+  &.kpi-block-secondary .kpi-cell { padding: 10px 16px; }
 }
 
 .kpi-cell {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 16px;
+  padding: 14px 16px;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 
@@ -695,20 +836,33 @@
 }
 
 .kpi-label {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 9px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   color: var(--ink-3);
+  cursor: help;
 }
 
 .kpi-value {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--ink);
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
+
+.kpi-value-sm {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+  line-height: 1.2;
+  font-family: var(--font-mono);
+}
+
+.mape-ok   { color: #059669; }
+.mape-warn { color: #B45309; }
+.mape-bad  { color: #c0392b; }
 
 .section-eyebrow {
   font-size: 10px;
@@ -736,6 +890,40 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
+
+// ── Shared chart helpers ──────────────────────────────────────────────────────
+
+.section-desc {
+  font-size: 10px;
+  color: var(--ink-4);
+  padding: 0 16px 6px;
+  line-height: 1.5;
+}
+
+.perp-note {
+  font-size: 10px;
+  color: var(--ink-4);
+  padding: 8px 16px 4px;
+  font-style: italic;
+  border-bottom: 1px solid var(--border);
+}
+
+// Benchmark line under histogram
+.chart-benchmark {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 4px 16px 10px 106px; // align with bars
+  font-size: 9.5px;
+  font-family: var(--font-mono);
+}
+
+.bm-item { white-space: nowrap; }
+.bm-good { color: #10b981; }
+.bm-ok   { color: #3b82f6; }
+.bm-warn { color: #f59e0b; }
+.bm-bad  { color: #ef4444; }
+.bm-note { color: var(--ink-4); font-style: italic; }
 
 // ── Histogram ────────────────────────────────────────────────────────────────
 
@@ -786,6 +974,27 @@
   min-height: 1px;
   border-radius: 1px 1px 0 0;
   transition: height 0.2s ease;
+}
+
+// Histogram X-axis row
+.hist-axis-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  padding: 0 16px;
+  gap: 8px;
+  margin-top: -2px;
+}
+
+.hist-xaxis {
+  display: flex;
+  justify-content: space-between;
+}
+
+.hist-xtick {
+  font-size: 9px;
+  color: var(--ink-4);
+  font-family: var(--font-mono);
+  user-select: none;
 }
 
 // ── Timeline ─────────────────────────────────────────────────────────────────
@@ -842,34 +1051,54 @@
   border-radius: 1px;
 }
 
+// Heatmap axis / scale
+.heatmap-axis-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  padding: 4px 16px 0;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.heatmap-axis-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.heatmap-scale-strip {
+  height: 5px;
+  border-radius: 2px;
+  background: linear-gradient(to right,
+    rgba(180, 180, 180, 0.1) 0%,
+    rgba(80, 80, 80, 0.8) 100%);
+}
+
+.heatmap-axis-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--ink-4);
+  font-family: var(--font-mono);
+}
+
 // ── Signal table ─────────────────────────────────────────────────────────────
 
 .sig-section {
   padding-bottom: 16px;
 }
 
-// ── Ranking ──────────────────────────────────────────────────────────────────
-
-.rank-section {
-  border-top: 1px solid var(--border);
-  padding-bottom: 12px;
-}
-
-.rank-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 16px;
-}
+// ── Rank badge (shared) ──────────────────────────────────────────────────────
 
 .rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 10px;
   font-weight: 700;
   font-family: var(--font-mono);
-  min-width: 26px;
-  text-align: center;
-  padding: 2px 6px;
-  border-radius: 99px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
   background: var(--bg);
   color: var(--ink-3);
   flex-shrink: 0;
@@ -877,43 +1106,6 @@
   &.rank-gold   { background: #FEF3C7; color: #B45309; }
   &.rank-silver { background: #F1F5F9; color: #475569; }
   &.rank-bronze { background: #FEF3EC; color: #9A4728; }
-}
-
-.rank-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.rank-name {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.rank-bar-track {
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.rank-bar {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.3s ease;
-  min-width: 2px;
-}
-
-.rank-val {
-  font-size: 11px;
-  color: var(--ink-3);
-  flex-shrink: 0;
 }
 
 // ── Signal table ─────────────────────────────────────────────────────────────
@@ -1004,17 +1196,23 @@
   border-radius: 10px;
 }
 
-.rank-table {
+// ── Full ranking table (bottom section) ──────────────────────────────────────
+
+.rank-full-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 760px;
+  min-width: 900px;
+
+  .rft-pos  { width: 44px; text-align: center; }
+  .rft-name { min-width: 130px; }
+  .rft-num  { text-align: right; white-space: nowrap; min-width: 72px; }
+  .rft-apt  { min-width: 110px; text-align: center; }
 
   thead tr { background: var(--bg); }
 
   th {
-    padding: 10px 16px;
-    text-align: left;
-    font-size: 10px;
+    padding: 10px 12px;
+    font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -1022,50 +1220,52 @@
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
     font-family: var(--font-mono);
+    cursor: help;
   }
 
   tbody tr {
     cursor: pointer;
     transition: background 0.1s;
     border-bottom: 1px solid var(--border);
-
     &:hover { background: var(--bg); }
-    &.rank-tr-best { background: rgba(20, 19, 15, 0.025); }
     &:last-child { border-bottom: none; }
+    &.rank-tr-selected { background: var(--bg); box-shadow: inset 3px 0 0 var(--ink-2); }
   }
 
-  td { padding: 12px 16px; vertical-align: middle; }
+  td { padding: 10px 12px; vertical-align: middle; font-size: 12px; color: var(--ink-2); }
 }
 
-.rank-td-pos { width: 52px; }
-
-.rank-td-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink);
-  white-space: nowrap;
-  min-width: 140px;
+.rft-td-pos  { text-align: center; }
+.rft-td-name {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 500; color: var(--ink); white-space: nowrap;
 }
-
-.rank-td-metric {
-  min-width: 120px;
-
-  .num {
-    display: block;
-    font-size: 13px;
-    color: var(--ink);
-    margin-bottom: 5px;
-  }
+.rft-mode-name {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;
 }
+.rft-td-bar { min-width: 110px; }
+.rft-bar-row {
+  display: flex; flex-direction: column; gap: 4px;
+  .num { font-size: 12px; color: var(--ink); }
+}
+.rft-td-num { text-align: right; white-space: nowrap; }
+.rft-td-apt { text-align: center; }
 
-.rank-td-num {
-  font-size: 13px;
-  color: var(--ink-2);
+// ── Aptitude chips ────────────────────────────────────────────────────────────
+
+.apt-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
   white-space: nowrap;
 }
+.apt-chip-competicion { background: #A7F3D0; color: #064E3B; }
+.apt-chip-excelente   { background: #D1FAE5; color: #065F46; }
+.apt-chip-apto        { background: #DBEAFE; color: #1D4ED8; }
+.apt-chip-marginal    { background: #FEF3C7; color: #92400E; }
+.apt-chip-no-apto     { background: #FEE2E2; color: #991B1B; }
 
 // Metric inline bar
 .mbar-track {

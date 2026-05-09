@@ -136,33 +136,6 @@
         </div>
       </div>
 
-      <!-- Comparison table -->
-      <div class="cmp-section">
-        <table class="cmp-table">
-          <thead>
-            <tr>
-              <th>Modo</th>
-              <th>Media ⊥</th>
-              <th>Máx ⊥</th>
-              <th>ΔDist</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let m of sortedByMeanErr">
-              <td>
-                <span class="dot-sm" [style.background]="m.color"></span>
-                {{ m.modeName }}
-              </td>
-              <td class="num">{{ fmt(m.meanErr) }} m</td>
-              <td class="num">{{ fmt(m.maxErr) }} m</td>
-              <td class="num" [class.over]="m.deltaDist >= 0" [class.under]="m.deltaDist < 0">
-                {{ fmtSign(m.deltaDist) }} m
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
       <!-- Test metadata -->
       <div class="meta-section">
         <div class="meta-row">
@@ -179,26 +152,28 @@
         </div>
       </div>
 
-      <!-- Ranking -->
-      <div class="rank-section">
-        <div class="section-eyebrow">Clasificación</div>
-        <div class="rank-row" *ngFor="let m of sortedByMeanErr; let i = index">
-          <span class="rank-badge"
-                [class.rank-gold]="i === 0"
-                [class.rank-silver]="i === 1"
-                [class.rank-bronze]="i === 2">#{{ i + 1 }}</span>
-          <span class="dot-sm" [style.background]="m.color"></span>
-          <div class="rank-info">
-            <span class="rank-name">{{ m.modeName }}</span>
-            <div class="rank-bar-track">
-              <div class="rank-bar"
-                   [style.width]="rankBarPct(m.meanErr)"
-                   [style.background]="m.color">
-              </div>
-            </div>
-          </div>
-          <span class="rank-val num">{{ fmt(m.meanErr) }} m</span>
-        </div>
+      <!-- Signal GPS -->
+      <div class="sig-section">
+        <div class="section-eyebrow">Señal GPS</div>
+        <table class="sig-table">
+          <thead>
+            <tr>
+              <th>Modo</th>
+              <th>Freq</th>
+              <th>Muestras</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let m of analytics">
+              <td>
+                <span class="dot-sm" [style.background]="m.color"></span>
+                {{ m.modeName }}
+              </td>
+              <td class="num">{{ fmtHz(m.sampleHz) }}</td>
+              <td class="num">{{ m.nSamples }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
     </aside>
@@ -468,26 +443,56 @@
     <!-- ── RIGHT METRICS PANEL ───────────────────────────────────────────── -->
     <aside class="col-right">
 
-      <!-- 1. KPI block -->
+      <!-- ⊥ definition note -->
+      <div class="perp-note">⊥ = distancia perpendicular al carril 1 (línea de referencia)</div>
+
+      <!-- 1. Aptitude verdict for selected mode -->
       <ng-container *ngIf="selectedAnalytics as sel">
-        <div class="kpi-block">
-          <div class="kpi-cell">
-            <span class="kpi-label">Error ⊥ medio</span>
-            <span class="kpi-value num">{{ fmt(sel.meanErr) }} m</span>
+        <div class="kpi-mode-header" [style.border-left-color]="sel.color">
+          <span class="kpi-mode-dot" [style.background]="sel.color"></span>
+          <span class="kpi-mode-name">{{ sel.modeName }}</span>
+        </div>
+        <ng-container *ngIf="trackAptitude(sel) as apt">
+          <div class="apt-verdict"
+               [class.apt-competicion]="apt.level === 'competicion'"
+               [class.apt-excelente]="apt.level === 'excelente'"
+               [class.apt-apto]="apt.level === 'apto'"
+               [class.apt-marginal]="apt.level === 'marginal'"
+               [class.apt-no-apto]="apt.level === 'no-apto'">
+            <div class="apt-icon-wrap">
+              <span class="apt-icon">{{ apt.level === 'no-apto' ? '✗' : apt.level === 'marginal' ? '~' : '✓' }}</span>
+            </div>
+            <div class="apt-body">
+              <span class="apt-label">{{ apt.label }} para pista</span>
+              <span class="apt-sublabel">{{ apt.sublabel }}</span>
+              <ul class="apt-failing" *ngIf="apt.failing.length">
+                <li *ngFor="let f of apt.failing">{{ f }}</li>
+              </ul>
+            </div>
           </div>
-          <div class="kpi-cell">
-            <span class="kpi-label">Error ⊥ máx</span>
-            <span class="kpi-value num">{{ fmt(sel.maxErr) }} m</span>
+        </ng-container>
+        <!-- Quick metrics strip -->
+        <div class="apt-metrics-strip">
+          <div class="apt-metric">
+            <span class="apt-metric-label" title="Root Mean Square Error perpendicular">RMSE ⊥</span>
+            <span class="apt-metric-val num">{{ fmt(sel.rmse) }} m</span>
           </div>
-          <div class="kpi-cell">
-            <span class="kpi-label">Dist registrada</span>
-            <span class="kpi-value num">{{ fmt(sel.recDist, 0) }} m</span>
+          <div class="apt-metric">
+            <span class="apt-metric-label" title="Percentil 95 del error perpendicular">P95 ⊥</span>
+            <span class="apt-metric-val num">{{ fmt(sel.p95Err) }} m</span>
           </div>
-          <div class="kpi-cell">
-            <span class="kpi-label">Δ Distancia</span>
-            <span class="kpi-value num" [class.over]="sel.deltaDist >= 0" [class.under]="sel.deltaDist < 0">
-              {{ fmtSign(sel.deltaDist) }} m
-            </span>
+          <div class="apt-metric">
+            <span class="apt-metric-label" title="Mean Absolute Percentage Error de distancia">MAPE</span>
+            <span class="apt-metric-val num"
+                  [class.mape-ok]="sel.mape < 1"
+                  [class.mape-warn]="sel.mape >= 1 && sel.mape < 2"
+                  [class.mape-bad]="sel.mape >= 2">{{ fmt(sel.mape) }}%</span>
+          </div>
+          <div class="apt-metric">
+            <span class="apt-metric-label">Δ Dist</span>
+            <span class="apt-metric-val num"
+                  [class.over]="sel.deltaDist > 0"
+                  [class.under]="sel.deltaDist < 0">{{ fmtSign(sel.deltaDist) }} m</span>
           </div>
         </div>
       </ng-container>
@@ -495,6 +500,7 @@
       <!-- 2. Histogram -->
       <div class="hist-section">
         <div class="section-eyebrow">Distribución del error ⊥</div>
+        <div class="section-desc">Distancia perpendicular de cada punto GPS al carril 1 (verdad del suelo). Barras más a la izquierda = más preciso.</div>
         <div *ngFor="let m of visibleAnalytics" class="hist-mode-row">
           <div class="hist-label-col">
             <span class="dot-sm" [style.background]="m.color"></span>
@@ -509,15 +515,41 @@
             </div>
           </div>
         </div>
+        <!-- X axis labels: 12 bins × 0.5m = 0–6m -->
+        <div class="hist-axis-row">
+          <div class="hist-label-col"></div>
+          <div class="hist-xaxis">
+            <span class="hist-xtick">0m</span>
+            <span class="hist-xtick">1m</span>
+            <span class="hist-xtick">2m</span>
+            <span class="hist-xtick">3m</span>
+            <span class="hist-xtick">4m</span>
+            <span class="hist-xtick">5m</span>
+            <span class="hist-xtick">6m</span>
+          </div>
+        </div>
+        <!-- Benchmark reference -->
+        <div class="chart-benchmark">
+          <span class="bm-item bm-good">● &lt;1m excelente</span>
+          <span class="bm-item bm-ok">● 1–3m bueno</span>
+          <span class="bm-item bm-warn">● 3–5m moderado</span>
+          <span class="bm-item bm-bad">● &gt;5m deficiente</span>
+          <span class="bm-note">(GPS consumo típico: 2–3 m)</span>
+        </div>
       </div>
 
       <!-- 3. Error timeline -->
       <div class="timeline-section">
         <div class="section-eyebrow">Error ⊥ a lo largo del recorrido</div>
+        <div class="section-desc">Cómo varía la precisión a lo largo del recorrido. Las líneas verticales punteadas marcan el inicio de cada vuelta.</div>
         <svg class="timeline-svg"
              [attr.viewBox]="timelineViewBox"
              width="100%"
              preserveAspectRatio="xMidYMid meet">
+
+          <!-- Y-axis unit label -->
+          <text x="6" y="50" text-anchor="middle" dominant-baseline="middle"
+                font-size="6" fill="#B5B1A3" transform="rotate(-90, 6, 50)">Error ⊥ (m)</text>
 
           <!-- Y-axis tick labels -->
           <text *ngFor="let tick of timelineYTicks"
@@ -527,6 +559,17 @@
                 dominant-baseline="middle"
                 font-size="7"
                 fill="#807D72">{{ tick }}</text>
+
+          <!-- Threshold reference lines (1m and 3m, only if within visible range) -->
+          <ng-container *ngFor="let thr of timelineThresholds">
+            <line [attr.x1]="26" [attr.y1]="thr.y"
+                  x2="318" [attr.y2]="thr.y"
+                  [attr.stroke]="thr.color"
+                  stroke-width="0.6" stroke-dasharray="3 2" [attr.opacity]="thr.opacity" />
+            <text x="330" [attr.y]="thr.y"
+                  text-anchor="end" dominant-baseline="middle"
+                  font-size="6" [attr.fill]="thr.color">{{ thr.label }}</text>
+          </ng-container>
 
           <!-- Lap marker vertical lines -->
           <line *ngFor="let lapD of timelineLapMarkers"
@@ -552,46 +595,7 @@
         </svg>
       </div>
 
-      <!-- 4. Heatmap strips -->
-      <div class="heatmap-section">
-        <div class="section-eyebrow">Error por sector de vuelta</div>
-        <div *ngFor="let m of visibleAnalytics" class="heatmap-row">
-          <div class="heatmap-label-col">
-            <span class="dot-sm" [style.background]="m.color"></span>
-            <span class="heatmap-mode-name">{{ m.modeName }}</span>
-          </div>
-          <div class="heatmap-cells-col">
-            <div class="heatmap-cell" *ngFor="let bin of m.heatmapBins"
-                 [style.background]="m.color"
-                 [style.opacity]="Math.max(0.04, bin)">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 5. Signal table -->
-      <div class="sig-section">
-        <div class="section-eyebrow">Señal GPS</div>
-        <table class="sig-table">
-          <thead>
-            <tr>
-              <th>Modo</th>
-              <th>Freq</th>
-              <th>Muestras</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let m of analytics">
-              <td>
-                <span class="dot-sm" [style.background]="m.color"></span>
-                {{ m.modeName }}
-              </td>
-              <td class="num">{{ fmtHz(m.sampleHz) }}</td>
-              <td class="num">{{ m.nSamples }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- 4. (heatmap removed) -->
 
     </aside>
 
@@ -604,73 +608,87 @@
         <span class="rank-full-eyebrow">Análisis comparativo</span>
         <h2 class="rank-full-title">Clasificación completa</h2>
       </div>
-      <span class="rank-full-sub">Ordenado por precisión de distancia total · Referencia {{ referenceDistance }} m</span>
+      <span class="rank-full-sub">Ordenado por RMSE ⊥ · Referencia {{ referenceDistance }} m · Competición: RMSE ≤ 1m, MAPE &lt; 0.3% · Excelente: ≤ 2m, &lt; 0.7% · Apto: ≤ 4m, &lt; 1.5%</span>
     </div>
 
     <div class="rank-table-wrap">
-      <table class="rank-table">
+      <table class="rank-full-table">
         <thead>
           <tr>
-            <th>#</th>
-            <th class="rank-th-name">Modo GPS</th>
-            <th>Dist. registrada</th>
-            <th>Δ Distancia</th>
-            <th>Error ⊥ med.</th>
-            <th>Error ⊥ máx.</th>
-            <th>Frecuencia</th>
-            <th>Muestras</th>
+            <th class="rft-pos">#</th>
+            <th class="rft-name">Modo GPS</th>
+            <th class="rft-num" title="Root Mean Square Error perpendicular — métrica principal GNSS">RMSE ⊥</th>
+            <th class="rft-num" title="Percentil 95 del error perpendicular">P95 ⊥</th>
+            <th class="rft-num" title="Error perpendicular medio">Media ⊥</th>
+            <th class="rft-num" title="Error perpendicular máximo">Máx ⊥</th>
+            <th class="rft-num" title="Distancia GPS registrada">Dist GPS</th>
+            <th class="rft-num" title="Diferencia con distancia de referencia">Δ Dist</th>
+            <th class="rft-num" title="Mean Absolute Percentage Error de distancia · &lt;1% excelente · &lt;2% apto">MAPE%</th>
+            <th class="rft-num" title="Frecuencia de muestreo GPS">Frec.</th>
+            <th class="rft-apt" title="Criterios: RMSE ≤ 4m, MAPE &lt; 2%, P95 ≤ 6m">Aptitud pista</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let m of sortedByDistAccuracy; let i = index"
-              [class.rank-tr-best]="i === 0"
+          <tr *ngFor="let m of sortedByRmse; let i = index"
+              [class.rank-tr-selected]="m.selected"
               (click)="selectMode(m.modeId)"
-              (mouseenter)="hoverMode(m.modeId)"
+              (mouseenter)="hoverMode(m.modeId); selectMode(m.modeId)"
               (mouseleave)="hoverMode(null)">
 
-            <td class="rank-td-pos">
+            <td class="rft-td-pos">
               <span class="rank-badge"
                     [class.rank-gold]="i === 0"
                     [class.rank-silver]="i === 1"
-                    [class.rank-bronze]="i === 2">#{{ i + 1 }}</span>
+                    [class.rank-bronze]="i === 2">{{ i + 1 }}</span>
             </td>
 
-            <td class="rank-td-name">
+            <td class="rft-td-name">
               <span class="dot-sm" [style.background]="m.color"></span>
-              {{ m.modeName }}
+              <span class="rft-mode-name">{{ m.modeName }}</span>
             </td>
 
-            <td class="rank-td-metric">
-              <span class="num">{{ fmt(m.recDist, 0) }} m</span>
-              <div class="mbar-track">
-                <div class="mbar"
-                     [style.width]="rankBarPct(Math.abs(m.deltaDist), maxAbsDeltaDist)"
-                     [style.background]="m.color"></div>
+            <!-- RMSE — primary ranking metric with bar -->
+            <td class="rft-td-bar">
+              <div class="rft-bar-row">
+                <span class="num">{{ fmt(m.rmse) }} m</span>
+                <div class="mbar-track">
+                  <div class="mbar" [style.background]="m.color"
+                       [style.width]="rankBarPct(m.rmse, sortedByRmse[sortedByRmse.length-1].rmse)"></div>
+                </div>
               </div>
             </td>
 
-            <td class="rank-td-metric">
-              <span class="num" [class.over]="m.deltaDist >= 0" [class.under]="m.deltaDist < 0">
-                {{ fmtSign(m.deltaDist) }} m
-              </span>
-              <div class="mbar-track">
-                <div class="mbar mbar-neutral"
-                     [style.width]="rankBarPct(Math.abs(m.deltaDist), maxAbsDeltaDist)"></div>
-              </div>
+            <td class="rft-td-num num">{{ fmt(m.p95Err) }} m</td>
+            <td class="rft-td-num num">{{ fmt(m.meanErr) }} m</td>
+            <td class="rft-td-num num">{{ fmt(m.maxErr) }} m</td>
+            <td class="rft-td-num num">{{ fmt(m.recDist, 0) }} m</td>
+
+            <td class="rft-td-num num" [class.over]="m.deltaDist > 0" [class.under]="m.deltaDist < 0">
+              {{ fmtSign(m.deltaDist) }} m
             </td>
 
-            <td class="rank-td-metric">
-              <span class="num">{{ fmt(m.meanErr) }} m</span>
-              <div class="mbar-track">
-                <div class="mbar"
-                     [style.width]="rankBarPct(m.meanErr)"
-                     [style.background]="m.color"></div>
-              </div>
+            <td class="rft-td-num num"
+                [class.mape-ok]="m.mape < 1"
+                [class.mape-warn]="m.mape >= 1 && m.mape < 2"
+                [class.mape-bad]="m.mape >= 2">
+              {{ fmt(m.mape) }}%
             </td>
 
-            <td class="rank-td-num num">{{ fmt(m.maxErr) }} m</td>
-            <td class="rank-td-num num">{{ fmtHz(m.sampleHz) }}</td>
-            <td class="rank-td-num num">{{ m.nSamples }}</td>
+            <td class="rft-td-num num">{{ fmtHz(m.sampleHz) }}</td>
+
+            <td class="rft-td-apt">
+              <ng-container *ngIf="trackAptitude(m) as apt">
+                <span class="apt-chip"
+                      [class.apt-chip-competicion]="apt.level === 'competicion'"
+                      [class.apt-chip-excelente]="apt.level === 'excelente'"
+                      [class.apt-chip-apto]="apt.level === 'apto'"
+                      [class.apt-chip-marginal]="apt.level === 'marginal'"
+                      [class.apt-chip-no-apto]="apt.level === 'no-apto'"
+                      [title]="apt.sublabel + (apt.failing.length ? ' · ' + apt.failing.join(' · ') : '')">
+                  {{ apt.label }}
+                </span>
+              </ng-container>
+            </td>
 
           </tr>
         </tbody>
