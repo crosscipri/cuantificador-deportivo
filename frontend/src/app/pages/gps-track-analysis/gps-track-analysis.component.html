@@ -1,0 +1,212 @@
+<div class="gps-page">
+
+  <!-- ── Breadcrumb / header ──────────────────────────────────────────── -->
+  <div class="gps-header">
+    <a [routerLink]="['/devices', deviceId]" class="back-link">← Volver al dispositivo</a>
+    <h1 class="gps-title">Análisis GPS — Pista de Atletismo</h1>
+    <p class="gps-subtitle">Compara la precisión de cada modo GPS midiendo la distancia en pista de 1600 m</p>
+  </div>
+
+  <!-- ── Setup panel ──────────────────────────────────────────────────── -->
+  <section class="setup-panel">
+
+    <div class="setup-header">
+      <div class="setup-ref">
+        <label>Distancia de referencia (m)</label>
+        <input type="number" [(ngModel)]="referenceDistance" min="100" max="100000" step="100" />
+      </div>
+      <button class="ec-btn add-mode-btn" (click)="addMode()" [disabled]="modes.length >= 7">
+        + Añadir modo GPS
+      </button>
+    </div>
+
+    <div class="modes-grid">
+      <div class="mode-card" *ngFor="let mode of modes; let i = index">
+
+        <!-- Mode header -->
+        <div class="mode-card-header">
+          <span class="mode-dot" [style.background]="mode.color"></span>
+          <input class="mode-name-input" [(ngModel)]="mode.name" placeholder="Nombre del modo" />
+          <button class="remove-btn" (click)="removeMode(i)" *ngIf="modes.length > 1" title="Eliminar modo">×</button>
+        </div>
+
+        <!-- Drop zone -->
+        <div class="drop-zone"
+             (dragover)="onDragOver($event)"
+             (drop)="onDrop($event, mode)"
+             [class.has-files]="mode.fileInputFiles.length > 0">
+          <div class="drop-icon">📂</div>
+          <div class="drop-text" *ngIf="!mode.fileInputFiles.length">
+            Arrastra hasta 5 ficheros .gpx<br/>
+            <label class="browse-link">
+              o haz clic para seleccionar
+              <input type="file" accept=".gpx" multiple (change)="onFilesSelected($event, mode)" hidden />
+            </label>
+          </div>
+          <div class="file-list" *ngIf="mode.fileInputFiles.length > 0">
+            <div class="file-item" *ngFor="let f of mode.fileInputFiles">
+              <span class="file-icon">📄</span>
+              <span class="file-name">{{ f.name }}</span>
+            </div>
+            <label class="browse-link small">
+              Cambiar ficheros
+              <input type="file" accept=".gpx" multiple (change)="onFilesSelected($event, mode)" hidden />
+            </label>
+          </div>
+        </div>
+
+        <div class="mode-error" *ngIf="mode.error">⚠ {{ mode.error }}</div>
+      </div>
+    </div>
+
+    <div class="analyze-row">
+      <div class="analyze-error" *ngIf="analyzeError">⚠ {{ analyzeError }}</div>
+      <button class="ec-btn ec-btn-primary analyze-btn"
+              (click)="analyze()"
+              [disabled]="!canAnalyze()">
+        <span *ngIf="!analyzing">Analizar ficheros GPS</span>
+        <span *ngIf="analyzing">Procesando…</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ── Results ──────────────────────────────────────────────────────── -->
+  <ng-container *ngIf="analysis">
+
+    <!-- Map -->
+    <section class="map-section">
+      <div class="section-title-row">
+        <h2>Rutas registradas</h2>
+        <div class="map-legend">
+          <span class="legend-item" *ngFor="let mode of analysis.modes">
+            <span class="legend-dot" [style.background]="mode.color"></span>
+            {{ mode.name }} ({{ mode.files.length }} run{{ mode.files.length !== 1 ? 's' : '' }})
+          </span>
+        </div>
+      </div>
+      <div #mapEl class="leaflet-map"></div>
+    </section>
+
+    <!-- Stats per mode -->
+    <section class="stats-section">
+      <h2>Estadísticas por modo</h2>
+      <div class="stats-cards">
+        <div class="stats-card" *ngFor="let s of sortedStats(); let rank = index"
+             [style.border-left-color]="s.color">
+          <div class="stats-card-header">
+            <span class="rank-badge" [class]="rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : 'rank-3'">#{{ rank + 1 }}</span>
+            <span class="mode-dot-sm" [style.background]="s.color"></span>
+            <span class="mode-card-name">{{ s.mode_name }}</span>
+          </div>
+
+          <!-- Per-run distances -->
+          <div class="run-distances">
+            <div class="run-row" *ngFor="let d of s.distances; let ri = index">
+              <span class="run-label">Run {{ ri + 1 }}</span>
+              <span class="run-dist">{{ fmt(d, 1) }} m</span>
+              <span class="run-err" [class]="errorSign(d - analysis!.reference_distance) === '+' ? 'over' : 'under'">
+                {{ errorSign(d - analysis!.reference_distance) }}{{ fmt(d - analysis!.reference_distance, 1) }} m
+              </span>
+              <span class="run-pct" [class]="mapeBadge(Math.abs((d - analysis!.reference_distance) / analysis!.reference_distance * 100))">
+                {{ fmt(Math.abs((d - analysis!.reference_distance) / analysis!.reference_distance * 100), 2) }}%
+              </span>
+            </div>
+          </div>
+
+          <!-- Aggregate metrics -->
+          <div class="metric-grid">
+            <div class="metric-item">
+              <span class="metric-label">Media</span>
+              <span class="metric-value">{{ fmt(s.mean) }} m</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Std Dev</span>
+              <span class="metric-value">{{ fmt(s.std) }} m</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Error medio</span>
+              <span class="metric-value" [class]="errorSign(s.error_mean) === '+' ? 'over' : 'under'">
+                {{ errorSign(s.error_mean) }}{{ fmt(s.error_mean) }} m
+              </span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">MAE</span>
+              <span class="metric-value">{{ fmt(s.mae) }} m</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">MAPE</span>
+              <span class="metric-value badge" [class]="mapeBadge(s.mape)">{{ fmt(s.mape, 2) }}%</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">RMSE</span>
+              <span class="metric-value badge" [class]="rmseBadge(s.rmse)">{{ fmt(s.rmse) }} m</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">CV</span>
+              <span class="metric-value badge" [class]="cvBadge(s.cv)">{{ fmt(s.cv, 2) }}%</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Rango</span>
+              <span class="metric-value">{{ fmt(s.max - s.min) }} m</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Comparison table -->
+    <section class="comparison-section">
+      <h2>Tabla comparativa global</h2>
+      <p class="comparison-ref">Referencia: {{ analysis.reference_distance }} m · Ordenado por MAPE (menor = mejor)</p>
+      <div class="table-wrapper">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Modo GPS</th>
+              <th>Media (m)</th>
+              <th>Error medio</th>
+              <th>MAE (m)</th>
+              <th>MAPE %</th>
+              <th>RMSE (m)</th>
+              <th>Std Dev</th>
+              <th>CV %</th>
+              <th>N runs</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of sortedStats(); let rank = index">
+              <td>
+                <span class="rank-badge sm" [class]="rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : 'rank-3'">{{ rank + 1 }}</span>
+              </td>
+              <td>
+                <span class="mode-dot-sm" [style.background]="s.color"></span>
+                {{ s.mode_name }}
+              </td>
+              <td>{{ fmt(s.mean) }}</td>
+              <td [class]="errorSign(s.error_mean) === '+' ? 'over' : 'under'">
+                {{ errorSign(s.error_mean) }}{{ fmt(s.error_mean) }}
+              </td>
+              <td>{{ fmt(s.mae) }}</td>
+              <td><span class="badge" [class]="mapeBadge(s.mape)">{{ fmt(s.mape, 2) }}</span></td>
+              <td><span class="badge" [class]="rmseBadge(s.rmse)">{{ fmt(s.rmse) }}</span></td>
+              <td>{{ fmt(s.std) }}</td>
+              <td><span class="badge" [class]="cvBadge(s.cv)">{{ fmt(s.cv, 2) }}</span></td>
+              <td>{{ s.distances.length }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Legend -->
+      <div class="badge-legend">
+        <span class="badge good">≤ excelente</span>
+        <span class="badge warn">bueno</span>
+        <span class="badge orange">moderado</span>
+        <span class="badge bad">deficiente</span>
+      </div>
+    </section>
+
+  </ng-container>
+
+</div>

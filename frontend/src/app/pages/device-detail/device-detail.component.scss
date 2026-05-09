@@ -84,6 +84,21 @@
   &.sm { padding: 5px 10px; font-size: 12px; }
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.gps-btn {
+  text-decoration: none;
+  color: var(--ink);
+  border-color: var(--accent, #3b82f6);
+  color: var(--accent, #3b82f6);
+  &:hover { background: rgba(59,130,246,.06); }
+}
+
 // ── Verdict + Score grid ───────────────────────────────────────────
 .verdict-score-grid {
   display: grid;

@@ -23,6 +23,11 @@ export const routes: Routes = [
       import('./pages/session-detail/session-detail.component').then(m => m.SessionDetailComponent),
   },
   {
+    path: 'devices/:deviceId/gps-analysis/track',
+    loadComponent: () =>
+      import('./pages/gps-track-analysis/gps-track-analysis.component').then(m => m.GpsTrackAnalysisComponent),
+  },
+  {
     path: 'overview',
     loadComponent: () =>
       import('./pages/overview/overview.component').then(m => m.OverviewComponent),

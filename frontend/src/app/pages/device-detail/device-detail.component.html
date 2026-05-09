@@ -24,13 +24,18 @@
         <span class="meta-dim">Creado {{ formatDate(device.created_at) }}</span>
       </div>
     </div>
-    <button class="ec-btn primary" (click)="toggleUpload()">
-      <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-        <path *ngIf="!showUpload" d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <path *ngIf="showUpload" d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-      {{ showUpload ? 'Cancelar' : 'Nueva sesión' }}
-    </button>
+    <div class="header-actions">
+      <a class="ec-btn gps-btn" [routerLink]="['/devices', deviceId, 'gps-analysis', 'track']">
+        📍 Análisis GPS
+      </a>
+      <button class="ec-btn primary" (click)="toggleUpload()">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+          <path *ngIf="!showUpload" d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path *ngIf="showUpload" d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        {{ showUpload ? 'Cancelar' : 'Nueva sesión' }}
+      </button>
+    </div>
   </div>
 
   <!-- ── Verdict + Score (shown when we have data) ── -->
