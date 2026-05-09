@@ -28,6 +28,38 @@ export function pathEdge(r: number): string {
   return `M ${f(L/2)} ${f(-r)} A ${r} ${r} 0 0 1 ${f(L/2)} ${f(r)} L ${f(-L/2)} ${f(r)} A ${r} ${r} 0 0 1 ${f(-L/2)} ${f(-r)} Z`;
 }
 
+// Nearest point on lane 1 running line from a projected (x, y) in math coords.
+// Returns perpendicular dist, signed dist (+ = outside), and arc length along lane 1.
+export function nearestOnLane1(x: number, y: number): { dist: number; signed: number; arcLen: number } {
+  const r  = runRadius(1);
+  const Lc = Math.PI * r;
+  const Ls = STRAIGHT;
+  let signed: number;
+  let arcLen: number;
+
+  if (Math.abs(x) <= Ls / 2) {
+    const top = y >= 0;
+    signed = top ? (y - r) : (-r - y);
+    arcLen = top
+      ? Lc + (Ls / 2 - x)
+      : 2 * Lc + Ls + (x + Ls / 2);
+  } else {
+    const ccx = x > 0 ? Ls / 2 : -Ls / 2;
+    const dx = x - ccx;
+    const dy = y;
+    signed = Math.hypot(dx, dy) - r;
+    const ang = Math.atan2(dy, dx);
+    if (x > 0) {
+      let a = ang; if (a < -Math.PI / 2) a += 2 * Math.PI;
+      arcLen = (a + Math.PI / 2) * r;
+    } else {
+      let a = ang; if (a < Math.PI / 2) a += 2 * Math.PI;
+      arcLen = Lc + Ls + (a - Math.PI / 2) * r;
+    }
+  }
+  return { dist: Math.abs(signed), signed, arcLen };
+}
+
 // Point on lane n's running line at arc distance d (CCW from bottom-right).
 // Returns [x, y, tangentAngle] in math coords (Y up).
 export function pointAt(n: number, d: number): [number, number, number] {

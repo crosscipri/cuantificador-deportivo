@@ -1,32 +1,36 @@
-<div class="gps-page">
+<!-- ── SETUP SCREEN ────────────────────────────────────────────────────────── -->
+<ng-container *ngIf="!analytics">
+  <div class="setup-screen">
 
-  <!-- ── Header ─────────────────────────────────────────────────────────── -->
-  <div class="gps-header">
-    <a [routerLink]="['/devices', deviceId]" class="back-link">← Volver al dispositivo</a>
-    <h1 class="gps-title">Análisis GPS — Pista de Atletismo</h1>
-    <p class="gps-subtitle">Compara la precisión de cada modo GPS midiendo la distancia en pista de 1600 m</p>
-  </div>
+    <a [routerLink]="['/devices', deviceId]" class="setup-back">← Volver al dispositivo</a>
 
-  <!-- ── Setup panel ─────────────────────────────────────────────────────── -->
-  <section class="setup-panel">
+    <div class="setup-hero">
+      <h1 class="setup-title">Análisis GPS — Pista de Atletismo</h1>
+      <p class="setup-subtitle">
+        Compara la precisión de cada modo GPS midiendo la distancia en pista de {{ referenceDistance }} m
+      </p>
+    </div>
 
-    <div class="setup-header">
-      <div class="setup-ref">
-        <label>Distancia de referencia (m)</label>
-        <input type="number" [(ngModel)]="referenceDistance" min="100" max="100000" step="100" />
+    <div class="setup-controls">
+      <div class="setup-ref-field">
+        <label class="setup-label">Distancia de referencia (m)</label>
+        <input type="number" class="setup-input"
+               [(ngModel)]="referenceDistance"
+               min="100" max="100000" step="100" />
       </div>
-      <button class="ec-btn add-mode-btn" (click)="addMode()" [disabled]="modes.length >= 7">
+      <button class="setup-add-btn" (click)="addMode()" [disabled]="modes.length >= 7">
         + Añadir modo GPS
       </button>
     </div>
 
-    <div class="modes-grid">
-      <div class="mode-card" *ngFor="let mode of modes; let i = index">
+    <div class="setup-cards">
+      <div class="setup-card" *ngFor="let mode of modes; let i = index">
 
-        <div class="mode-card-header">
-          <span class="mode-dot" [style.background]="mode.color"></span>
-          <input class="mode-name-input" [(ngModel)]="mode.name" placeholder="Nombre del modo" />
-          <button class="remove-btn" (click)="removeMode(i)" *ngIf="modes.length > 1" title="Eliminar modo">×</button>
+        <div class="setup-card-head">
+          <span class="swatch" [style.background]="mode.color"></span>
+          <input class="card-name-input" [(ngModel)]="mode.name" placeholder="Nombre del modo" />
+          <button class="card-remove-btn" (click)="removeMode(i)"
+                  *ngIf="modes.length > 1" title="Eliminar modo">×</button>
         </div>
 
         <div class="drop-zone"
@@ -34,7 +38,7 @@
              (drop)="onDrop($event, mode)"
              [class.has-files]="mode.fileInputFiles.length > 0">
           <div class="drop-icon">📂</div>
-          <div class="drop-text" *ngIf="!mode.fileInputFiles.length">
+          <div class="drop-hint" *ngIf="!mode.fileInputFiles.length">
             Arrastra hasta 5 ficheros .gpx<br/>
             <label class="browse-link">
               o haz clic para seleccionar
@@ -43,8 +47,8 @@
           </div>
           <div class="file-list" *ngIf="mode.fileInputFiles.length > 0">
             <div class="file-item" *ngFor="let f of mode.fileInputFiles">
-              <span class="file-icon">📄</span>
-              <span class="file-name">{{ f.name }}</span>
+              <span class="file-ico">📄</span>
+              <span class="file-nm">{{ f.name }}</span>
             </div>
             <label class="browse-link small">
               Cambiar ficheros
@@ -53,37 +57,113 @@
           </div>
         </div>
 
-        <div class="mode-error" *ngIf="mode.error">⚠ {{ mode.error }}</div>
+        <div class="card-error" *ngIf="mode.error">⚠ {{ mode.error }}</div>
       </div>
     </div>
 
-    <div class="analyze-row">
-      <div class="analyze-error" *ngIf="analyzeError">⚠ {{ analyzeError }}</div>
-      <button class="ec-btn ec-btn-primary analyze-btn"
-              (click)="analyze()"
-              [disabled]="!canAnalyze()">
+    <div class="setup-footer">
+      <div class="setup-analyze-error" *ngIf="analyzeError">⚠ {{ analyzeError }}</div>
+      <button class="analyze-btn" (click)="analyze()" [disabled]="!canAnalyze()">
         <span *ngIf="!analyzing">Analizar ficheros GPS</span>
         <span *ngIf="analyzing">Procesando…</span>
       </button>
     </div>
-  </section>
 
-  <!-- ── Results ─────────────────────────────────────────────────────────── -->
-  <ng-container *ngIf="analysis">
+  </div>
+</ng-container>
 
-    <!-- SVG Athletics Track -->
-    <section class="track-section">
+<!-- ── ANALYTICAL LAYOUT ───────────────────────────────────────────────────── -->
+<ng-container *ngIf="analytics">
+  <div class="analytical">
 
-      <div class="track-section-header">
-        <div class="track-header-left">
+    <!-- ── LEFT SIDEBAR ─────────────────────────────────────────────────── -->
+    <aside class="col-left">
+
+      <div class="panel-header">
+        <span class="panel-label">Dispositivos</span>
+        <button class="nuevo-test-btn" (click)="newTest()">Nuevo test</button>
+      </div>
+
+      <!-- Mode list sorted by mean error -->
+      <div class="mode-list">
+        <div class="mode-row"
+             *ngFor="let m of sortedByMeanErr"
+             [class.selected]="m.selected"
+             [class.hovered]="hoveredModeId === m.modeId"
+             (click)="selectMode(m.modeId)"
+             (mouseenter)="hoverMode(m.modeId)"
+             (mouseleave)="hoverMode(null)">
+          <button class="vis-swatch"
+                  [style.background]="m.color"
+                  [style.opacity]="m.visible ? 1 : 0.25"
+                  (click)="toggleVisibility(m.modeId); $event.stopPropagation()"
+                  title="Mostrar/ocultar">
+          </button>
+          <span class="mode-name">{{ m.modeName }}</span>
+          <span class="mode-mean-err num">{{ fmt(m.meanErr) }} m</span>
+        </div>
+      </div>
+
+      <!-- Comparison table -->
+      <div class="cmp-section">
+        <table class="cmp-table">
+          <thead>
+            <tr>
+              <th>Modo</th>
+              <th>Media ⊥</th>
+              <th>Máx ⊥</th>
+              <th>ΔDist</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let m of sortedByMeanErr">
+              <td>
+                <span class="dot-sm" [style.background]="m.color"></span>
+                {{ m.modeName }}
+              </td>
+              <td class="num">{{ fmt(m.meanErr) }} m</td>
+              <td class="num">{{ fmt(m.maxErr) }} m</td>
+              <td class="num" [class.over]="m.deltaDist >= 0" [class.under]="m.deltaDist < 0">
+                {{ fmtSign(m.deltaDist) }} m
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Test metadata -->
+      <div class="meta-section">
+        <div class="meta-row">
+          <span class="meta-key">Referencia</span>
+          <span class="meta-val num">{{ referenceDistance }} m</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">Vueltas</span>
+          <span class="meta-val num">{{ lapCount }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">Modos</span>
+          <span class="meta-val num">{{ analytics!.length }}</span>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ── CENTER — TRACK ────────────────────────────────────────────────── -->
+    <main class="col-center">
+
+      <div class="track-header">
+        <div class="track-header-title">
           <span class="track-eyebrow">Vista geoespacial</span>
           <h2>Superposición en pista IAAF</h2>
-          <p class="track-sub">Trazas GPX proyectadas sobre carril 1 (línea discontinua = verdad terreno)</p>
         </div>
         <div class="track-tools">
-          <button class="tool-btn" [class.active]="trackStyle === 'realista'"    (click)="trackStyle = 'realista'">Realista</button>
-          <button class="tool-btn" [class.active]="trackStyle === 'esquematica'" (click)="trackStyle = 'esquematica'">Esquema</button>
-          <button class="tool-btn" [class.active]="trackStyle === 'blueprint'"   (click)="trackStyle = 'blueprint'">Blueprint</button>
+          <button class="tool-btn" [class.active]="trackStyle === 'realista'"
+                  (click)="trackStyle = 'realista'">Realista</button>
+          <button class="tool-btn" [class.active]="trackStyle === 'esquematica'"
+                  (click)="trackStyle = 'esquematica'">Esquema</button>
+          <button class="tool-btn" [class.active]="trackStyle === 'blueprint'"
+                  (click)="trackStyle = 'blueprint'">Blueprint</button>
         </div>
       </div>
 
@@ -167,17 +247,14 @@
 
             <!-- Infield equipment (realista only) -->
             <g *ngIf="trackStyle === 'realista'" opacity="0.92">
-              <!-- Long jump runway + sandpit -->
               <rect [attr.x]="STRAIGHT / -2 + 4" y="-3" width="38" height="1.22"
                     fill="#C25538" opacity="0.7" />
               <rect [attr.x]="STRAIGHT / -2 + 4" y="-3" width="38" height="1.22"
                     fill="none" stroke="#FAF9F4" stroke-width="0.08" opacity="0.7" />
               <rect [attr.x]="STRAIGHT / -2 + 42" y="-3.4" width="3" height="2"
                     fill="#E8D49A" stroke="#B89B5C" stroke-width="0.08" />
-              <!-- Throwing circle -->
               <circle [attr.cx]="STRAIGHT / 2 - 6" cy="14" r="1.07"
                       fill="#D8D4C8" stroke="#FAF9F4" stroke-width="0.1" />
-              <!-- Center mark -->
               <circle cx="0" cy="0" r="0.3" fill="#FAF9F4" opacity="0.4" />
             </g>
 
@@ -256,7 +333,6 @@
                 <rect [attr.x]="ln.cx - 0.55" [attr.y]="ln.cy - 0.5" width="1.1" height="1.0"
                       [attr.fill]="trackStyle === 'realista' ? '#FAF9F4' : '#ffffff'"
                       [attr.opacity]="trackStyle === 'realista' ? 0.92 : 0.7" rx="0.08" />
-                <!-- Inner scale(1,-1) to render text upright -->
                 <g [attr.transform]="'translate(' + ln.cx + ',' + (-ln.cy) + ') scale(1,-1)'">
                   <text text-anchor="middle" dominant-baseline="central"
                         font-size="0.85" font-weight="700"
@@ -266,22 +342,25 @@
             </g>
 
             <!-- GPS track overlays -->
-            <g *ngFor="let run of projectedRuns">
-              <path [attr.d]="run.pathD"
-                    fill="none"
-                    [attr.stroke]="run.color"
-                    stroke-width="0.38"
-                    stroke-opacity="0.88"
-                    stroke-linejoin="round"
-                    stroke-linecap="round" />
-            </g>
+            <ng-container *ngFor="let mode of visibleAnalytics">
+              <g *ngFor="let run of mode.runs">
+                <path [attr.d]="run.pathD"
+                      fill="none"
+                      [attr.stroke]="mode.color"
+                      stroke-width="0.38"
+                      [attr.stroke-opacity]="hoveredModeId && hoveredModeId !== mode.modeId ? 0.25 : 0.88"
+                      stroke-linejoin="round"
+                      stroke-linecap="round" />
+              </g>
+            </ng-container>
 
-            <!-- Hover crosshair marker -->
-            <g *ngIf="hoveredPoint">
-              <circle [attr.cx]="hoveredPoint.worldX" [attr.cy]="hoveredPoint.worldY"
-                      r="0.7" fill="none" [attr.stroke]="hoveredPoint.modeColor" stroke-width="0.2" />
-              <circle [attr.cx]="hoveredPoint.worldX" [attr.cy]="hoveredPoint.worldY"
-                      r="0.28" [attr.fill]="hoveredPoint.modeColor" />
+            <!-- Hover crosshair -->
+            <g *ngIf="hoveredTrackPoint">
+              <circle [attr.cx]="hoveredTrackPoint.worldX" [attr.cy]="hoveredTrackPoint.worldY"
+                      r="0.7" fill="none"
+                      [attr.stroke]="hoveredTrackPoint.modeColor" stroke-width="0.2" />
+              <circle [attr.cx]="hoveredTrackPoint.worldX" [attr.cy]="hoveredTrackPoint.worldY"
+                      r="0.28" [attr.fill]="hoveredTrackPoint.modeColor" />
             </g>
 
           </g><!-- /scale(1,-1) -->
@@ -301,9 +380,9 @@
             <span class="tleg-swatch tleg-swatch-dashed"></span>
             <span>Carril 1 (verdad)</span>
           </div>
-          <div class="tleg-row" *ngFor="let mode of analysisModes" [style.color]="mode.color">
+          <div class="tleg-row" *ngFor="let mode of analytics" [style.color]="mode.color">
             <span class="tleg-swatch"></span>
-            <span>{{ mode.name }}</span>
+            <span>{{ mode.modeName }}</span>
           </div>
         </div>
 
@@ -316,138 +395,151 @@
 
         <!-- Zoom controls (top-right) -->
         <div class="track-zoom-controls">
-          <button class="tool-btn" [class.tool-btn-blueprint]="trackStyle === 'blueprint'" (click)="zoomIn()"   title="Zoom in">+</button>
-          <button class="tool-btn" [class.tool-btn-blueprint]="trackStyle === 'blueprint'" (click)="zoomOut()"  title="Zoom out">−</button>
+          <button class="tool-btn" [class.tool-btn-blueprint]="trackStyle === 'blueprint'" (click)="zoomIn()"  title="Zoom in">+</button>
+          <button class="tool-btn" [class.tool-btn-blueprint]="trackStyle === 'blueprint'" (click)="zoomOut()" title="Zoom out">−</button>
           <button class="tool-btn tool-btn-reset" [class.tool-btn-blueprint]="trackStyle === 'blueprint'" (click)="resetTrack()" title="Reset">⤺</button>
         </div>
 
         <!-- Hover tooltip -->
-        <div class="gps-tooltip" *ngIf="hoveredPoint"
-             [style.left.px]="hoveredPoint.screenX"
-             [style.top.px]="hoveredPoint.screenY">
-          <div class="tooltip-device" [style.color]="hoveredPoint.modeColor">{{ hoveredPoint.modeName }}</div>
+        <div class="gps-tooltip" *ngIf="hoveredTrackPoint"
+             [style.left.px]="hoveredTrackPoint.screenX"
+             [style.top.px]="hoveredTrackPoint.screenY">
+          <div class="tooltip-mode" [style.color]="hoveredTrackPoint.modeColor">{{ hoveredTrackPoint.modeName }}</div>
+          <div class="tooltip-err">⊥ {{ fmt(hoveredTrackPoint.err) }} m</div>
         </div>
 
       </div><!-- /track-stage -->
-    </section><!-- /track-section -->
+    </main>
 
-    <!-- Stats per mode -->
-    <section class="stats-section">
-      <h2>Estadísticas por modo</h2>
-      <div class="stats-cards">
-        <div class="stats-card" *ngFor="let s of sortedStats(); let rank = index"
-             [style.border-left-color]="s.color">
-          <div class="stats-card-header">
-            <span class="rank-badge" [class]="rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : 'rank-3'">#{{ rank + 1 }}</span>
-            <span class="mode-dot-sm" [style.background]="s.color"></span>
-            <span class="mode-card-name">{{ s.mode_name }}</span>
+    <!-- ── RIGHT METRICS PANEL ───────────────────────────────────────────── -->
+    <aside class="col-right">
+
+      <!-- 1. KPI block -->
+      <ng-container *ngIf="selectedAnalytics as sel">
+        <div class="kpi-block">
+          <div class="kpi-cell">
+            <span class="kpi-label">Error ⊥ medio</span>
+            <span class="kpi-value num">{{ fmt(sel.meanErr) }} m</span>
           </div>
-
-          <div class="run-distances">
-            <div class="run-row" *ngFor="let d of s.distances; let ri = index">
-              <span class="run-label">Run {{ ri + 1 }}</span>
-              <span class="run-dist">{{ fmt(d, 1) }} m</span>
-              <span class="run-err" [class]="errorSign(d - analysis!.reference_distance) === '+' ? 'over' : 'under'">
-                {{ errorSign(d - analysis!.reference_distance) }}{{ fmt(d - analysis!.reference_distance, 1) }} m
-              </span>
-              <span class="run-pct" [class]="mapeBadge(Math.abs((d - analysis!.reference_distance) / analysis!.reference_distance * 100))">
-                {{ fmt(Math.abs((d - analysis!.reference_distance) / analysis!.reference_distance * 100), 2) }}%
-              </span>
-            </div>
+          <div class="kpi-cell">
+            <span class="kpi-label">Error ⊥ máx</span>
+            <span class="kpi-value num">{{ fmt(sel.maxErr) }} m</span>
           </div>
+          <div class="kpi-cell">
+            <span class="kpi-label">Dist registrada</span>
+            <span class="kpi-value num">{{ fmt(sel.recDist, 0) }} m</span>
+          </div>
+          <div class="kpi-cell">
+            <span class="kpi-label">Δ Distancia</span>
+            <span class="kpi-value num" [class.over]="sel.deltaDist >= 0" [class.under]="sel.deltaDist < 0">
+              {{ fmtSign(sel.deltaDist) }} m
+            </span>
+          </div>
+        </div>
+      </ng-container>
 
-          <div class="metric-grid">
-            <div class="metric-item">
-              <span class="metric-label">Media</span>
-              <span class="metric-value">{{ fmt(s.mean) }} m</span>
-            </div>
-            <div class="metric-item">
-              <span class="metric-label">Std Dev</span>
-              <span class="metric-value">{{ fmt(s.std) }} m</span>
-            </div>
-            <div class="metric-item">
-              <span class="metric-label">Error medio</span>
-              <span class="metric-value" [class]="errorSign(s.error_mean) === '+' ? 'over' : 'under'">
-                {{ errorSign(s.error_mean) }}{{ fmt(s.error_mean) }} m
-              </span>
-            </div>
-            <div class="metric-item">
-              <span class="metric-label">MAE</span>
-              <span class="metric-value">{{ fmt(s.mae) }} m</span>
-            </div>
-            <div class="metric-item">
-              <span class="metric-label">MAPE</span>
-              <span class="metric-value badge" [class]="mapeBadge(s.mape)">{{ fmt(s.mape, 2) }}%</span>
-            </div>
-            <div class="metric-item">
-              <span class="metric-label">RMSE</span>
-              <span class="metric-value badge" [class]="rmseBadge(s.rmse)">{{ fmt(s.rmse) }} m</span>
-            </div>
-            <div class="metric-item">
-              <span class="metric-label">CV</span>
-              <span class="metric-value badge" [class]="cvBadge(s.cv)">{{ fmt(s.cv, 2) }}%</span>
-            </div>
-            <div class="metric-item">
-              <span class="metric-label">Rango</span>
-              <span class="metric-value">{{ fmt(s.max - s.min) }} m</span>
+      <!-- 2. Histogram -->
+      <div class="hist-section">
+        <div class="section-eyebrow">Distribución del error ⊥</div>
+        <div *ngFor="let m of visibleAnalytics" class="hist-mode-row">
+          <div class="hist-label-col">
+            <span class="dot-sm" [style.background]="m.color"></span>
+            <span class="hist-mode-name">{{ m.modeName }}</span>
+          </div>
+          <div class="hist-bars-col">
+            <div class="hist-bar-wrap" *ngFor="let bin of m.hist">
+              <div class="hist-bar"
+                   [style.height]="histBarHeight(bin)"
+                   [style.background]="m.color">
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </section>
 
-    <!-- Comparison table -->
-    <section class="comparison-section">
-      <h2>Tabla comparativa global</h2>
-      <p class="comparison-ref">Referencia: {{ analysis.reference_distance }} m · Ordenado por MAPE (menor = mejor)</p>
-      <div class="table-wrapper">
-        <table class="comparison-table">
+      <!-- 3. Error timeline -->
+      <div class="timeline-section">
+        <div class="section-eyebrow">Error ⊥ a lo largo del recorrido</div>
+        <svg class="timeline-svg"
+             [attr.viewBox]="timelineViewBox"
+             width="100%"
+             preserveAspectRatio="xMidYMid meet">
+
+          <!-- Y-axis tick labels -->
+          <text *ngFor="let tick of timelineYTicks"
+                [attr.x]="23"
+                [attr.y]="tlSy(tick)"
+                text-anchor="end"
+                dominant-baseline="middle"
+                font-size="7"
+                fill="#807D72">{{ tick }}</text>
+
+          <!-- Lap marker vertical lines -->
+          <line *ngFor="let lapD of timelineLapMarkers"
+                [attr.x1]="tlSx(lapD)" y1="8"
+                [attr.x2]="tlSx(lapD)" y2="92"
+                stroke="#B5B1A3" stroke-width="0.5" stroke-dasharray="2 2" />
+
+          <!-- Error paths per visible mode -->
+          <path *ngFor="let tp of timelinePaths"
+                [attr.d]="tp.d"
+                fill="none"
+                [attr.stroke]="tp.color"
+                stroke-width="1"
+                [attr.opacity]="tp.dim ? 0.2 : 0.85"
+                stroke-linejoin="round" />
+
+          <!-- X-axis label -->
+          <text x="183" y="107"
+                text-anchor="middle"
+                font-size="7"
+                fill="#807D72">Distancia acumulada (m)</text>
+
+        </svg>
+      </div>
+
+      <!-- 4. Heatmap strips -->
+      <div class="heatmap-section">
+        <div class="section-eyebrow">Error por sector de vuelta</div>
+        <div *ngFor="let m of visibleAnalytics" class="heatmap-row">
+          <div class="heatmap-label-col">
+            <span class="dot-sm" [style.background]="m.color"></span>
+            <span class="heatmap-mode-name">{{ m.modeName }}</span>
+          </div>
+          <div class="heatmap-cells-col">
+            <div class="heatmap-cell" *ngFor="let bin of m.heatmapBins"
+                 [style.background]="m.color"
+                 [style.opacity]="Math.max(0.04, bin)">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Signal table -->
+      <div class="sig-section">
+        <div class="section-eyebrow">Señal GPS</div>
+        <table class="sig-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Modo GPS</th>
-              <th>Media (m)</th>
-              <th>Error medio</th>
-              <th>MAE (m)</th>
-              <th>MAPE %</th>
-              <th>RMSE (m)</th>
-              <th>Std Dev</th>
-              <th>CV %</th>
-              <th>N runs</th>
+              <th>Modo</th>
+              <th>Freq</th>
+              <th>Muestras</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let s of sortedStats(); let rank = index">
+            <tr *ngFor="let m of analytics">
               <td>
-                <span class="rank-badge sm" [class]="rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : 'rank-3'">{{ rank + 1 }}</span>
+                <span class="dot-sm" [style.background]="m.color"></span>
+                {{ m.modeName }}
               </td>
-              <td>
-                <span class="mode-dot-sm" [style.background]="s.color"></span>
-                {{ s.mode_name }}
-              </td>
-              <td>{{ fmt(s.mean) }}</td>
-              <td [class]="errorSign(s.error_mean) === '+' ? 'over' : 'under'">
-                {{ errorSign(s.error_mean) }}{{ fmt(s.error_mean) }}
-              </td>
-              <td>{{ fmt(s.mae) }}</td>
-              <td><span class="badge" [class]="mapeBadge(s.mape)">{{ fmt(s.mape, 2) }}</span></td>
-              <td><span class="badge" [class]="rmseBadge(s.rmse)">{{ fmt(s.rmse) }}</span></td>
-              <td>{{ fmt(s.std) }}</td>
-              <td><span class="badge" [class]="cvBadge(s.cv)">{{ fmt(s.cv, 2) }}</span></td>
-              <td>{{ s.distances.length }}</td>
+              <td class="num">{{ fmtHz(m.sampleHz) }}</td>
+              <td class="num">{{ m.nSamples }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <div class="badge-legend">
-        <span class="badge good">≤ excelente</span>
-        <span class="badge warn">bueno</span>
-        <span class="badge orange">moderado</span>
-        <span class="badge bad">deficiente</span>
-      </div>
-    </section>
+    </aside>
 
-  </ng-container>
-
-</div>
+  </div><!-- /analytical -->
+</ng-container>
