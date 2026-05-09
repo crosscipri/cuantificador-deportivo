@@ -26,13 +26,13 @@
 .gps-title {
   font-size: 22px;
   font-weight: 700;
-  color: var(--text, #111827);
+  color: var(--ink, #111827);
   margin: 0;
 }
 
 .gps-subtitle {
   font-size: 13px;
-  color: var(--muted, #6b7280);
+  color: var(--ink-3, #6b7280);
   margin: 0;
 }
 
@@ -56,7 +56,7 @@
   label {
     font-size: 12px;
     font-weight: 600;
-    color: var(--muted, #6b7280);
+    color: var(--ink-3, #6b7280);
     text-transform: uppercase;
     letter-spacing: .04em;
   }
@@ -70,7 +70,7 @@
     font-size: 14px;
     width: 100px;
     background: var(--bg, #f9fafb);
-    color: var(--text, #111827);
+    color: var(--ink, #111827);
     &:focus { outline: none; border-color: var(--accent, #3b82f6); }
   }
 }
@@ -81,7 +81,6 @@
   font-size: 13px;
 }
 
-// ── Mode cards grid ─────────────────────────────────────────────────────────
 .modes-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -116,7 +115,7 @@
   background: transparent;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text, #111827);
+  color: var(--ink, #111827);
   padding: 4px 6px;
   border-radius: 4px;
   &:focus { outline: none; border-color: var(--accent, #3b82f6); background: var(--surface, #fff); }
@@ -126,7 +125,7 @@
   background: none;
   border: none;
   font-size: 18px;
-  color: var(--muted, #6b7280);
+  color: var(--ink-3, #6b7280);
   cursor: pointer;
   line-height: 1;
   padding: 2px 4px;
@@ -158,7 +157,7 @@
 
 .drop-text {
   font-size: 12px;
-  color: var(--muted, #6b7280);
+  color: var(--ink-3, #6b7280);
   line-height: 1.6;
 }
 
@@ -170,10 +169,7 @@
   &.small { display: block; margin-top: 6px; }
 }
 
-.file-list {
-  width: 100%;
-  text-align: left;
-}
+.file-list { width: 100%; text-align: left; }
 
 .file-item {
   display: flex;
@@ -181,7 +177,7 @@
   gap: 6px;
   padding: 3px 0;
   font-size: 12px;
-  color: var(--text, #374151);
+  color: var(--ink, #374151);
 }
 
 .file-icon { font-size: 14px; }
@@ -204,54 +200,238 @@
   font-weight: 600;
 }
 
-// ── Map section ─────────────────────────────────────────────────────────────
-.map-section {
+// ── SVG Athletics Track ─────────────────────────────────────────────────────
+.track-section {
   background: var(--surface, #fff);
   border: 1px solid var(--line, #e5e7eb);
   border-radius: 12px;
   overflow: hidden;
 }
 
-.section-title-row {
+.track-section-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid var(--line, #e5e7eb);
+  gap: 16px;
   flex-wrap: wrap;
-  gap: 8px;
+}
 
-  h2 {
-    font-size: 16px;
-    font-weight: 700;
-    margin: 0;
-    color: var(--text, #111827);
+.track-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.track-eyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3, #9ca3af);
+}
+
+.track-section-header h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--ink, #111827);
+}
+
+.track-sub {
+  font-size: 12px;
+  color: var(--ink-3, #6b7280);
+  margin: 0;
+}
+
+.track-tools {
+  display: flex;
+  gap: 4px;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.tool-btn {
+  height: 28px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--line, #e5e7eb);
+  color: var(--ink-2, #374151);
+  cursor: pointer;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  border-radius: 4px;
+  transition: background .12s, color .12s;
+  user-select: none;
+
+  &:hover  { background: var(--bg, #f9fafb); color: var(--ink, #111827); }
+  &.active { background: var(--ink, #14130F); color: #FAF9F4; border-color: var(--ink, #14130F); }
+
+  &.tool-btn-blueprint {
+    background: transparent;
+    border-color: #2A5C9A;
+    color: #6FA9E8;
+    &:hover  { background: #1a3a6a; }
+    &.active { background: #6FA9E8; color: #0E2A4A; }
   }
 }
 
-.map-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+.tool-btn-reset { font-size: 13px; width: 28px; padding: 0; justify-content: center; }
+
+.track-stage {
+  position: relative;
+  height: 540px;
+  overflow: hidden;
+  cursor: crosshair;
+  background:
+    linear-gradient(var(--line, #f3f4f6) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, var(--line, #f3f4f6) 1px, transparent 1px) 0 0 / 40px 40px,
+    var(--bg, #f9fafb);
+
+  &.is-dragging { cursor: grabbing; }
+  &.track-stage-blueprint {
+    background: #0E2A4A;
+  }
 }
 
-.legend-item {
+.track-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+// ── Track overlays ──────────────────────────────────────────────────────────
+.track-overlay-info {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  color: var(--ink-2, #4b5563);
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+
+  .v {
+    color: var(--ink, #111827);
+    font-weight: 500;
+  }
+
+  &.track-overlay-blueprint {
+    background: rgba(14, 42, 74, 0.85);
+    border-color: #2A5C9A;
+    color: #6FA9E8;
+    .v { color: #BFE0FF; }
+  }
+}
+
+.track-legend {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  color: var(--ink-2, #4b5563);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  pointer-events: none;
+
+  &.track-legend-blueprint {
+    background: rgba(14, 42, 74, 0.85);
+    border-color: #2A5C9A;
+    color: #BFE0FF;
+  }
+}
+
+.tleg-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--muted, #374151);
+  gap: 8px;
+  color: var(--ink, #111827);
+  &.tleg-blueprint { color: #BFE0FF; }
 }
 
-.legend-dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
+.tleg-swatch {
+  width: 16px;
+  height: 2px;
+  background: currentColor;
   flex-shrink: 0;
 }
 
-.leaflet-map {
-  height: 480px;
-  width: 100%;
+.tleg-swatch-dashed {
+  background: repeating-linear-gradient(90deg, currentColor 0 3px, transparent 3px 5px);
+}
+
+.track-scale {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  color: var(--ink-2, #4b5563);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+
+  &.track-scale-blueprint { color: #6FA9E8; }
+}
+
+.track-scale-bar {
+  height: 8px;
+  width: 80px;
+  border: 1px solid var(--ink, #111827);
+  border-top: none;
+
+  &.track-scale-bar-blueprint { border-color: #BFE0FF; }
+}
+
+.scale-zero { margin-bottom: 2px; }
+
+.track-zoom-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gps-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--ink, #14130F);
+  color: #FAF9F4;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  padding: 6px 10px;
+  border-radius: 3px;
+  transform: translate(12px, -50%);
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.tooltip-device {
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 // ── Stats cards ─────────────────────────────────────────────────────────────
@@ -263,7 +443,7 @@
   h2 {
     font-size: 16px;
     font-weight: 700;
-    color: var(--text, #111827);
+    color: var(--ink, #111827);
     margin: 0;
   }
 }
@@ -293,7 +473,7 @@
 
 .rank-badge {
   background: var(--line, #e5e7eb);
-  color: var(--muted, #6b7280);
+  color: var(--ink-3, #6b7280);
   font-size: 11px;
   font-weight: 700;
   padding: 2px 7px;
@@ -315,10 +495,9 @@
 .mode-card-name {
   font-size: 14px;
   font-weight: 700;
-  color: var(--text, #111827);
+  color: var(--ink, #111827);
 }
 
-// Per-run distances
 .run-distances {
   display: flex;
   flex-direction: column;
@@ -333,15 +512,14 @@
   padding: 2px 0;
 }
 
-.run-label { color: var(--muted, #6b7280); }
-.run-dist  { color: var(--text, #111827); font-variant-numeric: tabular-nums; }
+.run-label { color: var(--ink-3, #6b7280); }
+.run-dist  { color: var(--ink, #111827); font-variant-numeric: tabular-nums; }
 .run-err   { font-variant-numeric: tabular-nums; }
 .run-pct   { font-variant-numeric: tabular-nums; font-size: 11px; }
 
 .over  { color: #f59e0b; }
 .under { color: #3b82f6; }
 
-// Aggregate metrics grid
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -359,13 +537,13 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .04em;
-  color: var(--muted, #9ca3af);
+  color: var(--ink-3, #9ca3af);
 }
 
 .metric-value {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text, #111827);
+  color: var(--ink, #111827);
   font-variant-numeric: tabular-nums;
 }
 
@@ -378,14 +556,14 @@
   h2 {
     font-size: 16px;
     font-weight: 700;
-    color: var(--text, #111827);
+    color: var(--ink, #111827);
     margin: 0;
   }
 }
 
 .comparison-ref {
   font-size: 12px;
-  color: var(--muted, #6b7280);
+  color: var(--ink-3, #6b7280);
   margin: 0;
 }
 
@@ -408,14 +586,14 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .04em;
-    color: var(--muted, #6b7280);
+    color: var(--ink-3, #6b7280);
     border-bottom: 1px solid var(--line, #e5e7eb);
     white-space: nowrap;
   }
 
   td {
     padding: 10px 12px;
-    color: var(--text, #374151);
+    color: var(--ink, #374151);
     border-bottom: 1px solid var(--line, #f3f4f6);
     vertical-align: middle;
     font-variant-numeric: tabular-nums;
@@ -445,13 +623,13 @@
   gap: 8px;
   flex-wrap: wrap;
   font-size: 11px;
-  color: var(--muted, #6b7280);
+  color: var(--ink-3, #6b7280);
 
   .badge { cursor: default; }
 
   &::before {
     content: 'Leyenda MAPE:';
-    color: var(--muted, #9ca3af);
+    color: var(--ink-3, #9ca3af);
     font-size: 11px;
     font-weight: 600;
     align-self: center;
@@ -470,7 +648,7 @@
   cursor: pointer;
   border: 1px solid var(--line, #e5e7eb);
   background: var(--surface, #fff);
-  color: var(--text, #374151);
+  color: var(--ink, #374151);
   transition: background .15s, border-color .15s;
 
   &:hover:not(:disabled) { background: var(--bg, #f3f4f6); border-color: var(--accent, #3b82f6); }
