@@ -294,6 +294,89 @@
 
         <div #mapContainer class="urban-map-container"></div>
 
+        <!-- ── ERROR PROFILE CHART — below map, same width ────────────────── -->
+        <section class="chart-section" *ngIf="refTotalArc > 0">
+          <div class="chart-header">
+            <span class="chart-eyebrow">Perfil de error cross-track a lo largo de la ruta</span>
+            <div class="chart-legend">
+              <span class="chart-legend-item" *ngFor="let t of chartThresholds"
+                [style.color]="t.color">— {{ t.label }}</span>
+              <span class="chart-legend-item" style="color: #FF6B35">↕ Esq.</span>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <svg [attr.viewBox]="chartViewBox" class="error-chart" preserveAspectRatio="none"
+              (mousemove)="onChartMouseMove($event)" (mouseleave)="onChartMouseLeave()">
+              <!-- Y-axis grid + ticks -->
+              <g *ngFor="let tick of chartYTicks">
+                <line [attr.x1]="CHART_PAD_L" [attr.y1]="tick.y"
+                  [attr.x2]="CHART_PAD_L + CHART_W + 18" [attr.y2]="tick.y"
+                  stroke="#E2DFD6" stroke-width="1"/>
+                <text [attr.x]="CHART_PAD_L - 4" [attr.y]="tick.y + 3"
+                  text-anchor="end" fill="#B5B1A3" font-size="9" font-family="monospace">{{ tick.label }}</text>
+              </g>
+              <!-- Threshold lines -->
+              <g *ngFor="let t of chartThresholds">
+                <line [attr.x1]="CHART_PAD_L" [attr.y1]="t.y"
+                  [attr.x2]="CHART_PAD_L + CHART_W" [attr.y2]="t.y"
+                  [attr.stroke]="t.color" stroke-width="1" stroke-dasharray="4 3" opacity="0.7"/>
+                <text [attr.x]="CHART_PAD_L + CHART_W + 2" [attr.y]="t.y + 3"
+                  [attr.fill]="t.color" font-size="9" font-family="monospace">{{ t.label }}</text>
+              </g>
+              <!-- Corner vertical lines -->
+              <line *ngFor="let cx of chartCornerLines"
+                [attr.x1]="cx" y1="4" [attr.x2]="cx" [attr.y2]="4 + CHART_H"
+                stroke="#FF6B35" stroke-width="1" stroke-dasharray="2 3" opacity="0.55"/>
+              <!-- Error profile paths -->
+              <path *ngFor="let p of chartPaths"
+                [attr.d]="p.d" [attr.stroke]="p.color"
+                stroke-width="1.5" fill="none"
+                [attr.opacity]="p.dim ? 0.12 : 0.85"/>
+              <!-- X axis baseline -->
+              <line [attr.x1]="CHART_PAD_L" [attr.y1]="4 + CHART_H"
+                [attr.x2]="CHART_PAD_L + CHART_W" [attr.y2]="4 + CHART_H"
+                stroke="#B5B1A3" stroke-width="1"/>
+              <!-- X axis labels -->
+              <text [attr.x]="CHART_PAD_L" [attr.y]="4 + CHART_H + 12"
+                fill="#B5B1A3" font-size="9" font-family="monospace">0 m</text>
+              <text [attr.x]="CHART_PAD_L + CHART_W" [attr.y]="4 + CHART_H + 12"
+                text-anchor="end" fill="#B5B1A3" font-size="9" font-family="monospace">{{ fmt(refTotalArc, 0) }} m</text>
+
+              <!-- ── Cursor scrubber ─────────────────────────────────────── -->
+              <g *ngIf="chartCursorX !== null">
+                <line
+                  [attr.x1]="chartCursorX" y1="4"
+                  [attr.x2]="chartCursorX" [attr.y2]="4 + CHART_H"
+                  stroke="#14130F" stroke-width="1.5" opacity="0.55" stroke-dasharray="4 2"
+                  pointer-events="none"/>
+                <text
+                  [attr.x]="(chartCursorX ?? 0) > CHART_PAD_L + CHART_W * 0.75 ? (chartCursorX ?? 0) - 4 : (chartCursorX ?? 0) + 4"
+                  [attr.text-anchor]="(chartCursorX ?? 0) > CHART_PAD_L + CHART_W * 0.75 ? 'end' : 'start'"
+                  y="11" fill="#14130F" font-size="9" font-weight="600" font-family="monospace"
+                  pointer-events="none">
+                  {{ fmt(chartCursorS ?? 0, 0) }} m
+                </text>
+                <g *ngFor="let cv of chartCursorValues">
+                  <circle
+                    [attr.cx]="chartCursorX" [attr.cy]="chartY(cv.err)"
+                    r="3.5" [attr.fill]="cv.color" stroke="#fff" stroke-width="1"
+                    pointer-events="none"/>
+                  <text
+                    [attr.x]="(chartCursorX ?? 0) > CHART_PAD_L + CHART_W * 0.75 ? (chartCursorX ?? 0) - 7 : (chartCursorX ?? 0) + 7"
+                    [attr.text-anchor]="(chartCursorX ?? 0) > CHART_PAD_L + CHART_W * 0.75 ? 'end' : 'start'"
+                    [attr.y]="chartY(cv.err) + 3"
+                    [attr.fill]="cv.color"
+                    font-size="9" font-weight="700" font-family="monospace"
+                    pointer-events="none">
+                    {{ fmt(cv.err, 1) }} m
+                  </text>
+                </g>
+              </g>
+
+            </svg>
+          </div>
+        </section>
+
       </main>
 
       <!-- ── RIGHT METRICS PANEL ───────────────────────────────────────────── -->
@@ -402,59 +485,6 @@
       </aside>
 
     </div><!-- /analytical-top -->
-
-    <!-- ── ERROR TIMELINE CHART ───────────────────────────────────────────── -->
-    <section class="chart-section" *ngIf="refTotalArc > 0">
-      <div class="chart-header">
-        <div>
-          <span class="chart-eyebrow">Evolución a lo largo de la ruta</span>
-          <h3 class="chart-title">Perfil de error cross-track</h3>
-        </div>
-        <div class="chart-legend">
-          <span class="chart-legend-item" *ngFor="let t of chartThresholds"
-            [style.color]="t.color">— {{ t.label }}</span>
-          <span class="chart-legend-item" style="color: #FF6B35">↕ Esquinas</span>
-        </div>
-      </div>
-      <div class="chart-wrap">
-        <svg [attr.viewBox]="chartViewBox" class="error-chart" preserveAspectRatio="none">
-          <!-- Y-axis grid + ticks -->
-          <g *ngFor="let tick of chartYTicks">
-            <line [attr.x1]="CHART_PAD_L" [attr.y1]="tick.y"
-              [attr.x2]="CHART_PAD_L + CHART_W + 18" [attr.y2]="tick.y"
-              stroke="#E2DFD6" stroke-width="1"/>
-            <text [attr.x]="CHART_PAD_L - 4" [attr.y]="tick.y + 3"
-              text-anchor="end" fill="#B5B1A3" font-size="9" font-family="monospace">{{ tick.label }}</text>
-          </g>
-          <!-- Threshold lines -->
-          <g *ngFor="let t of chartThresholds">
-            <line [attr.x1]="CHART_PAD_L" [attr.y1]="t.y"
-              [attr.x2]="CHART_PAD_L + CHART_W" [attr.y2]="t.y"
-              [attr.stroke]="t.color" stroke-width="1" stroke-dasharray="4 3" opacity="0.7"/>
-            <text [attr.x]="CHART_PAD_L + CHART_W + 2" [attr.y]="t.y + 3"
-              [attr.fill]="t.color" font-size="9" font-family="monospace">{{ t.label }}</text>
-          </g>
-          <!-- Corner vertical lines -->
-          <line *ngFor="let cx of chartCornerLines"
-            [attr.x1]="cx" y1="4" [attr.x2]="cx" [attr.y2]="4 + CHART_H"
-            stroke="#FF6B35" stroke-width="1" stroke-dasharray="2 3" opacity="0.55"/>
-          <!-- Error profile paths -->
-          <path *ngFor="let p of chartPaths"
-            [attr.d]="p.d" [attr.stroke]="p.color"
-            stroke-width="1.5" fill="none"
-            [attr.opacity]="p.dim ? 0.12 : 0.85"/>
-          <!-- X axis baseline -->
-          <line [attr.x1]="CHART_PAD_L" [attr.y1]="4 + CHART_H"
-            [attr.x2]="CHART_PAD_L + CHART_W" [attr.y2]="4 + CHART_H"
-            stroke="#B5B1A3" stroke-width="1"/>
-          <!-- X axis labels -->
-          <text [attr.x]="CHART_PAD_L" [attr.y]="4 + CHART_H + 12"
-            fill="#B5B1A3" font-size="9" font-family="monospace">0 m</text>
-          <text [attr.x]="CHART_PAD_L + CHART_W" [attr.y]="4 + CHART_H + 12"
-            text-anchor="end" fill="#B5B1A3" font-size="9" font-family="monospace">{{ fmt(refTotalArc, 0) }} m</text>
-        </svg>
-      </div>
-    </section>
 
     <!-- ── FULL RANKING TABLE ──────────────────────────────────────────────── -->
     <section class="rank-full">

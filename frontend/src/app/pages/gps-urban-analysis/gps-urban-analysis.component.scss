@@ -996,67 +996,62 @@
 
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ERROR TIMELINE CHART
+// ERROR PROFILE CHART — inside col-center, below the map
 // ══════════════════════════════════════════════════════════════════════════════
 
 .chart-section {
-  padding: 24px 32px 8px;
+  flex-shrink: 0;
   border-top: 1px solid var(--border);
+  background: var(--bg-paper);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  background: var(--bg-paper);
+  gap: 0;
+  padding: 6px 16px 4px;
 }
 
 .chart-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
+  margin-bottom: 2px;
 }
 
 .chart-eyebrow {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: var(--ink-4);
-  display: block;
-  margin-bottom: 3px;
-}
-
-.chart-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0;
-  letter-spacing: -0.015em;
+  white-space: nowrap;
 }
 
 .chart-legend {
   display: flex;
   align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .chart-legend-item {
-  font-size: 11px;
+  font-size: 10px;
   font-family: var(--font-mono);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .chart-wrap {
   width: 100%;
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .error-chart {
   width: 100%;
-  min-width: 400px;
-  height: 130px;
+  height: 100px;
   display: block;
   overflow: visible;
+  cursor: crosshair;
+  user-select: none;
 }
 
 

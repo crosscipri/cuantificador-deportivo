@@ -227,7 +227,7 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     this.loadSavedTests();
   }
 
-  ngOnDestroy(): void { this.leafletMap?.remove(); }
+  ngOnDestroy(): void { this.cursorMarker?.remove(); this.leafletMap?.remove(); }
 
   // ── Reference file ────────────────────────────────────────────────────────
 
@@ -464,6 +464,7 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     this.runLayers.clear();
     this.refLayer?.remove();
     this.cornerMarkers.forEach(m => m.remove()); this.cornerMarkers = [];
+    this.cursorMarker?.remove(); this.cursorMarker = undefined;
 
     // Reference line — bold white with dark outline
     if (this.refPoints.length > 1) {
@@ -601,8 +602,10 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
 
   newTest(): void {
     this.analytics = null; this.currentTestId = null; this.hoveredModeId = null;
+    this.chartCursorX = null; this.chartCursorS = null;
     this.refFile = null; this.refFilename = ''; this.refPoints = []; this.refIdx = undefined; this.refError = '';
     this.buildings = []; this.buildingsLoaded = false;
+    this.cursorMarker?.remove(); this.cursorMarker = undefined;
     this.leafletMap?.remove(); this.leafletMap = undefined; this.runLayers.clear();
     this.modes.forEach(m => { m.fileInputFiles = []; m.error = ''; });
   }
@@ -662,6 +665,79 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     { val: 15,  label: '15m',   color: '#c0392b' },
   ];
 
+  // ── Chart cursor (scrubber) ───────────────────────────────────────────────
+  chartCursorX: number | null = null;
+  chartCursorS: number | null = null;
+  private cursorMarker?: L.CircleMarker;
+
+  onChartMouseMove(event: MouseEvent): void {
+    const svg = event.currentTarget as SVGSVGElement;
+    const rect = svg.getBoundingClientRect();
+    const viewBoxW = this.CHART_W + this.CHART_PAD_L + 18;
+    const svgX = ((event.clientX - rect.left) / rect.width) * viewBoxW;
+    const clamped = Math.max(this.CHART_PAD_L, Math.min(this.CHART_PAD_L + this.CHART_W, svgX));
+    const s = (clamped - this.CHART_PAD_L) / this.CHART_W * (this.refIdx?.totalArc ?? 1);
+
+    this.chartCursorX = clamped;
+    this.chartCursorS = s;
+
+    const pt = this.arcToLatLon(s);
+    if (pt && this.leafletMap) {
+      this.ngZone.runOutsideAngular(() => {
+        if (!this.cursorMarker) {
+          this.cursorMarker = L.circleMarker([pt.lat, pt.lon], {
+            radius: 9, color: '#14130F', fillColor: '#ffffff',
+            fillOpacity: 1, weight: 2.5,
+          }).addTo(this.leafletMap!);
+        } else {
+          this.cursorMarker.setLatLng([pt.lat, pt.lon]);
+        }
+      });
+    }
+  }
+
+  onChartMouseLeave(): void {
+    this.chartCursorX = null;
+    this.chartCursorS = null;
+    this.ngZone.runOutsideAngular(() => {
+      this.cursorMarker?.remove();
+      this.cursorMarker = undefined;
+    });
+  }
+
+  private arcToLatLon(s: number): GeoPoint | null {
+    const idx = this.refIdx;
+    if (!idx || this.refPoints.length < 2) return null;
+    const cumArc = idx.cumArc;
+    let lo = 0, hi = cumArc.length - 2;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      cumArc[mid + 1] < s ? (lo = mid + 1) : (hi = mid);
+    }
+    const i = lo;
+    const segLen = cumArc[i + 1] - cumArc[i];
+    const t = segLen > 0 ? Math.max(0, Math.min(1, (s - cumArc[i]) / segLen)) : 0;
+    const a = this.refPoints[i], b = this.refPoints[i + 1] ?? a;
+    return { lat: a.lat + t * (b.lat - a.lat), lon: a.lon + t * (b.lon - a.lon) };
+  }
+
+  get chartCursorValues(): { modeName: string; color: string; err: number }[] {
+    if (this.chartCursorS === null || !this.analytics) return [];
+    const s = this.chartCursorS;
+    return this.analytics.filter(m => m.visible).map(m => {
+      const errs = m.runMetrics.map(rm => {
+        if (!rm.errProfile.length) return NaN;
+        let best = rm.errProfile[0], bestD = Math.abs(rm.errProfile[0].s - s);
+        for (const pt of rm.errProfile) {
+          const d = Math.abs(pt.s - s);
+          if (d < bestD) { bestD = d; best = pt; }
+        }
+        return best.err;
+      }).filter(e => !isNaN(e));
+      return { modeName: m.modeName, color: m.color, err: errs.length ? errs.reduce((a, b) => a + b, 0) / errs.length : NaN };
+    });
+  }
+
   get chartMaxErr(): number {
     if (!this.analytics || !this.refIdx) return 15;
     let max = 15;
@@ -675,12 +751,12 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     return `0 0 ${this.CHART_W + this.CHART_PAD_L + 18} ${this.CHART_H + this.CHART_PAD_B + 8}`;
   }
 
-  private chartX(s: number): number {
+  chartX(s: number): number {
     const totalArc = this.refIdx?.totalArc ?? 1;
     return this.CHART_PAD_L + (s / totalArc) * this.CHART_W;
   }
 
-  private chartY(err: number): number {
+  chartY(err: number): number {
     return 4 + (1 - Math.min(err, this.chartMaxErr) / this.chartMaxErr) * this.CHART_H;
   }
 
