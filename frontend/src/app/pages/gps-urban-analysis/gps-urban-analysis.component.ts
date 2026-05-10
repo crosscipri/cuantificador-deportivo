@@ -222,9 +222,11 @@ interface UrbanRunMetrics {
   rmse: number;
   p95: number;
   maxErr: number;
-  buildingPct: number; // NaN until Overpass data loaded
-  cornerErr: number; // NaN if no corners
-  speedJitter: number; // NaN if no timestamps
+  mape: number;       // |GPS_dist - ref_dist| / ref_dist * 100
+  distDelta: number;  // GPS_dist - ref_dist  (signed, meters)
+  buildingPct: number;   // NaN until Overpass data loaded
+  cornerErr: number;     // NaN if no corners
+  speedJitter: number;   // NaN if no timestamps
   errProfile: { s: number; err: number }[];
 }
 
@@ -239,6 +241,8 @@ interface UrbanModeAnalytics {
   rmse: number;
   p95: number;
   maxErr: number;
+  mape: number;
+  distDelta: number;
   buildingPct: number;
   cornerErr: number;
   speedJitter: number;
@@ -520,12 +524,18 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
         return dt > 0 ? Math.round((fp.length / dt) * 100) / 100 : 0;
       })();
 
+      const refDist = idx.totalArc;
+      const distDelta = run.distance_m - refDist;
+      const mape = refDist > 0 ? (Math.abs(distDelta) / refDist) * 100 : NaN;
+
       runMetrics.push({
         filename: run.filename,
         nPoints: run.points.length,
         rmse: Math.sqrt(errors.reduce((s, e) => s + e * e, 0) / errors.length),
         p95: percentile(errors, 95),
         maxErr: Math.max(...errors),
+        mape,
+        distDelta,
         buildingPct: NaN,
         cornerErr: Math.round((cornerErr || 0) * 100) / 100,
         speedJitter: computeSpeedJitter(run.points),
@@ -563,11 +573,13 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
       selected: false,
       runs,
       runMetrics,
-      rmse: mean(runMetrics.map((r) => r.rmse)),
-      p95: mean(runMetrics.map((r) => r.p95)),
-      maxErr: Math.max(...runMetrics.map((r) => r.maxErr)),
+      rmse:       mean(runMetrics.map((r) => r.rmse)),
+      p95:        mean(runMetrics.map((r) => r.p95)),
+      maxErr:     Math.max(...runMetrics.map((r) => r.maxErr)),
+      mape:       mean(runMetrics.map((r) => r.mape)),
+      distDelta:  mean(runMetrics.map((r) => r.distDelta)),
       buildingPct: NaN,
-      cornerErr: mean(runMetrics.map((r) => r.cornerErr)),
+      cornerErr:  mean(runMetrics.map((r) => r.cornerErr)),
       speedJitter: mean(runMetrics.map((r) => r.speedJitter)),
       sampleHz,
       nSamples: runs.reduce((s, r) => s + r.points.length, 0),
@@ -1239,6 +1251,9 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
   fmtMs(v: number): string {
     return isNaN(v) ? "—" : `${(v * 100).toFixed(1)} cm/s`;
   }
+  fmtDelta(v: number): string {
+    return isNaN(v) || !isFinite(v) ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)} m`;
+  }
 
   modeAvgDist(m: UrbanModeAnalytics): number {
     if (!m.runs.length) return 0;
@@ -1249,12 +1264,8 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     return this.modeAvgDist(m) - this.refTotalArc;
   }
 
-  fmtDist(m: number): string {
-    return `${Math.round(m)} m`;
-  }
-
-  fmtDelta(v: number): string {
-    return (v >= 0 ? '+' : '') + v.toFixed(0) + ' m';
+  fmtDist(v: number): string {
+    return isNaN(v) ? "—" : `${Math.round(v)} m`;
   }
 
   get totalRuns(): number {

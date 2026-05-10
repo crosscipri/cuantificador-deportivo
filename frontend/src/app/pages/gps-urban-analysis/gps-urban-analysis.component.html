@@ -453,6 +453,17 @@
               <span class="apt-metric-label" title="Jitter de velocidad — desviación típica de la velocidad instantánea en tramos rectos">Jitter vel.</span>
               <span class="apt-metric-val num">{{ fmtMs(sel.speedJitter) }}</span>
             </div>
+            <!-- MAPE distancia -->
+            <div class="apt-metric">
+              <span class="apt-metric-label" title="MAPE — Mean Absolute Percentage Error de distancia: error % de la distancia GPS registrada vs. referencia">MAPE Dist.</span>
+              <span class="apt-metric-val num"
+                [class.mape-ok]="sel.mape < 1"
+                [class.mape-warn]="sel.mape >= 1 && sel.mape < 3"
+                [class.mape-bad]="sel.mape >= 3">
+                {{ fmt(sel.mape, 2) }}%
+              </span>
+              <span class="apt-metric-sub">{{ fmtDelta(sel.distDelta) }} respecto ref.</span>
+            </div>
           </div>
 
           <!-- Per-run breakdown -->
@@ -465,6 +476,8 @@
                   <th>Fichero</th>
                   <th title="RMSE cross-track">RMSE</th>
                   <th title="Percentil 95">P95</th>
+                  <th title="MAPE de distancia">MAPE</th>
+                  <th title="Diferencia de distancia vs. referencia">Δ Dist</th>
                   <th title="% puntos en edificios">Edif%</th>
                 </tr>
               </thead>
@@ -474,6 +487,17 @@
                   <td class="run-name">{{ rm.filename }}</td>
                   <td class="num">{{ fmt(rm.rmse, 2) }} m</td>
                   <td class="num">{{ fmt(rm.p95, 1) }} m</td>
+                  <td class="num"
+                    [class.mape-ok]="rm.mape < 1"
+                    [class.mape-warn]="rm.mape >= 1 && rm.mape < 3"
+                    [class.mape-bad]="rm.mape >= 3">
+                    {{ fmt(rm.mape, 2) }}%
+                  </td>
+                  <td class="num"
+                    [class.over]="rm.distDelta > 0"
+                    [class.under]="rm.distDelta < 0">
+                    {{ fmtDelta(rm.distDelta) }}
+                  </td>
                   <td class="num">{{ fmtPct(rm.buildingPct) }}</td>
                 </tr>
               </tbody>
@@ -511,6 +535,7 @@
               <th class="rft-num" title="Jitter de Velocidad — desviación típica de la velocidad instantánea">Jitter Vel.</th>
               <th class="rft-num" title="Distancia GPS media registrada por run">Dist GPS</th>
               <th class="rft-num" title="Diferencia entre distancia GPS media y distancia de referencia">Δ Dist</th>
+              <th class="rft-num" title="MAPE — Mean Absolute Percentage Error de distancia vs. referencia">MAPE</th>
               <th class="rft-num" title="Número de runs subidos">Runs</th>
               <th class="rft-num" title="Frecuencia de muestreo GPS">Frec.</th>
               <th class="rft-apt" title="Urban Elite ≤2.5m · High ≤5m · Standard ≤10m · Marginal ≤15m · No Apto >15m">Aptitud</th>
@@ -558,6 +583,12 @@
                 [class.over]="modeDeltaDist(m) > 0"
                 [class.under]="modeDeltaDist(m) < 0">
                 {{ refTotalArc > 0 ? fmtDelta(modeDeltaDist(m)) : '—' }}
+              </td>
+              <td class="rft-td-num num"
+                [class.mape-ok]="m.mape < 1"
+                [class.mape-warn]="m.mape >= 1 && m.mape < 3"
+                [class.mape-bad]="m.mape >= 3">
+                {{ fmt(m.mape, 2) }}%
               </td>
               <td class="rft-td-num num">{{ m.runs.length }}</td>
               <td class="rft-td-num num">{{ fmtHz(m.sampleHz) }}</td>
