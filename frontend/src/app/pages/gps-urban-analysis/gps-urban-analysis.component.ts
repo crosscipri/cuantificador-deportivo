@@ -320,6 +320,7 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
   private leafletMap?: L.Map;
   private runLayers = new Map<string, L.Polyline[]>();
   private cornerMarkers: L.CircleMarker[] = [];
+  private endpointMarkers: L.Marker[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -674,6 +675,8 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     this.refLayer?.remove();
     this.cornerMarkers.forEach((m) => m.remove());
     this.cornerMarkers = [];
+    this.endpointMarkers.forEach((m) => m.remove());
+    this.endpointMarkers = [];
     this.cursorMarker?.remove();
     this.cursorMarker = undefined;
 
@@ -681,20 +684,11 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     if (this.refPoints.length > 1) {
       this.refLayer = L.polyline(
         this.refPoints.map((p) => [p.lat, p.lon] as [number, number]),
-        {
-          color: "#1a1a1a",
-          weight: 5,
-          opacity: 0.85,
-        },
+        { color: "#1a1a1a", weight: 5, opacity: 0.85 },
       ).addTo(this.leafletMap);
       L.polyline(
         this.refPoints.map((p) => [p.lat, p.lon] as [number, number]),
-        {
-          color: "#ffffff",
-          weight: 2.5,
-          opacity: 0.95,
-          dashArray: "8 4",
-        },
+        { color: "#ffffff", weight: 2.5, opacity: 0.95, dashArray: "8 4" },
       ).addTo(this.leafletMap);
 
       // Corner markers
@@ -713,9 +707,23 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
           this.cornerMarkers.push(marker);
         }
       }
+
+      // Reference start / end markers
+      const rStart = this.refPoints[0];
+      const rEnd = this.refPoints[this.refPoints.length - 1];
+      this.endpointMarkers.push(
+        L.marker([rStart.lat, rStart.lon], {
+          icon: this._endpointIcon("S", "#16a34a"),
+          zIndexOffset: 1000,
+        }).addTo(this.leafletMap),
+        L.marker([rEnd.lat, rEnd.lon], {
+          icon: this._endpointIcon("F", "#dc2626"),
+          zIndexOffset: 1000,
+        }).addTo(this.leafletMap),
+      );
     }
 
-    // GPS tracks per mode
+    // GPS tracks per mode + small start/end dots per mode
     for (const m of this.analytics) {
       const runLines: L.Polyline[] = [];
       for (const run of m.runs) {
@@ -734,9 +742,50 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
             },
           ).addTo(this.leafletMap!),
         );
+
+        if (run.points.length > 1 && m.visible) {
+          const sp = run.points[0];
+          const ep = run.points[run.points.length - 1];
+          this.endpointMarkers.push(
+            L.marker([sp.lat, sp.lon], {
+              icon: this._runDotIcon(m.color, "▶"),
+              zIndexOffset: 500,
+            }).addTo(this.leafletMap!),
+            L.marker([ep.lat, ep.lon], {
+              icon: this._runDotIcon(m.color, "■"),
+              zIndexOffset: 500,
+            }).addTo(this.leafletMap!),
+          );
+        }
       }
       this.runLayers.set(m.modeId, runLines);
     }
+  }
+
+  private _endpointIcon(label: string, bg: string): L.DivIcon {
+    return L.divIcon({
+      html: `<div style="
+        background:${bg};color:#fff;width:24px;height:24px;border-radius:50%;
+        display:flex;align-items:center;justify-content:center;
+        font-size:11px;font-weight:700;font-family:sans-serif;
+        border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);">${label}</div>`,
+      className: "",
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    });
+  }
+
+  private _runDotIcon(color: string, symbol: string): L.DivIcon {
+    return L.divIcon({
+      html: `<div style="
+        background:${color};color:#fff;width:14px;height:14px;border-radius:50%;
+        display:flex;align-items:center;justify-content:center;
+        font-size:7px;line-height:1;font-family:sans-serif;
+        border:1.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.45);">${symbol}</div>`,
+      className: "",
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
   }
 
   private fitMapToAll(): void {
@@ -1145,11 +1194,11 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
         if (rm.errProfile.length < 2) continue;
         // Sort by route position so the path always goes left→right
         const sorted = [...rm.errProfile].sort((a, b) => a.s - b.s);
-        let d = '';
+        let d = "";
         for (let i = 0; i < sorted.length; i++) {
           const pt = sorted[i];
           const gap = i === 0 ? 0 : sorted[i].s - sorted[i - 1].s;
-          const cmd = i === 0 || gap > gapThreshold ? 'M' : 'L';
+          const cmd = i === 0 || gap > gapThreshold ? "M" : "L";
           d += `${cmd}${this.chartX(pt.s).toFixed(1)},${this.chartY(pt.err).toFixed(1)} `;
         }
         paths.push({ d: d.trim(), color: m.color, dim });
