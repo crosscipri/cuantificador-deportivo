@@ -1134,17 +1134,25 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
 
   get chartPaths(): { d: string; color: string; dim: boolean }[] {
     if (!this.analytics || !this.refIdx) return [];
+    const totalArc = this.refIdx.totalArc;
+    // Max sAlong gap allowed before breaking the polyline (5% of route length)
+    const gapThreshold = totalArc * 0.05;
     const paths: { d: string; color: string; dim: boolean }[] = [];
     for (const m of this.analytics) {
       if (!m.visible) continue;
       const dim = !!this.hoveredModeId && this.hoveredModeId !== m.modeId;
       for (const rm of m.runMetrics) {
-        if (!rm.errProfile.length) continue;
-        const pts = rm.errProfile.map(
-          (pt) =>
-            `${this.chartX(pt.s).toFixed(1)},${this.chartY(pt.err).toFixed(1)}`,
-        );
-        paths.push({ d: `M ${pts.join(" L ")}`, color: m.color, dim });
+        if (rm.errProfile.length < 2) continue;
+        // Sort by route position so the path always goes left→right
+        const sorted = [...rm.errProfile].sort((a, b) => a.s - b.s);
+        let d = '';
+        for (let i = 0; i < sorted.length; i++) {
+          const pt = sorted[i];
+          const gap = i === 0 ? 0 : sorted[i].s - sorted[i - 1].s;
+          const cmd = i === 0 || gap > gapThreshold ? 'M' : 'L';
+          d += `${cmd}${this.chartX(pt.s).toFixed(1)},${this.chartY(pt.err).toFixed(1)} `;
+        }
+        paths.push({ d: d.trim(), color: m.color, dim });
       }
     }
     return paths;
