@@ -1240,6 +1240,23 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     return isNaN(v) ? "—" : `${(v * 100).toFixed(1)} cm/s`;
   }
 
+  modeAvgDist(m: UrbanModeAnalytics): number {
+    if (!m.runs.length) return 0;
+    return m.runs.reduce((s, r) => s + r.distance_m, 0) / m.runs.length;
+  }
+
+  modeDeltaDist(m: UrbanModeAnalytics): number {
+    return this.modeAvgDist(m) - this.refTotalArc;
+  }
+
+  fmtDist(m: number): string {
+    return `${Math.round(m)} m`;
+  }
+
+  fmtDelta(v: number): string {
+    return (v >= 0 ? '+' : '') + v.toFixed(0) + ' m';
+  }
+
   get totalRuns(): number {
     return (this.analytics ?? []).reduce((s, m) => s + m.runs.length, 0);
   }

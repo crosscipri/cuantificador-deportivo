@@ -509,6 +509,8 @@
               <th class="rft-num" title="Índice de Invasión de Edificios — % puntos GPS dentro de polígonos de edificio">Inv. Edif.</th>
               <th class="rft-num" title="Error de Giro — distancia media al vértice de esquina">Error Esq.</th>
               <th class="rft-num" title="Jitter de Velocidad — desviación típica de la velocidad instantánea">Jitter Vel.</th>
+              <th class="rft-num" title="Distancia GPS media registrada por run">Dist GPS</th>
+              <th class="rft-num" title="Diferencia entre distancia GPS media y distancia de referencia">Δ Dist</th>
               <th class="rft-num" title="Número de runs subidos">Runs</th>
               <th class="rft-num" title="Frecuencia de muestreo GPS">Frec.</th>
               <th class="rft-apt" title="Urban Elite ≤2.5m · High ≤5m · Standard ≤10m · Marginal ≤15m · No Apto >15m">Aptitud</th>
@@ -551,6 +553,12 @@
 
               <td class="rft-td-num num">{{ fmt(m.cornerErr, 1) }} m</td>
               <td class="rft-td-num num">{{ fmtMs(m.speedJitter) }}</td>
+              <td class="rft-td-num num">{{ fmtDist(modeAvgDist(m)) }}</td>
+              <td class="rft-td-num num"
+                [class.over]="modeDeltaDist(m) > 0"
+                [class.under]="modeDeltaDist(m) < 0">
+                {{ refTotalArc > 0 ? fmtDelta(modeDeltaDist(m)) : '—' }}
+              </td>
               <td class="rft-td-num num">{{ m.runs.length }}</td>
               <td class="rft-td-num num">{{ fmtHz(m.sampleHz) }}</td>
 
