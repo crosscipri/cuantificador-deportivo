@@ -655,7 +655,7 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
 
   readonly isNaN = isNaN;
   readonly CHART_W = 480;
-  readonly CHART_H = 90;
+  readonly CHART_H = 160;
   readonly CHART_PAD_L = 28;
   readonly CHART_PAD_B = 18;
   readonly THRESHOLDS = [
