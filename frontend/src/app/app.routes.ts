@@ -28,6 +28,11 @@ export const routes: Routes = [
       import('./pages/gps-track-analysis/gps-track-analysis.component').then(m => m.GpsTrackAnalysisComponent),
   },
   {
+    path: 'devices/:deviceId/gps-analysis/urban',
+    loadComponent: () =>
+      import('./pages/gps-urban-analysis/gps-urban-analysis.component').then(m => m.GpsUrbanAnalysisComponent),
+  },
+  {
     path: 'overview',
     loadComponent: () =>
       import('./pages/overview/overview.component').then(m => m.OverviewComponent),

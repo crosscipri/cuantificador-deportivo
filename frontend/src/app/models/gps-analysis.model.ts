@@ -101,3 +101,20 @@ export interface GpsTestDetail {
   created_at: string;
   modes: { id: string; name: string; color: string; runs: GpsTestRun[] }[];
 }
+
+export interface UrbanTestSummary {
+  id: string;
+  device_id: string;
+  name: string;
+  created_at: string;
+  mode_count: number;
+  modes_summary: { name: string; color: string; run_count: number }[];
+}
+
+export interface UrbanTestDetail {
+  id: string;
+  device_id: string;
+  name: string;
+  created_at: string;
+  modes: { id: string; name: string; color: string; runs: GpsTestRun[] }[];
+}

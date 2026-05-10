@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry } from '../models/session.model';
-import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis } from '../models/gps-analysis.model';
+import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail } from '../models/gps-analysis.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -157,5 +157,26 @@ export class ApiService {
       `${this.base}/gps-tests/${testId}/ai-analysis`,
       { modes_stats: modesStats },
     );
+  }
+
+  // ── Urban Tests ───────────────────────────────────────────────────────────
+
+  listUrbanTests(deviceId: string): Observable<UrbanTestSummary[]> {
+    return this.http.get<UrbanTestSummary[]>(`${this.base}/devices/${deviceId}/urban-tests`);
+  }
+
+  saveUrbanTest(deviceId: string, payload: {
+    name?: string;
+    modes: { id: string; name: string; color: string; runs: { filename: string; distance_m: number; points: any[] }[] }[];
+  }): Observable<UrbanTestSummary> {
+    return this.http.post<UrbanTestSummary>(`${this.base}/devices/${deviceId}/urban-tests`, payload);
+  }
+
+  getUrbanTest(testId: string): Observable<UrbanTestDetail> {
+    return this.http.get<UrbanTestDetail>(`${this.base}/urban-tests/${testId}`);
+  }
+
+  deleteUrbanTest(testId: string): Observable<{ deleted: boolean }> {
+    return this.http.delete<{ deleted: boolean }>(`${this.base}/urban-tests/${testId}`);
   }
 }

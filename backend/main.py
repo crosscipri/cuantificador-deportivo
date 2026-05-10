@@ -50,6 +50,8 @@ async def startup() -> None:
     await app.state.db.sessions.create_index([("created_at", -1)])
     await app.state.db.gps_tests.create_index("device_id")
     await app.state.db.gps_tests.create_index([("created_at", -1)])
+    await app.state.db.urban_tests.create_index("device_id")
+    await app.state.db.urban_tests.create_index([("created_at", -1)])
 
 
 @app.on_event("shutdown")
@@ -100,6 +102,23 @@ def _ser(doc: dict, *, keep_fc: bool = False) -> dict:
         doc["ai_verdict_model"] = verdict.get("model")
     else:
         doc["has_ai_verdict"] = False
+    return doc
+
+
+def _ser_urban_test(doc: dict, *, include_points: bool = False) -> dict:
+    doc["id"] = str(doc.pop("_id"))
+    if "device_id" in doc:
+        doc["device_id"] = str(doc["device_id"])
+    if isinstance(doc.get("created_at"), datetime):
+        doc["created_at"] = doc["created_at"].isoformat()
+    if not include_points:
+        modes = doc.get("modes", [])
+        doc["mode_count"] = len(modes)
+        doc["modes_summary"] = [
+            {"name": m["name"], "color": m["color"], "run_count": len(m.get("runs", []))}
+            for m in modes
+        ]
+        doc.pop("modes", None)
     return doc
 
 
@@ -715,6 +734,54 @@ async def create_gps_test_ai_analysis(test_id: str, body: dict) -> dict:
         {"$set": {"ai_analysis": result}},
     )
     return result
+
+
+# ── URBAN TESTS ───────────────────────────────────────────────────────────────
+
+@app.post("/api/devices/{device_id}/urban-tests", status_code=201)
+async def create_urban_test(device_id: str, body: dict) -> dict:
+    if not await db().devices.find_one({"_id": _oid(device_id)}):
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+    modes = body.get("modes", [])
+    if not modes:
+        raise HTTPException(status_code=422, detail="Se requiere al menos un modo GPS")
+    doc = {
+        "device_id":    ObjectId(device_id),
+        "name":         body.get("name") or f"Test Urbano {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        "ref_filename": body.get("ref_filename", ""),
+        "ref_points":   body.get("ref_points", []),
+        "modes":        modes,
+        "created_at":   datetime.utcnow(),
+    }
+    inserted = await db().urban_tests.insert_one(doc)
+    doc["_id"] = inserted.inserted_id
+    return _ser_urban_test(doc, include_points=False)
+
+
+@app.get("/api/devices/{device_id}/urban-tests")
+async def list_urban_tests(device_id: str) -> list[dict]:
+    return [
+        _ser_urban_test(d, include_points=False)
+        async for d in db().urban_tests.find(
+            {"device_id": _oid(device_id)}
+        ).sort("created_at", -1)
+    ]
+
+
+@app.get("/api/urban-tests/{test_id}")
+async def get_urban_test(test_id: str) -> dict:
+    doc = await db().urban_tests.find_one({"_id": _oid(test_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Test urbano no encontrado")
+    return _ser_urban_test(doc, include_points=True)
+
+
+@app.delete("/api/urban-tests/{test_id}")
+async def delete_urban_test(test_id: str) -> dict:
+    result = await db().urban_tests.delete_one({"_id": _oid(test_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Test urbano no encontrado")
+    return {"deleted": True}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

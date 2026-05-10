@@ -4,6 +4,12 @@
 
     <a [routerLink]="['/devices', deviceId]" class="setup-back">← Volver al dispositivo</a>
 
+    <!-- Page tabs -->
+    <div class="page-tabs">
+      <a class="page-tab page-tab-active">Pista</a>
+      <a class="page-tab" [routerLink]="['/devices', deviceId, 'gps-analysis', 'urban']">Urbano</a>
+    </div>
+
     <!-- Saved tests list -->
     <div class="saved-tests" *ngIf="savedTests.length > 0 || loadingTests">
 
@@ -107,8 +113,14 @@
       <aside class="col-left">
 
         <div class="panel-header">
-          <span class="panel-label">Dispositivos</span>
+          <span class="panel-label">Modos GPS</span>
           <button class="nuevo-test-btn" (click)="newTest()">Nuevo test</button>
+        </div>
+
+        <!-- Analysis type tabs -->
+        <div class="sidebar-tabs">
+          <span class="sidebar-tab sidebar-tab-active">Pista</span>
+          <a class="sidebar-tab" [routerLink]="['/devices', deviceId, 'gps-analysis', 'urban']">Urbano</a>
         </div>
 
         <!-- Mode list sorted by mean error -->
