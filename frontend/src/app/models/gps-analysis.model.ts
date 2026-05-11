@@ -118,3 +118,27 @@ export interface UrbanTestDetail {
   created_at: string;
   modes: { id: string; name: string; color: string; runs: GpsTestRun[] }[];
 }
+
+export interface UrbanAiModeAnalysis {
+  modo: string;
+  nivel: string;
+  explicacion_porque: string;
+  dato_clave: string;
+}
+
+export interface UrbanAiReport {
+  veredicto_humano: string;
+  mejor_modo: string;
+  peor_modo: string;
+  analisis_modos: UrbanAiModeAnalysis[];
+  explicacion_tecnica_sencilla: string;
+  el_gancho_del_jitter: string;
+  advertencia_ultratrac: string | null;
+  conclusion_practica: string;
+}
+
+export interface UrbanAiAnalysis {
+  report: UrbanAiReport;
+  generated_at: string;
+  model: string;
+}

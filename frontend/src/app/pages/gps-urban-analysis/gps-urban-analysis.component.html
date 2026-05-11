@@ -614,5 +614,92 @@
       </div>
     </section>
 
+    <!-- ── AI ANALYSIS ──────────────────────────────────────────────────── -->
+    <section class="ai-section">
+      <div class="ai-header">
+        <div class="ai-header-left">
+          <span class="section-eyebrow">Análisis IA</span>
+          <h3 class="section-title">Informe GPT-4o — GPS Urbano</h3>
+        </div>
+        <button class="ai-generate-btn"
+          [disabled]="aiLoading || !currentTestId"
+          (click)="generateAiAnalysis()">
+          <span *ngIf="aiLoading">Generando…</span>
+          <span *ngIf="!aiLoading && !aiAnalysis">Generar análisis IA</span>
+          <span *ngIf="!aiLoading && aiAnalysis">Regenerar análisis</span>
+        </button>
+      </div>
+
+      <p class="ai-error" *ngIf="aiError">{{ aiError }}</p>
+
+      <div class="ai-loading-bar" *ngIf="aiLoading">
+        <div class="ai-loading-fill"></div>
+      </div>
+
+      <ng-container *ngIf="aiAnalysis && !aiLoading">
+        <div class="ai-generated-at">
+          Generado {{ aiAnalysis.generated_at | date:'dd/MM/yyyy HH:mm' }} · {{ aiAnalysis.model }}
+        </div>
+
+        <!-- Veredicto humano -->
+        <div class="ai-verdict-card">
+          <div class="ai-verdict-label">Veredicto</div>
+          <p class="ai-verdict-text">{{ aiAnalysis.report.veredicto_humano }}</p>
+          <div class="ai-verdict-row">
+            <span class="ai-medal ai-medal-gold">Mejor: {{ aiAnalysis.report.mejor_modo }}</span>
+            <span class="ai-medal ai-medal-red">Peor: {{ aiAnalysis.report.peor_modo }}</span>
+          </div>
+        </div>
+
+        <!-- Análisis por modo -->
+        <div class="ai-modes-grid">
+          <div class="ai-mode-card" *ngFor="let m of aiAnalysis.report.analisis_modos">
+            <div class="ai-mode-header">
+              <span class="ai-mode-name">{{ m.modo }}</span>
+              <span class="ai-level-chip"
+                [class.ai-level-elite]="m.nivel === 'Urban Elite'"
+                [class.ai-level-high]="m.nivel === 'High Tier'"
+                [class.ai-level-standard]="m.nivel === 'Standard'"
+                [class.ai-level-marginal]="m.nivel === 'Marginal'"
+                [class.ai-level-no-apto]="m.nivel === 'No Apto'">
+                {{ m.nivel }}
+              </span>
+            </div>
+            <p class="ai-mode-analisis">{{ m.explicacion_porque }}</p>
+            <div class="ai-dato-clave">
+              <span class="ai-dato-label">Dato clave</span>
+              <span class="ai-dato-value">{{ m.dato_clave }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Análisis técnico y jitter -->
+        <div class="ai-tech-grid">
+          <div class="ai-tech-card">
+            <div class="ai-tech-label">Por qué unos modos superan a otros</div>
+            <p>{{ aiAnalysis.report.explicacion_tecnica_sencilla }}</p>
+          </div>
+          <div class="ai-tech-card">
+            <div class="ai-tech-label">El ritmo en tu muñeca</div>
+            <p>{{ aiAnalysis.report.el_gancho_del_jitter }}</p>
+          </div>
+          <div class="ai-tech-card ai-tech-card-warning" *ngIf="aiAnalysis.report.advertencia_ultratrac">
+            <div class="ai-tech-label">UltraTrac en ciudad</div>
+            <p>{{ aiAnalysis.report.advertencia_ultratrac }}</p>
+          </div>
+        </div>
+
+        <!-- Conclusión práctica -->
+        <div class="ai-conclusion">
+          <div class="ai-tech-label">Conclusión práctica</div>
+          <div class="ai-recommendation">
+            <span class="ai-rec-icon">→</span>
+            <span>{{ aiAnalysis.report.conclusion_practica }}</span>
+          </div>
+        </div>
+
+      </ng-container>
+    </section>
+
   </div>
 </ng-container>

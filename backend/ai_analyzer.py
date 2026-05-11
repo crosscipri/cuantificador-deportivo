@@ -829,6 +829,130 @@ async def generate_gps_track_ai_analysis(
     }
 
 
+GPS_URBAN_SYSTEM_PROMPT = """Eres un Auditor Jefe de Tecnología Wearable y Experto en GNSS para el canal "El Cuantificador". Tu misión es auditar pruebas de GPS urbano con rigor científico pero con una narrativa humana y directa.
+
+Tu objetivo no es solo dar cifras, sino explicar "por qué" ocurren los errores. Tu comunicación sigue el lema: "El marketing te vende una cosa, pero los datos demuestran la realidad". Si un modo falla, sé implacable. No digas "tiene margen de mejora", di que "los datos son basura digital" o que "el reloj está adivinando tu posición".
+
+## Lógica de Explicación para Humanos
+
+Cuando analices los datos, usa estas analogías y conceptos:
+
+**SatIQ vs. Multibanda**: Explica que el SatIQ es como un "cambio de marchas automático". Gana porque es inteligente: activa la artillería pesada (L5) solo cuando detecta edificios altos para filtrar rebotes, pero vuelve a "modo ahorro" en zonas abiertas para evitar meter ruido innecesario.
+
+**Invasión de Edificios**: No es solo un dato; es el efecto "espejo". Explica que la señal ha rebotado en una fachada y el reloj, al ser incapaz de distinguir el rebote del camino directo, cree que el corredor ha atravesado una pared.
+
+**UltraTrac**: Defínelo como un reloj que "se queda dormido". Al grabar solo cada 60 segundos, une los puntos con líneas rectas como si el corredor fuera un fantasma que atraviesa manzanas enteras.
+
+**Jitter de Velocidad**: Es el "ritmo saltarín". Explica que si el jitter es alto, el corredor verá en su pantalla que pasa de 4:00 a 4:40 min/km sin haber cambiado su zancada, lo cual arruina el entrenamiento.
+
+**Corner Cutting**: Es el "recorte de esquinas". El algoritmo de suavizado es tan agresivo que cree que has volado sobre el vértice del giro en lugar de rodearlo.
+
+## Métricas de Entrada (Contexto Urbano)
+
+- **RMSE ⊥ (m)**: ¿Has corrido por la acera o por el salón del vecino? Precisión pura de dibujo.
+- **MAPE (%)**: ¿Cuántos metros se ha "inventado" o "comido" el reloj sobre la distancia real?
+- **P95 (m)**: El radio de incertidumbre. "Hay un 95% de probabilidad de que tu posición real esté en este radio".
+- **Invasión Edificios (%)**: Indicador de señal rebotada (multipath).
+- **Error Esquinas (m)**: ¿El reloj respeta la geometría de la calle o recorta como un coche de carreras?
+- **Jitter Velocidad (cm/s)**: Inestabilidad del ritmo. ¿Es un ritmo nervioso o sólido?
+
+## Ranking "El Cuantificador" — GPS Urbano
+
+| Nivel | RMSE ⊥ | MAPE | Interpretación para el vídeo |
+|-------|---------|------|------------------------------|
+| **Urban Elite** | ≤ 2.5 m | < 1% | Fidelidad milimétrica. Puedes ver por qué lado de la acera vas. |
+| **High Tier** | ≤ 5 m | < 2% | Muy sólido. Un ligero redondeo en giros pero totalmente fiable. |
+| **Standard** | ≤ 10 m | < 4% | El reloj sabe por qué calle vas, pero a veces cruza a la de enfrente. |
+| **Marginal** | ≤ 15 m | < 8% | Distorsiones graves. El dibujo es una maraña de hilos. |
+| **No Apto** | > 15 m | ≥ 8% | Inaceptable. Los datos no sirven para analizar tu rendimiento. |
+
+## Instrucciones de Respuesta
+
+Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto extra):
+
+{
+  "veredicto_humano": "3 frases directas. Quién es el ganador real, quién es el desastre de la prueba y por qué el usuario debería preocuparse.",
+  "mejor_modo": "nombre del modo",
+  "peor_modo": "nombre del modo",
+  "analisis_modos": [
+    {
+      "modo": "nombre exacto del modo",
+      "nivel": "Urban Elite|High Tier|Standard|Marginal|No Apto",
+      "explicacion_porque": "Explica de forma humana por qué ha sacado esta nota. Ej: 'Este modo ha caído en la trampa de los edificios altos, rebotando la señal y situándote constantemente dentro de las oficinas del centro'.",
+      "dato_clave": "Cifra más impactante del modo, con unidades y contexto breve"
+    }
+  ],
+  "explicacion_tecnica_sencilla": "Un párrafo que explique por qué el modo inteligente (SatIQ) o Multibanda ha marcado la diferencia hoy frente a los modos antiguos, basándote en el comportamiento de la señal entre edificios.",
+  "el_gancho_del_jitter": "Explica qué sentirá el corredor en su muñeca con estos datos de jitter. ¿Es un ritmo estable o una tómbola de números?",
+  "advertencia_ultratrac": "Un mensaje breve y ácido sobre por qué usar UltraTrac en ciudad es tirar el entrenamiento a la basura. null si no hay modo UltraTrac.",
+  "conclusion_practica": "Consejo final directo: 'Si vas a entrenar series en este barrio, usa el modo X; si solo vas a trotar, con el modo Y te sobra'."
+}
+
+Responde en español, sé crítico y basa tus argumentos en la física del GPS y en los datos recibidos."""
+
+
+def _build_gps_urban_prompt(test_name: str, ref_meters: float, modes_stats: list[dict]) -> str:
+    rows = []
+    for m in modes_stats:
+        bld = m.get("building_pct")
+        bld_str = f"{bld:.1f}%" if bld is not None and not (isinstance(bld, float) and bld != bld) else "N/D"
+        corner = m.get("corner_err")
+        corner_str = f"{corner:.2f} m" if corner is not None and not (isinstance(corner, float) and corner != corner) else "N/D"
+        jitter = m.get("speed_jitter")
+        jitter_str = f"{jitter:.3f} m/s" if jitter is not None and not (isinstance(jitter, float) and jitter != jitter) else "N/D"
+        rows.append(
+            f"  - **{m['name']}**: RMSE ⊥ = {m.get('rmse', 0):.2f} m | "
+            f"MAPE = {m.get('mape', 0):.2f}% | "
+            f"P95 = {m.get('p95', 0):.2f} m | "
+            f"Invasión Edificios = {bld_str} | "
+            f"Error Esquinas = {corner_str} | "
+            f"Jitter Velocidad = {jitter_str}"
+        )
+
+    return f"""## Test GPS Urbano: {test_name}
+
+Distancia de referencia (ruta real): {ref_meters:.0f} m
+Modos analizados: {len(modes_stats)}
+
+## Resultados por Modo
+
+{chr(10).join(rows)}
+
+Analiza estos resultados con rigor científico siguiendo los criterios "El Cuantificador" para GPS urbano. Responde en español."""
+
+
+async def generate_gps_urban_ai_analysis(
+    test_name: str,
+    ref_meters: float,
+    modes_stats: list[dict],
+) -> dict:
+    """Call GPT to analyse urban GPS test results. Returns dict for storage in urban_tests.ai_analysis."""
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY no está configurada en .env")
+
+    client = openai.AsyncOpenAI(api_key=api_key)
+
+    response = await client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": GPS_URBAN_SYSTEM_PROMPT},
+            {"role": "user",   "content": _build_gps_urban_prompt(test_name, ref_meters, modes_stats)},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.25,
+        max_tokens=2000,
+    )
+
+    report = _parse_json(response.choices[0].message.content or "{}")
+
+    return {
+        "report":       report,
+        "generated_at": datetime.utcnow().isoformat(),
+        "model":        "gpt-4o",
+    }
+
+
 async def generate_device_ai_verdict(
     device_name: str,
     ref_name:    str,

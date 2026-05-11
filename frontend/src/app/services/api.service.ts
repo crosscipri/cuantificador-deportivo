@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry } from '../models/session.model';
-import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail } from '../models/gps-analysis.model';
+import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail, UrbanAiAnalysis } from '../models/gps-analysis.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -178,5 +178,19 @@ export class ApiService {
 
   deleteUrbanTest(testId: string): Observable<{ deleted: boolean }> {
     return this.http.delete<{ deleted: boolean }>(`${this.base}/urban-tests/${testId}`);
+  }
+
+  getUrbanTestAiAnalysis(testId: string): Observable<UrbanAiAnalysis> {
+    return this.http.get<UrbanAiAnalysis>(`${this.base}/urban-tests/${testId}/ai-analysis`);
+  }
+
+  generateUrbanTestAiAnalysis(testId: string, modesStats: {
+    name: string; rmse: number; mape: number; p95: number;
+    building_pct: number | null; corner_err: number | null; speed_jitter: number | null;
+  }[], refMeters: number): Observable<UrbanAiAnalysis> {
+    return this.http.post<UrbanAiAnalysis>(
+      `${this.base}/urban-tests/${testId}/ai-analysis`,
+      { modes_stats: modesStats, ref_meters: refMeters },
+    );
   }
 }

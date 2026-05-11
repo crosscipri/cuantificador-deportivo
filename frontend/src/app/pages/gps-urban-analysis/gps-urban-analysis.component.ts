@@ -18,6 +18,7 @@ import {
   GpsRunFile,
   GPS_MODE_COLORS,
   UrbanTestSummary,
+  UrbanAiAnalysis,
 } from "../../models/gps-analysis.model";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -319,6 +320,11 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
   loadingTests = false;
   savingTest = false;
   currentTestId: string | null = null;
+
+  // ── AI Analysis ───────────────────────────────────────────────────────────
+  aiAnalysis: UrbanAiAnalysis | null = null;
+  aiLoading = false;
+  aiError = "";
 
   // ── Map ───────────────────────────────────────────────────────────────────
   private leafletMap?: L.Map;
@@ -879,10 +885,13 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
           this.analytics = result;
           result[0].selected = true;
           this.currentTestId = testId;
+          this.aiAnalysis = null;
+          this.aiError = "";
           this.leafletMap?.remove();
           this.leafletMap = undefined;
           this.runLayers.clear();
           this.loadBuildings();
+          this.loadAiAnalysis();
         }
       },
       error: (err) => console.error("[Urban] loadTest error", err),
@@ -936,9 +945,49 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ── AI Analysis ───────────────────────────────────────────────────────────
+
+  generateAiAnalysis(): void {
+    if (!this.currentTestId || !this.analytics || !this.refIdx) return;
+    this.aiLoading = true;
+    this.aiError = "";
+    const modesStats = this.analytics.map((m) => ({
+      name: m.modeName,
+      rmse: m.rmse,
+      mape: m.mape,
+      p95: m.p95,
+      building_pct: isNaN(m.buildingPct) ? null : m.buildingPct,
+      corner_err: isNaN(m.cornerErr) ? null : m.cornerErr,
+      speed_jitter: isNaN(m.speedJitter) ? null : m.speedJitter,
+    }));
+    this.api
+      .generateUrbanTestAiAnalysis(this.currentTestId, modesStats, this.refIdx.totalArc)
+      .subscribe({
+        next: (result) => {
+          this.aiAnalysis = result;
+          this.aiLoading = false;
+        },
+        error: (err) => {
+          this.aiError =
+            err?.error?.detail ?? "Error al generar el análisis IA";
+          this.aiLoading = false;
+        },
+      });
+  }
+
+  loadAiAnalysis(): void {
+    if (!this.currentTestId) return;
+    this.api.getUrbanTestAiAnalysis(this.currentTestId).subscribe({
+      next: (result) => { this.aiAnalysis = result; },
+      error: () => { this.aiAnalysis = null; },
+    });
+  }
+
   newTest(): void {
     this.analytics = null;
     this.currentTestId = null;
+    this.aiAnalysis = null;
+    this.aiError = "";
     this.hoveredModeId = null;
     this.chartCursorX = null;
     this.chartCursorS = null;
