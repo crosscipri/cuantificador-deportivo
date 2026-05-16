@@ -1,0 +1,106 @@
+<div class="ai-page">
+
+  <div class="ai-page-header">
+    <a class="back-link" [routerLink]="['/devices', deviceId, 'gps-analysis', 'urban']">← Análisis GPS Urbano</a>
+    <div>
+      <span class="eyebrow">Informe IA · GPS Urbano</span>
+      <h1 class="ai-page-title">Informe GPT-4o — GPS Urbano</h1>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="ai-state-box" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Cargando informe IA…</p>
+  </div>
+
+  <!-- Generating -->
+  <div class="ai-state-box" *ngIf="generating">
+    <div class="spinner"></div>
+    <p>Generando análisis con GPT-4o…</p>
+  </div>
+
+  <!-- Error -->
+  <div class="ai-state-box ai-state-error" *ngIf="error && !generating">
+    <p>⚠ {{ error }}</p>
+    <button class="ec-btn" (click)="generate()" *ngIf="canGenerate">Reintentar</button>
+  </div>
+
+  <!-- No analysis yet -->
+  <div class="ai-state-box" *ngIf="!loading && !generating && !error && !aiAnalysis">
+    <p class="ai-empty-text">No hay ningún informe IA generado para este test.</p>
+    <button class="ec-btn primary" (click)="generate()" *ngIf="canGenerate">Generar análisis IA</button>
+    <p class="ai-back-hint" *ngIf="!canGenerate">
+      Para generar el análisis, carga el test en
+      <a [routerLink]="['/devices', deviceId, 'gps-analysis', 'urban']">Análisis GPS Urbano</a>.
+    </p>
+  </div>
+
+  <!-- Report -->
+  <ng-container *ngIf="aiAnalysis && !generating">
+
+    <div class="ai-meta">
+      Generado {{ aiAnalysis.generated_at | date:'dd/MM/yyyy HH:mm' }} · {{ aiAnalysis.model }}
+    </div>
+
+    <div class="ai-verdict-card">
+      <div class="ai-verdict-label">Veredicto</div>
+      <p class="ai-verdict-text">{{ aiAnalysis.report.veredicto_humano }}</p>
+      <div class="ai-verdict-row">
+        <span class="ai-medal ai-medal-gold">Mejor: {{ aiAnalysis.report.mejor_modo }}</span>
+        <span class="ai-medal ai-medal-red">Peor: {{ aiAnalysis.report.peor_modo }}</span>
+      </div>
+    </div>
+
+    <div class="ai-modes-grid">
+      <div class="ai-mode-card" *ngFor="let m of aiAnalysis.report.analisis_modos">
+        <div class="ai-mode-header">
+          <span class="ai-mode-name">{{ m.modo }}</span>
+          <span class="ai-level-chip"
+            [class.ai-level-elite]="m.nivel === 'Urban Elite'"
+            [class.ai-level-high]="m.nivel === 'High Tier'"
+            [class.ai-level-standard]="m.nivel === 'Standard'"
+            [class.ai-level-marginal]="m.nivel === 'Marginal'"
+            [class.ai-level-no-apto]="m.nivel === 'No Apto'">
+            {{ m.nivel }}
+          </span>
+        </div>
+        <p class="ai-mode-analisis">{{ m.explicacion_porque }}</p>
+        <div class="ai-dato-clave">
+          <span class="ai-dato-label">Dato clave</span>
+          <span class="ai-dato-value">{{ m.dato_clave }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ai-tech-grid">
+      <div class="ai-tech-card">
+        <div class="ai-tech-label">Por qué unos modos superan a otros</div>
+        <p>{{ aiAnalysis.report.explicacion_tecnica_sencilla }}</p>
+      </div>
+      <div class="ai-tech-card">
+        <div class="ai-tech-label">El ritmo en tu muñeca</div>
+        <p>{{ aiAnalysis.report.el_gancho_del_jitter }}</p>
+      </div>
+      <div class="ai-tech-card ai-tech-card-warning" *ngIf="aiAnalysis.report.advertencia_ultratrac">
+        <div class="ai-tech-label">UltraTrac en ciudad</div>
+        <p>{{ aiAnalysis.report.advertencia_ultratrac }}</p>
+      </div>
+    </div>
+
+    <div class="ai-conclusion">
+      <div class="ai-tech-label">Conclusión práctica</div>
+      <div class="ai-recommendation">
+        <span class="ai-rec-icon">→</span>
+        <span>{{ aiAnalysis.report.conclusion_practica }}</span>
+      </div>
+    </div>
+
+    <div class="ai-footer-row">
+      <span></span>
+      <button class="ec-btn" (click)="generate()" *ngIf="canGenerate" [disabled]="generating">↻ Re-generar</button>
+    </div>
+
+  </ng-container>
+
+</div>

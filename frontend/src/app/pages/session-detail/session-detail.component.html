@@ -68,12 +68,9 @@
         Estadísticas científicas
       </button>
       <button class="tab-btn" [class.active]="activeTab === 'ai'" (click)="activeTab = 'ai'">
-        Informe IA
+        Notas
         <span class="tab-badge" *ngIf="aiGenerating">
           <span class="spinner-xs"></span>
-        </span>
-        <span class="tab-chip good" *ngIf="!aiGenerating && aiAnalysis">
-          {{ aiAnalysis.report?.veredicto_sesion?.calificacion }}
         </span>
       </button>
     </div>
@@ -122,44 +119,44 @@
          ══════════════════════════════════════════════════════════════════════ -->
     <ng-container *ngIf="activeTab === 'stats'">
 
-    <!-- ── § 1 · Hero metrics ── -->
-    <div class="section-header">
-      <div class="section-inner">
-        <h2>Métricas principales</h2>
-        <span class="section-sub">contra {{ session.reference_name }} · n = {{ session.metrics.n | number }}
-          muestras</span>
+      <!-- ── § 1 · Hero metrics ── -->
+      <div class="section-header">
+        <div class="section-inner">
+          <h2>Métricas principales</h2>
+          <span class="section-sub">contra {{ session.reference_name }} · n = {{ session.metrics.n | number }}
+            muestras</span>
+        </div>
+        <div class="divider"></div>
       </div>
-      <div class="divider"></div>
-    </div>
 
-    <div class="hero-metrics">
-      <div class="metric-hero" [ngClass]="mq('ccc', session.metrics.ccc)">
-        <div class="eyebrow">CCC de Lin</div>
-        <div class="metric-hero-val num">{{ session.metrics.ccc | number:'1.3-3' }}</div>
-        <div class="metric-hero-hint">r = {{ session.metrics.r | number:'1.3-3' }}</div>
+      <div class="hero-metrics">
+        <div class="metric-hero" [ngClass]="mq('ccc', session.metrics.ccc)">
+          <div class="eyebrow">CCC de Lin</div>
+          <div class="metric-hero-val num">{{ session.metrics.ccc | number:'1.3-3' }}</div>
+          <div class="metric-hero-hint">r = {{ session.metrics.r | number:'1.3-3' }}</div>
+        </div>
+        <div class="metric-hero" [ngClass]="mq('mae', session.metrics.mae)">
+          <div class="eyebrow">MAE</div>
+          <div class="metric-hero-val num">{{ session.metrics.mae | number:'1.1-1' }}<span class="unit">bpm</span></div>
+          <div class="metric-hero-hint">{{ session.metrics.mape | number:'1.1-1' }}% relativo</div>
+        </div>
+        <div class="metric-hero"
+          [ngClass]="mq('bias_abs', (session.metrics.bias < 0 ? -session.metrics.bias : session.metrics.bias))">
+          <div class="eyebrow">Bias</div>
+          <div class="metric-hero-val num">{{ biasSign(session.metrics.bias) }}{{ session.metrics.bias | number:'1.1-1'
+            }}<span class="unit">bpm</span></div>
+          <div class="metric-hero-hint">Bland–Altman</div>
+        </div>
+        <div class="metric-hero" [ngClass]="mq('loa_semiancho', loaSemi(session))">
+          <div class="eyebrow">LoA 95%</div>
+          <div class="metric-hero-val num">±{{ loaSemi(session) }}<span class="unit">bpm</span></div>
+          <div class="metric-hero-hint">[{{ session.metrics.loa_l | number:'1.1-1' }}, {{ session.metrics.loa_u |
+            number:'1.1-1' }}]</div>
+        </div>
       </div>
-      <div class="metric-hero" [ngClass]="mq('mae', session.metrics.mae)">
-        <div class="eyebrow">MAE</div>
-        <div class="metric-hero-val num">{{ session.metrics.mae | number:'1.1-1' }}<span class="unit">bpm</span></div>
-        <div class="metric-hero-hint">{{ session.metrics.mape | number:'1.1-1' }}% relativo</div>
-      </div>
-      <div class="metric-hero"
-        [ngClass]="mq('bias_abs', (session.metrics.bias < 0 ? -session.metrics.bias : session.metrics.bias))">
-        <div class="eyebrow">Bias</div>
-        <div class="metric-hero-val num">{{ biasSign(session.metrics.bias) }}{{ session.metrics.bias | number:'1.1-1'
-          }}<span class="unit">bpm</span></div>
-        <div class="metric-hero-hint">Bland–Altman</div>
-      </div>
-      <div class="metric-hero" [ngClass]="mq('loa_semiancho', loaSemi(session))">
-        <div class="eyebrow">LoA 95%</div>
-        <div class="metric-hero-val num">±{{ loaSemi(session) }}<span class="unit">bpm</span></div>
-        <div class="metric-hero-hint">[{{ session.metrics.loa_l | number:'1.1-1' }}, {{ session.metrics.loa_u |
-          number:'1.1-1' }}]</div>
-      </div>
-    </div>
 
-    <!-- ── Secondary metrics ── -->
-    <!-- <div class="secondary-metrics">
+      <!-- ── Secondary metrics ── -->
+      <!-- <div class="secondary-metrics">
       <div class="metric-mini" [ngClass]="mq('ccc', session.metrics.ccc)">
         <div class="eyebrow" style="font-size:9.5px">CCC</div>
         <div class="mini-val num">{{ session.metrics.ccc | number:'1.3-3' }}</div>
@@ -188,93 +185,93 @@
       </div>
     </div> -->
 
-    <!-- ── § 2 · FC en el tiempo ── -->
-    <div class="section-header">
-      <div class="section-inner">
-        <h2>FC en el tiempo</h2>
-        <span class="section-sub">dispositivo (azul) sobre referencia (gris)</span>
+      <!-- ── § 2 · FC en el tiempo ── -->
+      <div class="section-header">
+        <div class="section-inner">
+          <h2>FC en el tiempo</h2>
+          <span class="section-sub">dispositivo (azul) sobre referencia (gris)</span>
+        </div>
+        <div class="divider"></div>
       </div>
-      <div class="divider"></div>
-    </div>
 
-    <div class="chart-card">
-      <app-fc-temporal-chart *ngIf="session.fc_data; else temporalPng" [fcData]="session.fc_data!"
-        [refName]="session.reference_name" [devName]="session.device_name">
-      </app-fc-temporal-chart>
-      <ng-template #temporalPng>
-        <app-chart-viewer [chartB64]="session.charts.temporal"
-          [title]="'FC — ' + session.device_name + ' vs ' + session.reference_name"
-          [filename]="session.session_name + '-fc-comparativa.png'">
-        </app-chart-viewer>
-      </ng-template>
-    </div>
-
-    <!-- ── § 3 · Validación científica ── -->
-    <div class="section-header">
-      <div class="section-inner">
-        <h2>Validación científica</h2>
+      <div class="chart-card">
+        <app-fc-temporal-chart *ngIf="session.fc_data; else temporalPng" [fcData]="session.fc_data!"
+          [refName]="session.reference_name" [devName]="session.device_name">
+        </app-fc-temporal-chart>
+        <ng-template #temporalPng>
+          <app-chart-viewer [chartB64]="session.charts.temporal"
+            [title]="'FC — ' + session.device_name + ' vs ' + session.reference_name"
+            [filename]="session.session_name + '-fc-comparativa.png'">
+          </app-chart-viewer>
+        </ng-template>
       </div>
-      <div class="divider"></div>
-      <span class="section-note">Correlación · Bland–Altman</span>
-    </div>
 
-    <div class="chart-card">
-      <app-session-validation-charts *ngIf="session.fc_data || session.zones?.length; else validationPng"
-        [session]="session">
-      </app-session-validation-charts>
-      <ng-template #validationPng>
-        <app-chart-viewer [chartB64]="session.charts.validation"
-          [title]="'Validación — ' + session.device_name + ' vs ' + session.reference_name"
-          [filename]="session.session_name + '-validacion.png'">
-        </app-chart-viewer>
-      </ng-template>
-    </div>
-
-    <!-- ── § 4 · Error por zonas ── -->
-    <div class="section-header">
-      <div class="section-inner">
-        <h2>Error por zonas de intensidad</h2>
-        <span class="section-sub">MAE y bias estratificados por Z1–Z5</span>
+      <!-- ── § 3 · Validación científica ── -->
+      <div class="section-header">
+        <div class="section-inner">
+          <h2>Validación científica</h2>
+        </div>
+        <div class="divider"></div>
+        <span class="section-note">Correlación · Bland–Altman</span>
       </div>
-      <div class="divider"></div>
-    </div>
 
-    <div class="zones-wrap">
-      <table class="zones-table">
-        <thead>
-          <tr>
-            <th>Zona</th>
-            <th>Rango (bpm)</th>
-            <th>% Tiempo</th>
-            <th>Muestras</th>
-            <th>MAE (bpm)</th>
-            <th>MAPE (%)</th>
-            <th>Bias (bpm)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let z of session.zones">
-            <td><span class="zone-chip" [ngClass]="zoneCssClass(z.zone)">{{ z.zone }}</span></td>
-            <td class="num">{{ z.range }}</td>
-            <td>
-              <div class="pct-bar-wrap">
-                <div class="pct-bar-track">
-                  <div class="pct-bar-fill" [style.width.%]="z.pct_time"></div>
+      <div class="chart-card">
+        <app-session-validation-charts *ngIf="session.fc_data || session.zones?.length; else validationPng"
+          [session]="session">
+        </app-session-validation-charts>
+        <ng-template #validationPng>
+          <app-chart-viewer [chartB64]="session.charts.validation"
+            [title]="'Validación — ' + session.device_name + ' vs ' + session.reference_name"
+            [filename]="session.session_name + '-validacion.png'">
+          </app-chart-viewer>
+        </ng-template>
+      </div>
+
+      <!-- ── § 4 · Error por zonas ── -->
+      <div class="section-header">
+        <div class="section-inner">
+          <h2>Error por zonas de intensidad</h2>
+          <span class="section-sub">MAE y bias estratificados por Z1–Z5</span>
+        </div>
+        <div class="divider"></div>
+      </div>
+
+      <div class="zones-wrap">
+        <table class="zones-table">
+          <thead>
+            <tr>
+              <th>Zona</th>
+              <th>Rango (bpm)</th>
+              <th>% Tiempo</th>
+              <th>Muestras</th>
+              <th>MAE (bpm)</th>
+              <th>MAPE (%)</th>
+              <th>Bias (bpm)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let z of session.zones">
+              <td><span class="zone-chip" [ngClass]="zoneCssClass(z.zone)">{{ z.zone }}</span></td>
+              <td class="num">{{ z.range }}</td>
+              <td>
+                <div class="pct-bar-wrap">
+                  <div class="pct-bar-track">
+                    <div class="pct-bar-fill" [style.width.%]="z.pct_time"></div>
+                  </div>
+                  <span class="num" style="font-size:12px;color:var(--ink-2)">{{ z.pct_time }}%</span>
                 </div>
-                <span class="num" style="font-size:12px;color:var(--ink-2)">{{ z.pct_time }}%</span>
-              </div>
-            </td>
-            <td class="num">{{ z.n | number }}</td>
-            <td>
-              <span class="q-badge" *ngIf="z.mae !== null" [ngClass]="mq('mae', z.mae)">{{ z.mae }}</span>
-              <span style="color:var(--ink-4)" *ngIf="z.mae === null">—</span>
-            </td>
-            <td class="num">{{ z.mape !== null ? (z.mape + '%') : '—' }}</td>
-            <td class="num">{{ z.bias !== null ? (biasSign(z.bias!) + (z.bias | number:'1.1-1')) : '—' }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+              </td>
+              <td class="num">{{ z.n | number }}</td>
+              <td>
+                <span class="q-badge" *ngIf="z.mae !== null" [ngClass]="mq('mae', z.mae)">{{ z.mae }}</span>
+                <span style="color:var(--ink-4)" *ngIf="z.mae === null">—</span>
+              </td>
+              <td class="num">{{ z.mape !== null ? (z.mape + '%') : '—' }}</td>
+              <td class="num">{{ z.bias !== null ? (biasSign(z.bias!) + (z.bias | number:'1.1-1')) : '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
     </ng-container><!-- /stats tab -->
 
@@ -310,10 +307,9 @@
         </div>
 
         <!-- Veredicto IA -->
-        <div class="ai-verdict-banner"
-             [ngClass]="aiCalClass(aiAnalysis.report?.veredicto_sesion?.calificacion)">
+        <div class="ai-verdict-banner" [ngClass]="aiCalClass(aiAnalysis.report?.veredicto_sesion?.calificacion)">
           <div class="ai-verdict-left">
-            <div class="ai-verdict-label">Veredicto IA · {{ session.device_name }}</div>
+            <div class="ai-verdict-label">Veredicto {{ session.device_name }}</div>
             <div class="ai-verdict-title">
               {{ aiAnalysis.report?.veredicto_sesion?.etiqueta }}
             </div>
@@ -398,7 +394,8 @@
               {{ aiAnalysis.report.informe.series_temporales?.interpretacion_canal }}
             </p>
           </div>
-          <div class="ai-section-card" *ngIf="!aiAnalysis.report?.informe?.series_temporales && aiAnalysis.report?.informe?.fenomenos_detectados">
+          <div class="ai-section-card"
+            *ngIf="!aiAnalysis.report?.informe?.series_temporales && aiAnalysis.report?.informe?.fenomenos_detectados">
             <div class="ai-sec-title">Fenómenos detectados</div>
             <p class="ai-sec-body">{{ aiAnalysis.report.informe.fenomenos_detectados }}</p>
           </div>
@@ -407,9 +404,11 @@
           <div class="ai-section-card" *ngIf="aiAnalysis.report?.informe?.lag_analisis">
             <div class="ai-sec-title">Lag temporal</div>
             <ng-container *ngIf="aiAnalysis.report.informe.lag_analisis?.explicacion_canal; else lagLegacy">
-              <p class="ai-sec-body" *ngIf="aiAnalysis.report.informe.lag_analisis.lag_estimado_segundos !== null && aiAnalysis.report.informe.lag_analisis.lag_estimado_segundos !== undefined">
+              <p class="ai-sec-body"
+                *ngIf="aiAnalysis.report.informe.lag_analisis.lag_estimado_segundos !== null && aiAnalysis.report.informe.lag_analisis.lag_estimado_segundos !== undefined">
                 <strong>Lag estimado:</strong> {{ aiAnalysis.report.informe.lag_analisis.lag_estimado_segundos }} s
-                <span class="ai-lag-warn" *ngIf="aiAnalysis.report.informe.lag_analisis.es_problematico">· Problemático</span>
+                <span class="ai-lag-warn" *ngIf="aiAnalysis.report.informe.lag_analisis.es_problematico">·
+                  Problemático</span>
               </p>
               <p class="ai-sec-sub" *ngIf="aiAnalysis.report.informe.lag_analisis.causa_del_lag">
                 <strong>Causa:</strong> {{ aiAnalysis.report.informe.lag_analisis.causa_del_lag }}
@@ -444,9 +443,8 @@
             <div class="divider"></div>
           </div>
           <div class="ai-annotations">
-            <div class="ai-ann-item"
-                 *ngFor="let ann of aiAnalysis.report.anotaciones_temporales"
-                 [ngClass]="'ann-' + ann.tipo">
+            <div class="ai-ann-item" *ngFor="let ann of aiAnalysis.report.anotaciones_temporales"
+              [ngClass]="'ann-' + ann.tipo">
               <span class="ann-icon">{{ aiAnnotationIcon(ann.tipo) }}</span>
               <span class="ann-time">
                 {{ (ann.tiempo_inicio / 60) | number:'1.0-0' }}:{{ (ann.tiempo_inicio % 60) | number:'2.0-0' }}
@@ -472,8 +470,8 @@
           <div class="divider"></div>
         </div>
         <div class="chart-card" *ngIf="aiAnalysis.annotated_charts?.temporal">
-          <img [src]="'data:image/png;base64,' + aiAnalysis.annotated_charts.temporal"
-               class="ai-chart-img" alt="FC anotada IA" />
+          <img [src]="'data:image/png;base64,' + aiAnalysis.annotated_charts.temporal" class="ai-chart-img"
+            alt="FC anotada IA" />
         </div>
 
         <!-- Annotated validation chart -->
@@ -485,8 +483,8 @@
           <div class="divider"></div>
         </div>
         <div class="chart-card" *ngIf="aiAnalysis.annotated_charts?.validation">
-          <img [src]="'data:image/png;base64,' + aiAnalysis.annotated_charts.validation"
-               class="ai-chart-img" alt="Validación anotada IA" />
+          <img [src]="'data:image/png;base64,' + aiAnalysis.annotated_charts.validation" class="ai-chart-img"
+            alt="Validación anotada IA" />
         </div>
 
         <!-- Footer -->

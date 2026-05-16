@@ -9,7 +9,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
 
 import { ApiService } from '../../services/api.service';
-import { Device, Session, AggregateResult, AiVerdict, AiCalificacion,
+import { Device, Session, AggregateResult,
          SportType, SessionDifficulty,
          SPORT_TYPE_LABELS, DIFFICULTY_LABELS,
          TRAINING_TYPES_BY_SPORT, SPORT_HAS_DIFFICULTY, GYM_DIFFICULTY,
@@ -117,7 +117,6 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
       next: dev => {
         this.device = dev;
         this.loadSessions();
-        if (dev.has_ai_verdict) this.loadAiVerdict();
       },
       error: () => this.router.navigate(['/devices']),
     });
@@ -367,46 +366,6 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
       const y = h - ((v - (fcmid - 15)) / (fcmax - fcmid + 20)) * h;
       return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${Math.max(1, Math.min(h - 1, y)).toFixed(1)}`;
     }).join(' ');
-  }
-
-  // ── AI Verdict ────────────────────────────────────────────────────────────
-  aiVerdict:          AiVerdict | null = null;
-  aiVerdictLoading  = false;
-  aiVerdictError    = '';
-  showAiVerdict     = false;
-
-  loadAiVerdict(): void {
-    this.aiVerdictLoading = true;
-    this.aiVerdictError   = '';
-    this.api.getDeviceAiVerdict(this.deviceId).subscribe({
-      next:  v  => { this.aiVerdict = v; this.aiVerdictLoading = false; this.showAiVerdict = true; },
-      error: () => { this.aiVerdictLoading = false; },
-    });
-  }
-
-  generateAiVerdict(): void {
-    this.aiVerdictLoading = true;
-    this.aiVerdictError   = '';
-    this.aiVerdict        = null;
-    this.showAiVerdict    = true;
-    this.api.generateDeviceAiVerdict(this.deviceId).subscribe({
-      next: v => {
-        this.aiVerdict        = v;
-        this.aiVerdictLoading = false;
-        if (this.device) this.device.has_ai_verdict = true;
-      },
-      error: err => {
-        this.aiVerdictError   = err.error?.detail || 'Error al generar el veredicto IA';
-        this.aiVerdictLoading = false;
-      },
-    });
-  }
-
-  aiVerdictCalClass(cal: AiCalificacion | undefined): string {
-    const map: Record<AiCalificacion, string> = {
-      excelente: 'good', bueno: 'warn', moderado: 'orange', deficiente: 'bad',
-    };
-    return cal ? (map[cal] ?? '') : '';
   }
 
   // ── Custom tab state (replaces mat-tab-group) ──────────────────────

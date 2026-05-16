@@ -17,7 +17,7 @@
       <div class="eyebrow" style="margin-bottom:8px">Wearable bajo evaluación</div>
       <h1 class="h1-display">{{ device.name }}</h1>
       <div class="device-meta">
-        <span><span class="meta-dim">vs</span> <strong>{{ device.reference_name }}</strong></span>
+        <span><span class="meta-dim">vs </span> <strong>{{ device.reference_name }}</strong></span>
         <span class="meta-dot">·</span>
         <span class="meta-dim" *ngIf="device.description">{{ device.description }}</span>
         <span class="meta-dot" *ngIf="device.description">·</span>
@@ -30,8 +30,10 @@
       </a>
       <button class="ec-btn primary" (click)="toggleUpload()">
         <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-          <path *ngIf="!showUpload" d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <path *ngIf="showUpload" d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path *ngIf="!showUpload" d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round" />
+          <path *ngIf="showUpload" d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round" />
         </svg>
         {{ showUpload ? 'Cancelar' : 'Nueva sesión' }}
       </button>
@@ -58,22 +60,26 @@
       <div class="score-card">
         <div class="score-metric">
           <div class="eyebrow">CCC global</div>
-          <div class="score-val num" [ngClass]="scoreQuality(score.ccc_global, 'ccc')">{{ score.ccc_global | number:'1.3-3' }}</div>
+          <div class="score-val num" [ngClass]="scoreQuality(score.ccc_global, 'ccc')">{{ score.ccc_global |
+            number:'1.3-3' }}</div>
           <div class="score-hint">r = {{ score.r_global | number:'1.3-3' }}</div>
         </div>
         <div class="score-metric">
           <div class="eyebrow">MAE rel.</div>
-          <div class="score-val num" [ngClass]="scoreQuality(score.mae_global, 'mae')">{{ score.mae_global | number:'1.1-1' }}<span class="score-unit">%</span></div>
+          <div class="score-val num" [ngClass]="scoreQuality(score.mae_global, 'mae')">{{ score.mae_global |
+            number:'1.1-1' }}<span class="score-unit">%</span></div>
           <div class="score-hint">MAE / FC̄ × 100</div>
         </div>
         <div class="score-metric">
           <div class="eyebrow">Bias</div>
-          <div class="score-val num">{{ biasSign(score.bias_global) }}{{ score.bias_global | number:'1.1-1' }}<span class="score-unit">bpm</span></div>
-          <div class="score-hint">{{ score.bias_global > 0 ? 'sobreestima' : score.bias_global < 0 ? 'subestima' : 'neutro' }}</div>
+          <div class="score-val num">{{ biasSign(score.bias_global) }}{{ score.bias_global | number:'1.1-1' }}<span
+              class="score-unit">bpm</span></div>
+          <div class="score-hint">{{ score.bias_global > 0 ? 'sobreestima' : score.bias_global < 0 ? 'subestima'
+              : 'neutro' }}</div>
+          </div>
         </div>
-      </div>
 
-    </div>
+      </div>
   </ng-container>
 
   <!-- ── Upload form (inline) ── -->
@@ -110,11 +116,19 @@
         </mat-form-field>
       </div>
       <div class="drop-zones">
-        <div class="drop-zone" [class.has-file]="deviceFile"
-             (dragover)="onDragOver($event)" (drop)="onDrop($event, 'device')" (click)="devInput.click()">
-          <input #devInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden (change)="onDeviceFile($event)">
-          <svg *ngIf="!deviceFile" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="3"/></svg>
-          <svg *ngIf="deviceFile" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+        <div class="drop-zone" [class.has-file]="deviceFile" (dragover)="onDragOver($event)"
+          (drop)="onDrop($event, 'device')" (click)="devInput.click()">
+          <input #devInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden
+            (change)="onDeviceFile($event)">
+          <svg *ngIf="!deviceFile" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.5" stroke-linecap="round">
+            <rect x="4" y="4" width="16" height="16" rx="3" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <svg *ngIf="deviceFile" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
           <span class="zone-label">{{ deviceFile ? deviceFile.name : device.name }}</span>
           <span class="zone-hint">{{ deviceFile ? 'Clic para cambiar' : 'Arrastra o clic (.FIT / .TCX / .GPX)' }}</span>
         </div>
@@ -123,13 +137,21 @@
           <span class="vs-label">vs</span>
           <div class="vs-line"></div>
         </div>
-        <div class="drop-zone" [class.has-file]="referenceFile"
-             (dragover)="onDragOver($event)" (drop)="onDrop($event, 'ref')" (click)="refInput.click()">
-          <input #refInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden (change)="onReferenceFile($event)">
-          <svg *ngIf="!referenceFile" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 12h3l3-7 4 14 3-7h5"/></svg>
-          <svg *ngIf="referenceFile" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+        <div class="drop-zone" [class.has-file]="referenceFile" (dragover)="onDragOver($event)"
+          (drop)="onDrop($event, 'ref')" (click)="refInput.click()">
+          <input #refInput type="file" accept=".fit,.FIT,.tcx,.TCX,.gpx,.GPX,.xml,.XML" hidden
+            (change)="onReferenceFile($event)">
+          <svg *ngIf="!referenceFile" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.5" stroke-linecap="round">
+            <path d="M3 12h3l3-7 4 14 3-7h5" />
+          </svg>
+          <svg *ngIf="referenceFile" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
           <span class="zone-label">{{ referenceFile ? referenceFile.name : device.reference_name }}</span>
-          <span class="zone-hint">{{ referenceFile ? 'Clic para cambiar' : 'Arrastra o clic (.FIT / .TCX / .GPX)' }}</span>
+          <span class="zone-hint">{{ referenceFile ? 'Clic para cambiar' : 'Arrastra o clic (.FIT / .TCX / .GPX)'
+            }}</span>
         </div>
       </div>
     </form>
@@ -144,10 +166,8 @@
 
   <!-- ── Sport tabs (underline style) ── -->
   <div class="sport-tabs">
-    <button *ngFor="let tab of sportTabs; let i = index"
-            class="sport-tab"
-            [class.active]="activeTabIndex === i"
-            (click)="activeTabIndex = i">
+    <button *ngFor="let tab of sportTabs; let i = index" class="sport-tab" [class.active]="activeTabIndex === i"
+      (click)="activeTabIndex = i">
       {{ tab.label }}
       <span class="tab-n num">{{ countSessions(tab) }}</span>
     </button>
@@ -169,14 +189,15 @@
           <div class="group-left">
             <span class="group-chevron">{{ group.expanded ? '▾' : '›' }}</span>
             <h2 class="group-title">{{ groupLabel(tab.sportType, group.type) }}</h2>
-            <span class="group-count">{{ group.sessions.length }} sesión{{ group.sessions.length !== 1 ? 'es' : '' }}</span>
+            <span class="group-count">{{ group.sessions.length }} sesión{{ group.sessions.length !== 1 ? 'es' : ''
+              }}</span>
           </div>
           <div class="group-right" (click)="$event.stopPropagation()">
             <div *ngFor="let badge of groupBadges(group)" class="q-badge" [ngClass]="badge.quality">
               {{ badge.label }} {{ badge.value }}
             </div>
             <button class="ec-btn sm primary" (click)="runAggregate(group)"
-                    [disabled]="group.loadingAggregate || group.selectedIds.size === 0">
+              [disabled]="group.loadingAggregate || group.selectedIds.size === 0">
               <span *ngIf="group.loadingAggregate" class="spinner-xs"></span>
               ⚗ Agregado ({{ group.selectedIds.size }})
             </button>
@@ -200,12 +221,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let s of group.sessions"
-                  [routerLink]="['/devices', deviceId, 'sessions', s.id]"
-                  class="session-row">
+              <tr *ngFor="let s of group.sessions" [routerLink]="['/devices', deviceId, 'sessions', s.id]"
+                class="session-row">
                 <td class="col-chk" (click)="$event.stopPropagation()">
-                  <input type="checkbox" [checked]="group.selectedIds.has(s.id)"
-                         (change)="toggleSession(group, s.id)">
+                  <input type="checkbox" [checked]="group.selectedIds.has(s.id)" (change)="toggleSession(group, s.id)">
                 </td>
                 <td class="col-name">
                   <div class="s-name">{{ s.session_name }}</div>
@@ -213,13 +232,12 @@
                 </td>
                 <td class="col-spark">
                   <svg width="160" height="28" viewBox="0 0 160 28">
-                    <path [attr.d]="sparkPath(s, 'ref')" fill="none"
-                          stroke="oklch(55% 0.012 250)" stroke-width="1" opacity="0.5"/>
-                    <path [attr.d]="sparkPath(s, 'dev')" fill="none"
-                          stroke="oklch(52% 0.14 240)" stroke-width="1.4"/>
+                    <path [attr.d]="sparkPath(s, 'ref')" fill="none" stroke="oklch(55% 0.012 250)" stroke-width="1"
+                      opacity="0.5" />
+                    <path [attr.d]="sparkPath(s, 'dev')" fill="none" stroke="oklch(52% 0.14 240)" stroke-width="1.4" />
                   </svg>
                 </td>
-                <td class="col-date num">{{ formatDate(s.created_at) }}</td>
+                <td class="col-date num">{{ formatDate(s.activity_date || s.created_at) }}</td>
                 <td class="col-dur num">{{ formatDuration(s.duration_seconds) }}</td>
                 <td class="col-fcmax num">{{ s.fcmax }}</td>
                 <td class="col-mae">
@@ -240,13 +258,13 @@
             <div class="section-inner">
               <span class="section-num">§</span>
               <h2>Análisis agregado — {{ groupLabel(tab.sportType, group.type) }}</h2>
-              <span class="section-sub">{{ group.aggregate.n_sessions }} ses. · {{ group.aggregate.total_samples | number }} muestras</span>
+              <span class="section-sub">{{ group.aggregate.n_sessions }} ses. · {{ group.aggregate.total_samples |
+                number }} muestras</span>
             </div>
             <div class="divider"></div>
           </div>
           <app-metrics-table [metrics]="group.aggregate.metrics"></app-metrics-table>
-          <app-chart-viewer
-            [chartB64]="group.aggregate.chart"
+          <app-chart-viewer [chartB64]="group.aggregate.chart"
             [title]="'Agregado — ' + group.type + ' — ' + device.name + ' vs ' + device.reference_name"
             [filename]="group.type + '-agregado.png'">
           </app-chart-viewer>
@@ -256,135 +274,16 @@
     </div>
   </ng-container>
 
-  <!-- ══════════════════════════════════════════════════════════════════════
-       AI DEVICE VERDICT
-       ══════════════════════════════════════════════════════════════════════ -->
-  <div class="ai-verdict-section">
-
-    <!-- Trigger bar -->
-    <div class="ai-verdict-trigger" *ngIf="!showAiVerdict">
-      <div class="ai-verdict-trigger-left">
-        <span class="ai-verdict-trigger-icon">✦</span>
-        <div>
-          <div class="ai-verdict-trigger-title">Análisis IA del dispositivo</div>
-          <div class="ai-verdict-trigger-sub">
-            Veredicto consolidado basado en todas las sesiones · GPT-4o
-            <ng-container *ngIf="device?.has_ai_verdict">
-              · Generado el {{ device?.ai_verdict_at | date:'dd/MM/yyyy' }}
-            </ng-container>
-          </div>
-        </div>
+  <!-- ── AI Verdict entry point ── -->
+  <div class="ai-verdict-entry">
+    <div class="ai-verdict-entry-left">
+      <div>
+        <div class="ai-verdict-entry-title">Notas</div>
       </div>
-      <button class="ec-btn primary" (click)="device?.has_ai_verdict ? loadAiVerdict() : generateAiVerdict()"
-              [disabled]="aiVerdictLoading">
-        <span *ngIf="aiVerdictLoading" class="spinner-xs"></span>
-        {{ device?.has_ai_verdict ? 'Ver veredicto IA' : 'Generar análisis IA' }}
-      </button>
     </div>
-
-    <!-- Content when visible -->
-    <ng-container *ngIf="showAiVerdict">
-
-      <!-- Loading -->
-      <div class="ai-v-loading" *ngIf="aiVerdictLoading">
-        <div class="spinner"></div>
-        <p>Generando veredicto del dispositivo con GPT-4o…</p>
-      </div>
-
-      <!-- Error -->
-      <div class="ai-v-error" *ngIf="aiVerdictError && !aiVerdictLoading">
-        <p>{{ aiVerdictError }}</p>
-        <button class="ec-btn" (click)="generateAiVerdict()">Reintentar</button>
-      </div>
-
-      <!-- Verdict -->
-      <ng-container *ngIf="aiVerdict && !aiVerdictLoading">
-
-        <!-- Header -->
-        <div class="ai-v-header">
-          <div class="ai-v-header-left">
-            <div class="eyebrow" style="margin-bottom:6px">Veredicto IA · {{ device?.name }}</div>
-            <h2 class="ai-v-title">{{ aiVerdict.verdict?.etiqueta_final }}</h2>
-            <div class="ai-v-meta">
-              {{ aiVerdict.sessions_analyzed }} sesiones analizadas
-              · {{ aiVerdict.generated_at | date:'dd/MM/yyyy HH:mm' }}
-              · {{ aiVerdict.model }}
-            </div>
-          </div>
-          <div class="ai-v-cal-badge" [ngClass]="aiVerdictCalClass(aiVerdict.verdict?.calificacion_final)">
-            {{ aiVerdict.verdict?.calificacion_final | titlecase }}
-          </div>
-        </div>
-
-        <!-- General verdict -->
-        <div class="ai-v-card accent">
-          <div class="ai-v-card-title">Veredicto general</div>
-          <p class="ai-v-card-body">{{ aiVerdict.verdict?.veredicto_general }}</p>
-        </div>
-
-        <!-- Strengths / weaknesses -->
-        <div class="ai-v-sw-grid">
-          <div class="ai-v-card">
-            <div class="ai-v-card-title good-txt">Fortalezas</div>
-            <ul class="ai-v-list">
-              <li *ngFor="let f of aiVerdict.verdict?.fortalezas">{{ f }}</li>
-            </ul>
-          </div>
-          <div class="ai-v-card">
-            <div class="ai-v-card-title bad-txt">Debilidades</div>
-            <ul class="ai-v-list">
-              <li *ngFor="let d of aiVerdict.verdict?.debilidades">{{ d }}</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- By training type -->
-        <div class="ai-v-card" *ngIf="aiVerdict.verdict?.por_tipo_entrenamiento | keyvalue as entries">
-          <div class="ai-v-card-title">Por tipo de entrenamiento</div>
-          <div class="ai-v-type-rows">
-            <div class="ai-v-type-row" *ngFor="let e of entries">
-              <span class="ai-v-type-key">{{ e.key }}</span>
-              <span class="ai-v-type-val">{{ e.value }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Profiles -->
-        <div class="ai-v-profiles">
-          <div class="ai-v-card good-border">
-            <div class="ai-v-card-title">Perfil de deportista ideal</div>
-            <p class="ai-v-card-body">{{ aiVerdict.verdict?.perfil_deportista_ideal }}</p>
-          </div>
-          <div class="ai-v-card bad-border">
-            <div class="ai-v-card-title">No recomendado para</div>
-            <p class="ai-v-card-body">{{ aiVerdict.verdict?.no_recomendado_para }}</p>
-          </div>
-        </div>
-
-        <!-- Final recommendation -->
-        <div class="ai-v-card accent">
-          <div class="ai-v-card-title">Recomendación final</div>
-          <p class="ai-v-card-body">{{ aiVerdict.verdict?.recomendacion_final }}</p>
-        </div>
-
-        <!-- Literature comparison -->
-        <div class="ai-v-card" *ngIf="aiVerdict.verdict?.comparativa_literatura">
-          <div class="ai-v-card-title">Comparativa con la literatura</div>
-          <p class="ai-v-card-body">{{ aiVerdict.verdict?.comparativa_literatura }}</p>
-        </div>
-
-        <!-- Footer -->
-        <div class="ai-v-footer">
-          <button class="ec-btn" (click)="generateAiVerdict()" [disabled]="aiVerdictLoading">
-            <span *ngIf="aiVerdictLoading" class="spinner-xs"></span>
-            {{ aiVerdictLoading ? 'Generando…' : '↻ Re-generar veredicto' }}
-          </button>
-          <button class="ec-btn" (click)="showAiVerdict = false">Ocultar</button>
-        </div>
-
-      </ng-container>
-    </ng-container>
-
+    <a class="ec-btn primary" [routerLink]="['/devices', deviceId, 'ai-verdict']">
+      {{ device?.has_ai_verdict ? 'Ver' : 'Generar' }}
+    </a>
   </div>
 
 </div>

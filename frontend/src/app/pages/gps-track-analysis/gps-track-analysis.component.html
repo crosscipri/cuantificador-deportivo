@@ -114,7 +114,11 @@
 
         <div class="panel-header">
           <span class="panel-label">Modos GPS</span>
-          <button class="nuevo-test-btn" (click)="newTest()">Nuevo test</button>
+          <div class="panel-header-actions">
+            <a class="ia-chip" *ngIf="currentTestId"
+              [routerLink]="['/devices', deviceId, 'gps-analysis', 'track-ai', currentTestId]">Notas</a>
+            <button class="nuevo-test-btn" (click)="newTest()">Nuevo test</button>
+          </div>
         </div>
 
         <!-- Analysis type tabs -->
@@ -467,7 +471,8 @@
 
         <!-- 2. Histogram -->
         <div class="hist-section">
-          <div class="section-eyebrow">Distribución del error ⊥ <span class="perp-info" data-tooltip="⊥ = distancia perpendicular de cada punto GPS al carril 1 (verdad del suelo)">ⓘ</span></div>
+          <div class="section-eyebrow">Distribución del error ⊥ <span class="perp-info"
+              data-tooltip="⊥ = distancia perpendicular de cada punto GPS al carril 1 (verdad del suelo)">ⓘ</span></div>
           <div class="section-desc">Distancia perpendicular de cada punto GPS al carril 1 (verdad del suelo). Barras más
             a la izquierda = más preciso.</div>
           <div *ngFor="let m of visibleAnalytics" class="hist-mode-row">
@@ -579,8 +584,7 @@
           </thead>
           <tbody>
             <tr *ngFor="let m of sortedByRmse; let i = index" [class.rank-tr-selected]="m.selected"
-              (click)="selectMode(m.modeId)" (mouseenter)="hoverMode(m.modeId)"
-              (mouseleave)="hoverMode(null)">
+              (click)="selectMode(m.modeId)" (mouseenter)="hoverMode(m.modeId)" (mouseleave)="hoverMode(null)">
 
               <td class="rft-td-pos">
                 <span class="rank-badge" [class.rank-gold]="i === 0" [class.rank-silver]="i === 1"
@@ -635,111 +639,6 @@
           </tbody>
         </table>
       </div>
-    </section>
-
-    <!-- ── AI ANALYSIS SECTION ───────────────────────────────────────────────── -->
-    <section class="ai-section">
-
-      <!-- Header row: title + tab toggle + generate button -->
-      <div class="ai-section-header">
-        <div class="ai-section-title-group">
-          <span class="rank-full-eyebrow">Informe IA</span>
-          <h2 class="rank-full-title">Análisis GPS con inteligencia artificial</h2>
-        </div>
-        <div class="ai-section-actions">
-          <div class="ai-tab-toggle" *ngIf="aiAnalysis">
-            <button class="ai-tab-btn" [class.active]="!aiTab" (click)="aiTab = false">Estadísticas</button>
-            <button class="ai-tab-btn" [class.active]="aiTab"  (click)="aiTab = true">Informe IA</button>
-          </div>
-          <button class="ai-gen-btn" (click)="generateAiAnalysis()"
-            [disabled]="aiLoading || !currentTestId">
-            <span *ngIf="!aiLoading">{{ aiAnalysis ? 'Regenerar informe' : 'Generar informe IA' }}</span>
-            <span *ngIf="aiLoading" class="ai-gen-spinner">Generando…</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="ai-error" *ngIf="aiError">⚠ {{ aiError }}</div>
-
-      <!-- AI Report content -->
-      <ng-container *ngIf="aiTab && aiAnalysis as ai">
-        <div class="ai-report">
-
-          <!-- Veredicto general -->
-          <div class="ai-card ai-card-verdict">
-            <div class="ai-card-label">Veredicto general</div>
-            <p class="ai-verdict-text">{{ ai.report.veredicto_general }}</p>
-            <div class="ai-verdict-badges">
-              <span class="ai-badge ai-badge-best">
-                🏆 Mejor: {{ ai.report.mejor_modo }}
-              </span>
-              <span class="ai-badge ai-badge-worst">
-                ⚠ Peor: {{ ai.report.peor_modo }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Tabla comparativa por modos -->
-          <div class="ai-card">
-            <div class="ai-card-label">Análisis por modos</div>
-            <div class="ai-mode-grid">
-              <div class="ai-mode-card" *ngFor="let m of ai.report.tabla_comparativa">
-                <div class="ai-mode-head">
-                  <span class="ai-mode-name">{{ m.modo }}</span>
-                  <span class="ai-nivel-chip" [ngClass]="nivelClass(m.nivel)">{{ m.nivel }}</span>
-                </div>
-                <p class="ai-mode-analisis">{{ m.analisis }}</p>
-                <div class="ai-mode-points" *ngIf="m.puntos_fuertes.length">
-                  <div class="ai-point ai-point-good" *ngFor="let p of m.puntos_fuertes">
-                    <span class="ai-point-ico">✓</span> {{ p }}
-                  </div>
-                </div>
-                <div class="ai-mode-points" *ngIf="m.puntos_debiles.length">
-                  <div class="ai-point ai-point-bad" *ngFor="let p of m.puntos_debiles">
-                    <span class="ai-point-ico">✗</span> {{ p }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Explicación técnica -->
-          <div class="ai-card">
-            <div class="ai-card-label">Explicación técnica</div>
-            <p class="ai-body-text">{{ ai.report.explicacion_tecnica }}</p>
-          </div>
-
-          <!-- UltraTrac + SatIQ (si existen) -->
-          <div class="ai-two-col" *ngIf="ai.report.caso_ultratrac || ai.report.veredicto_satiq">
-            <div class="ai-card" *ngIf="ai.report.caso_ultratrac">
-              <div class="ai-card-label">El caso UltraTrac</div>
-              <p class="ai-body-text">{{ ai.report.caso_ultratrac }}</p>
-            </div>
-            <div class="ai-card" *ngIf="ai.report.veredicto_satiq">
-              <div class="ai-card-label">Veredicto SatIQ</div>
-              <p class="ai-body-text">{{ ai.report.veredicto_satiq }}</p>
-            </div>
-          </div>
-
-          <!-- Conclusión práctica + Recomendación -->
-          <div class="ai-two-col">
-            <div class="ai-card">
-              <div class="ai-card-label">Conclusión práctica</div>
-              <p class="ai-body-text">{{ ai.report.conclusion_practica }}</p>
-            </div>
-            <div class="ai-card ai-card-rec">
-              <div class="ai-card-label">Recomendación</div>
-              <p class="ai-rec-text">{{ ai.report.recomendacion_usuario }}</p>
-            </div>
-          </div>
-
-          <div class="ai-footer">
-            Generado por {{ ai.model }} · {{ ai.generated_at | date:'dd/MM/yyyy HH:mm' }}
-          </div>
-
-        </div>
-      </ng-container>
-
     </section>
 
   </div><!-- /analytical -->

@@ -237,6 +237,7 @@ export interface Session {
   device_name: string;
   reference_name: string;
   created_at: string;
+  activity_date?: string;
   sport_type: SportType;
   session_difficulty: SessionDifficulty;
   metrics: Metrics;

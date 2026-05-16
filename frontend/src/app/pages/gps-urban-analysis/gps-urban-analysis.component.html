@@ -25,8 +25,7 @@
               {{ t.created_at | date:'dd/MM/yyyy HH:mm' }}
             </div>
             <div class="saved-row-swatches">
-              <span class="saved-swatch" *ngFor="let ms of t.modes_summary"
-                [style.background]="ms.color"
+              <span class="saved-swatch" *ngFor="let ms of t.modes_summary" [style.background]="ms.color"
                 [title]="ms.name + ' (' + ms.run_count + ' run' + (ms.run_count !== 1 ? 's' : '') + ')'">
               </span>
             </div>
@@ -49,20 +48,19 @@
       <div class="ref-upload-header">
         <span class="setup-label">Línea de Verdad Absoluta</span>
         <span class="ref-badge" *ngIf="refPoints.length >= 2">
-          ✓ {{ refPoints.length }} pts · {{ fmt(refTotalArc, 0) }} m · {{ cornerCount }} esquina{{ cornerCount !== 1 ? 's' : '' }}
+          ✓ {{ refPoints.length }} pts · {{ fmt(refTotalArc, 0) }} m · {{ cornerCount }} esquina{{ cornerCount !== 1 ?
+          's' : '' }}
         </span>
       </div>
 
-      <div class="ref-drop-zone"
-        [class.ref-loaded]="refPoints.length >= 2"
-        [class.ref-error-state]="refError"
+      <div class="ref-drop-zone" [class.ref-loaded]="refPoints.length >= 2" [class.ref-error-state]="refError"
         (dragover)="onRefDragOver($event)" (drop)="onRefDrop($event)">
 
         <ng-container *ngIf="!refPoints.length && !refParsing">
           <div class="ref-drop-icon">📍</div>
           <div class="ref-drop-title">Arrastra tu fichero de ruta de referencia</div>
           <div class="ref-drop-hint">
-            Exporta el recorrido ideal desde <strong>Google Earth Pro</strong> (.kml) o tu reloj (.gpx)<br/>
+            Exporta el recorrido ideal desde <strong>Google Earth Pro</strong> (.kml) o tu reloj (.gpx)<br />
             Esta será la "acera perfecta" contra la que se miden todos los modos GPS
           </div>
           <label class="browse-link">
@@ -187,7 +185,11 @@
 
         <div class="panel-header">
           <span class="panel-label">Modos GPS</span>
-          <button class="nuevo-test-btn" (click)="newTest()">Nuevo test</button>
+          <div class="panel-header-actions">
+            <a class="ia-chip" *ngIf="currentTestId"
+              [routerLink]="['/devices', deviceId, 'gps-analysis', 'urban-ai', currentTestId]">Notas</a>
+            <button class="nuevo-test-btn" (click)="newTest()">Nuevo test</button>
+          </div>
         </div>
 
         <!-- Page tabs (compact, inside sidebar) -->
@@ -198,9 +200,8 @@
 
         <!-- Mode list sorted by RMSE -->
         <div class="mode-list">
-          <div class="mode-row" *ngFor="let m of sortedByRmse" [class.selected]="m.selected"
-            [class.dimmed]="!m.visible" (click)="selectMode(m.modeId)"
-            (mouseenter)="hoverMode(m.modeId)" (mouseleave)="hoverMode(null)">
+          <div class="mode-row" *ngFor="let m of sortedByRmse" [class.selected]="m.selected" [class.dimmed]="!m.visible"
+            (click)="selectMode(m.modeId)" (mouseenter)="hoverMode(m.modeId)" (mouseleave)="hoverMode(null)">
             <span class="mode-dot" [style.background]="m.color"></span>
             <div class="mode-info">
               <span class="mode-name">{{ m.modeName }}</span>
@@ -274,19 +275,21 @@
           <div class="map-legend">
             <span class="map-legend-item">
               <svg width="26" height="10">
-                <line x1="0" y1="5" x2="26" y2="5" stroke="#1a1a1a" stroke-width="4"/>
-                <line x1="0" y1="5" x2="26" y2="5" stroke="#fff" stroke-width="2" stroke-dasharray="6 3"/>
+                <line x1="0" y1="5" x2="26" y2="5" stroke="#1a1a1a" stroke-width="4" />
+                <line x1="0" y1="5" x2="26" y2="5" stroke="#fff" stroke-width="2" stroke-dasharray="6 3" />
               </svg>
               Ruta de referencia
             </span>
             <span class="map-legend-item">
               <svg width="14" height="14">
-                <circle cx="7" cy="7" r="5" fill="#FF6B35" opacity="0.9"/>
+                <circle cx="7" cy="7" r="5" fill="#FF6B35" opacity="0.9" />
               </svg>
               Esquina detectada
             </span>
             <span class="map-legend-item">
-              <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#888" stroke-width="2"/></svg>
+              <svg width="24" height="8">
+                <line x1="0" y1="4" x2="24" y2="4" stroke="#888" stroke-width="2" />
+              </svg>
               Run GPS
             </span>
           </div>
@@ -299,8 +302,8 @@
           <div class="chart-header">
             <span class="chart-eyebrow">Perfil de error cross-track a lo largo de la ruta</span>
             <div class="chart-legend">
-              <span class="chart-legend-item" *ngFor="let t of chartThresholds"
-                [style.color]="t.color">— {{ t.label }}</span>
+              <span class="chart-legend-item" *ngFor="let t of chartThresholds" [style.color]="t.color">— {{ t.label
+                }}</span>
               <span class="chart-legend-item" style="color: #FF6B35">↕ Esq.</span>
             </div>
           </div>
@@ -309,65 +312,51 @@
               (mousemove)="onChartMouseMove($event)" (mouseleave)="onChartMouseLeave()">
               <!-- Y-axis grid + ticks -->
               <g *ngFor="let tick of chartYTicks">
-                <line [attr.x1]="CHART_PAD_L" [attr.y1]="tick.y"
-                  [attr.x2]="CHART_PAD_L + CHART_W + 18" [attr.y2]="tick.y"
-                  stroke="#E2DFD6" stroke-width="1"/>
-                <text [attr.x]="CHART_PAD_L - 4" [attr.y]="tick.y + 3"
-                  text-anchor="end" fill="#B5B1A3" font-size="9" font-family="monospace">{{ tick.label }}</text>
+                <line [attr.x1]="CHART_PAD_L" [attr.y1]="tick.y" [attr.x2]="CHART_PAD_L + CHART_W + 18"
+                  [attr.y2]="tick.y" stroke="#E2DFD6" stroke-width="1" />
+                <text [attr.x]="CHART_PAD_L - 4" [attr.y]="tick.y + 3" text-anchor="end" fill="#B5B1A3" font-size="9"
+                  font-family="monospace">{{ tick.label }}</text>
               </g>
               <!-- Threshold lines -->
               <g *ngFor="let t of chartThresholds">
-                <line [attr.x1]="CHART_PAD_L" [attr.y1]="t.y"
-                  [attr.x2]="CHART_PAD_L + CHART_W" [attr.y2]="t.y"
-                  [attr.stroke]="t.color" stroke-width="1" stroke-dasharray="4 3" opacity="0.7"/>
-                <text [attr.x]="CHART_PAD_L + CHART_W + 2" [attr.y]="t.y + 3"
-                  [attr.fill]="t.color" font-size="9" font-family="monospace">{{ t.label }}</text>
+                <line [attr.x1]="CHART_PAD_L" [attr.y1]="t.y" [attr.x2]="CHART_PAD_L + CHART_W" [attr.y2]="t.y"
+                  [attr.stroke]="t.color" stroke-width="1" stroke-dasharray="4 3" opacity="0.7" />
+                <text [attr.x]="CHART_PAD_L + CHART_W + 2" [attr.y]="t.y + 3" [attr.fill]="t.color" font-size="9"
+                  font-family="monospace">{{ t.label }}</text>
               </g>
               <!-- Corner vertical lines -->
-              <line *ngFor="let cx of chartCornerLines"
-                [attr.x1]="cx" y1="4" [attr.x2]="cx" [attr.y2]="4 + CHART_H"
-                stroke="#FF6B35" stroke-width="1" stroke-dasharray="2 3" opacity="0.55"/>
+              <line *ngFor="let cx of chartCornerLines" [attr.x1]="cx" y1="4" [attr.x2]="cx" [attr.y2]="4 + CHART_H"
+                stroke="#FF6B35" stroke-width="1" stroke-dasharray="2 3" opacity="0.55" />
               <!-- Error profile paths -->
-              <path *ngFor="let p of chartPaths"
-                [attr.d]="p.d" [attr.stroke]="p.color"
-                stroke-width="1.5" fill="none"
-                [attr.opacity]="p.dim ? 0.12 : 0.85"/>
+              <path *ngFor="let p of chartPaths" [attr.d]="p.d" [attr.stroke]="p.color" stroke-width=".5" fill="none"
+                [attr.opacity]="p.dim ? 0.12 : 0.85" />
               <!-- X axis baseline -->
-              <line [attr.x1]="CHART_PAD_L" [attr.y1]="4 + CHART_H"
-                [attr.x2]="CHART_PAD_L + CHART_W" [attr.y2]="4 + CHART_H"
-                stroke="#B5B1A3" stroke-width="1"/>
+              <line [attr.x1]="CHART_PAD_L" [attr.y1]="4 + CHART_H" [attr.x2]="CHART_PAD_L + CHART_W"
+                [attr.y2]="4 + CHART_H" stroke="#B5B1A3" stroke-width="1" />
               <!-- X axis labels -->
-              <text [attr.x]="CHART_PAD_L" [attr.y]="4 + CHART_H + 12"
-                fill="#B5B1A3" font-size="9" font-family="monospace">0 m</text>
-              <text [attr.x]="CHART_PAD_L + CHART_W" [attr.y]="4 + CHART_H + 12"
-                text-anchor="end" fill="#B5B1A3" font-size="9" font-family="monospace">{{ fmt(refTotalArc, 0) }} m</text>
+              <text [attr.x]="CHART_PAD_L" [attr.y]="4 + CHART_H + 12" fill="#B5B1A3" font-size="9"
+                font-family="monospace">0 m</text>
+              <text [attr.x]="CHART_PAD_L + CHART_W" [attr.y]="4 + CHART_H + 12" text-anchor="end" fill="#B5B1A3"
+                font-size="9" font-family="monospace">{{ fmt(refTotalArc, 0) }} m</text>
 
               <!-- ── Cursor scrubber ─────────────────────────────────────── -->
               <g *ngIf="chartCursorX !== null">
-                <line
-                  [attr.x1]="chartCursorX" y1="4"
-                  [attr.x2]="chartCursorX" [attr.y2]="4 + CHART_H"
-                  stroke="#14130F" stroke-width="1.5" opacity="0.55" stroke-dasharray="4 2"
-                  pointer-events="none"/>
+                <line [attr.x1]="chartCursorX" y1="4" [attr.x2]="chartCursorX" [attr.y2]="4 + CHART_H" stroke="#14130F"
+                  stroke-width="1.5" opacity="0.55" stroke-dasharray="4 2" pointer-events="none" />
                 <text
                   [attr.x]="(chartCursorX ?? 0) > CHART_PAD_L + CHART_W * 0.75 ? (chartCursorX ?? 0) - 4 : (chartCursorX ?? 0) + 4"
-                  [attr.text-anchor]="(chartCursorX ?? 0) > CHART_PAD_L + CHART_W * 0.75 ? 'end' : 'start'"
-                  y="11" fill="#14130F" font-size="9" font-weight="600" font-family="monospace"
-                  pointer-events="none">
+                  [attr.text-anchor]="(chartCursorX ?? 0) > CHART_PAD_L + CHART_W * 0.75 ? 'end' : 'start'" y="11"
+                  fill="#14130F" font-size="9" font-weight="600" font-family="monospace" pointer-events="none">
                   {{ fmt(chartCursorS ?? 0, 0) }} m
                 </text>
                 <g *ngFor="let cv of chartCursorValues">
-                  <circle
-                    [attr.cx]="chartCursorX" [attr.cy]="chartY(cv.err)"
-                    r="3.5" [attr.fill]="cv.color" stroke="#fff" stroke-width="1"
-                    pointer-events="none"/>
+                  <circle [attr.cx]="chartCursorX" [attr.cy]="chartY(cv.err)" r="2" [attr.fill]="cv.color" stroke="#fff"
+                    stroke-width="1" pointer-events="none" />
                   <text
-                    [attr.x]="(chartCursorX ?? 0) > CHART_PAD_L + CHART_W * 0.75 ? (chartCursorX ?? 0) - 7 : (chartCursorX ?? 0) + 7"
+                    [attr.x]="(chartCursorX ?? 0) > CHART_PAD_L + CHART_W * 0.75 ? (chartCursorX ?? 0) - 5 : (chartCursorX ?? 0) + 5"
                     [attr.text-anchor]="(chartCursorX ?? 0) > CHART_PAD_L + CHART_W * 0.75 ? 'end' : 'start'"
-                    [attr.y]="chartY(cv.err) + 3"
-                    [attr.fill]="cv.color"
-                    font-size="9" font-weight="700" font-family="monospace"
-                    pointer-events="none">
+                    [attr.y]="chartY(cv.err) + 3" [attr.fill]="cv.color" font-size="7" font-weight="700"
+                    font-family="monospace" pointer-events="none">
                     {{ fmt(cv.err, 1) }} m
                   </text>
                 </g>
@@ -391,16 +380,13 @@
 
           <!-- Aptitude verdict -->
           <ng-container *ngIf="urbanAptitude(sel) as apt">
-            <div class="apt-verdict"
-              [class.apt-elite]="apt.level === 'elite'"
-              [class.apt-high]="apt.level === 'high'"
-              [class.apt-standard]="apt.level === 'standard'"
-              [class.apt-marginal]="apt.level === 'marginal'"
-              [class.apt-no-apto]="apt.level === 'no-apto'"
-              [class.apt-sin-ref]="apt.level === 'sin-ref'">
+            <div class="apt-verdict" [class.apt-elite]="apt.level === 'elite'" [class.apt-high]="apt.level === 'high'"
+              [class.apt-standard]="apt.level === 'standard'" [class.apt-marginal]="apt.level === 'marginal'"
+              [class.apt-no-apto]="apt.level === 'no-apto'" [class.apt-sin-ref]="apt.level === 'sin-ref'">
               <div class="apt-icon-wrap">
                 <span class="apt-icon">
-                  {{ apt.level === 'elite' ? '🏙️' : apt.level === 'high' ? '✓' : apt.level === 'standard' ? '≈' : apt.level === 'marginal' ? '△' : apt.level === 'no-apto' ? '✕' : '?' }}
+                  {{ apt.level === 'elite' ? '🏙️' : apt.level === 'high' ? '✓' : apt.level === 'standard' ? '≈' :
+                  apt.level === 'marginal' ? '△' : apt.level === 'no-apto' ? '✕' : '?' }}
                 </span>
               </div>
               <div class="apt-body">
@@ -417,9 +403,11 @@
           <div class="apt-metrics-strip">
             <!-- RMSE hero -->
             <div class="apt-metric apt-metric-hero">
-              <span class="apt-metric-label" title="RMSE ⊥ Urbano — distancia perpendicular media a la Línea de Verdad Absoluta">RMSE ⊥ Urbano</span>
+              <span class="apt-metric-label"
+                title="RMSE ⊥ Urbano — distancia perpendicular media a la Línea de Verdad Absoluta">RMSE ⊥ Urbano</span>
               <span class="apt-metric-val num">{{ fmt(sel.rmse, 2) }} m</span>
-              <span class="apt-metric-sub">{{ sel.runs.length }} run{{ sel.runs.length !== 1 ? 's' : '' }} · error cross-track RMS</span>
+              <span class="apt-metric-sub">{{ sel.runs.length }} run{{ sel.runs.length !== 1 ? 's' : '' }} · error
+                cross-track RMS</span>
             </div>
             <!-- P95 -->
             <div class="apt-metric">
@@ -434,8 +422,7 @@
             <!-- Building penetration -->
             <div class="apt-metric">
               <span class="apt-metric-label" title="% de puntos GPS dentro de edificios según OSM">Inv. Edificios</span>
-              <span class="apt-metric-val num"
-                [class.mape-ok]="!isNaN(sel.buildingPct) && sel.buildingPct < 1"
+              <span class="apt-metric-val num" [class.mape-ok]="!isNaN(sel.buildingPct) && sel.buildingPct < 1"
                 [class.mape-warn]="!isNaN(sel.buildingPct) && sel.buildingPct >= 1 && sel.buildingPct < 5"
                 [class.mape-bad]="!isNaN(sel.buildingPct) && sel.buildingPct >= 5">
                 {{ fmtPct(sel.buildingPct) }}
@@ -444,22 +431,25 @@
             </div>
             <!-- Corner cutting -->
             <div class="apt-metric">
-              <span class="apt-metric-label" title="Error medio en esquinas — distancia del reloj al vértice de giro">Error esquinas</span>
+              <span class="apt-metric-label"
+                title="Error medio en esquinas — distancia del reloj al vértice de giro">Error esquinas</span>
               <span class="apt-metric-val num">{{ fmt(sel.cornerErr, 1) }} m</span>
               <span class="apt-metric-sub">{{ cornerCount }} esquina{{ cornerCount !== 1 ? 's' : '' }}</span>
             </div>
             <!-- Speed jitter -->
             <div class="apt-metric">
-              <span class="apt-metric-label" title="Jitter de velocidad — desviación típica de la velocidad instantánea en tramos rectos">Jitter vel.</span>
+              <span class="apt-metric-label"
+                title="Jitter de velocidad — desviación típica de la velocidad instantánea en tramos rectos">Jitter
+                vel.</span>
               <span class="apt-metric-val num">{{ fmtMs(sel.speedJitter) }}</span>
             </div>
             <!-- MAPE distancia -->
             <div class="apt-metric">
-              <span class="apt-metric-label" title="MAPE — Mean Absolute Percentage Error de distancia: error % de la distancia GPS registrada vs. referencia">MAPE Dist.</span>
-              <span class="apt-metric-val num"
-                [class.mape-ok]="sel.mape < 1"
-                [class.mape-warn]="sel.mape >= 1 && sel.mape < 3"
-                [class.mape-bad]="sel.mape >= 3">
+              <span class="apt-metric-label"
+                title="MAPE — Mean Absolute Percentage Error de distancia: error % de la distancia GPS registrada vs. referencia">MAPE
+                Dist.</span>
+              <span class="apt-metric-val num" [class.mape-ok]="sel.mape < 1"
+                [class.mape-warn]="sel.mape >= 1 && sel.mape < 3" [class.mape-bad]="sel.mape >= 3">
                 {{ fmt(sel.mape, 2) }}%
               </span>
               <span class="apt-metric-sub">{{ fmtDelta(sel.distDelta) }} respecto ref.</span>
@@ -487,15 +477,11 @@
                   <td class="run-name">{{ rm.filename }}</td>
                   <td class="num">{{ fmt(rm.rmse, 2) }} m</td>
                   <td class="num">{{ fmt(rm.p95, 1) }} m</td>
-                  <td class="num"
-                    [class.mape-ok]="rm.mape < 1"
-                    [class.mape-warn]="rm.mape >= 1 && rm.mape < 3"
+                  <td class="num" [class.mape-ok]="rm.mape < 1" [class.mape-warn]="rm.mape >= 1 && rm.mape < 3"
                     [class.mape-bad]="rm.mape >= 3">
                     {{ fmt(rm.mape, 2) }}%
                   </td>
-                  <td class="num"
-                    [class.over]="rm.distDelta > 0"
-                    [class.under]="rm.distDelta < 0">
+                  <td class="num" [class.over]="rm.distDelta > 0" [class.under]="rm.distDelta < 0">
                     {{ fmtDelta(rm.distDelta) }}
                   </td>
                   <td class="num">{{ fmtPct(rm.buildingPct) }}</td>
@@ -530,21 +516,23 @@
               <th class="rft-name">Modo GPS</th>
               <th class="rft-num" title="RMSE ⊥ Urbano — error perpendicular medio vs. referencia">RMSE ⊥</th>
               <th class="rft-num" title="Percentil 95 del error cross-track">P95 ⊥</th>
-              <th class="rft-num" title="Índice de Invasión de Edificios — % puntos GPS dentro de polígonos de edificio">Inv. Edif.</th>
+              <th class="rft-num"
+                title="Índice de Invasión de Edificios — % puntos GPS dentro de polígonos de edificio">Inv. Edif.</th>
               <th class="rft-num" title="Error de Giro — distancia media al vértice de esquina">Error Esq.</th>
-              <th class="rft-num" title="Jitter de Velocidad — desviación típica de la velocidad instantánea">Jitter Vel.</th>
+              <th class="rft-num" title="Jitter de Velocidad — desviación típica de la velocidad instantánea">Jitter
+                Vel.</th>
               <th class="rft-num" title="Distancia GPS media registrada por run">Dist GPS</th>
               <th class="rft-num" title="Diferencia entre distancia GPS media y distancia de referencia">Δ Dist</th>
               <th class="rft-num" title="MAPE — Mean Absolute Percentage Error de distancia vs. referencia">MAPE</th>
               <th class="rft-num" title="Número de runs subidos">Runs</th>
               <th class="rft-num" title="Frecuencia de muestreo GPS">Frec.</th>
-              <th class="rft-apt" title="Urban Elite ≤2.5m · High ≤5m · Standard ≤10m · Marginal ≤15m · No Apto >15m">Aptitud</th>
+              <th class="rft-apt" title="Urban Elite ≤2.5m · High ≤5m · Standard ≤10m · Marginal ≤15m · No Apto >15m">
+                Aptitud</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let m of sortedByRmse; let i = index" [class.rank-tr-selected]="m.selected"
-              (click)="selectMode(m.modeId)" (mouseenter)="hoverMode(m.modeId)"
-              (mouseleave)="hoverMode(null)">
+              (click)="selectMode(m.modeId)" (mouseenter)="hoverMode(m.modeId)" (mouseleave)="hoverMode(null)">
 
               <td class="rft-td-pos">
                 <span class="rank-badge" [class.rank-gold]="i === 0" [class.rank-silver]="i === 1"
@@ -569,8 +557,7 @@
 
               <td class="rft-td-num num">{{ fmt(m.p95, 1) }} m</td>
 
-              <td class="rft-td-num num"
-                [class.mape-ok]="!isNaN(m.buildingPct) && m.buildingPct < 1"
+              <td class="rft-td-num num" [class.mape-ok]="!isNaN(m.buildingPct) && m.buildingPct < 1"
                 [class.mape-warn]="!isNaN(m.buildingPct) && m.buildingPct >= 1 && m.buildingPct < 5"
                 [class.mape-bad]="!isNaN(m.buildingPct) && m.buildingPct >= 5">
                 {{ fmtPct(m.buildingPct) }}
@@ -579,14 +566,10 @@
               <td class="rft-td-num num">{{ fmt(m.cornerErr, 1) }} m</td>
               <td class="rft-td-num num">{{ fmtMs(m.speedJitter) }}</td>
               <td class="rft-td-num num">{{ fmtDist(modeAvgDist(m)) }}</td>
-              <td class="rft-td-num num"
-                [class.over]="modeDeltaDist(m) > 0"
-                [class.under]="modeDeltaDist(m) < 0">
+              <td class="rft-td-num num" [class.over]="modeDeltaDist(m) > 0" [class.under]="modeDeltaDist(m) < 0">
                 {{ refTotalArc > 0 ? fmtDelta(modeDeltaDist(m)) : '—' }}
               </td>
-              <td class="rft-td-num num"
-                [class.mape-ok]="m.mape < 1"
-                [class.mape-warn]="m.mape >= 1 && m.mape < 3"
+              <td class="rft-td-num num" [class.mape-ok]="m.mape < 1" [class.mape-warn]="m.mape >= 1 && m.mape < 3"
                 [class.mape-bad]="m.mape >= 3">
                 {{ fmt(m.mape, 2) }}%
               </td>
@@ -595,10 +578,8 @@
 
               <td class="rft-td-apt">
                 <ng-container *ngIf="urbanAptitude(m) as apt">
-                  <span class="apt-chip"
-                    [class.apt-chip-elite]="apt.level === 'elite'"
-                    [class.apt-chip-high]="apt.level === 'high'"
-                    [class.apt-chip-standard]="apt.level === 'standard'"
+                  <span class="apt-chip" [class.apt-chip-elite]="apt.level === 'elite'"
+                    [class.apt-chip-high]="apt.level === 'high'" [class.apt-chip-standard]="apt.level === 'standard'"
                     [class.apt-chip-marginal]="apt.level === 'marginal'"
                     [class.apt-chip-no-apto]="apt.level === 'no-apto'"
                     [class.apt-chip-sin-ref]="apt.level === 'sin-ref'"
@@ -612,93 +593,6 @@
           </tbody>
         </table>
       </div>
-    </section>
-
-    <!-- ── AI ANALYSIS ──────────────────────────────────────────────────── -->
-    <section class="ai-section">
-      <div class="ai-header">
-        <div class="ai-header-left">
-          <span class="section-eyebrow">Análisis IA</span>
-          <h3 class="section-title">Informe GPT-4o — GPS Urbano</h3>
-        </div>
-        <button class="ai-generate-btn"
-          [disabled]="aiLoading || !currentTestId"
-          (click)="generateAiAnalysis()">
-          <span *ngIf="aiLoading">Generando…</span>
-          <span *ngIf="!aiLoading && !aiAnalysis">Generar análisis IA</span>
-          <span *ngIf="!aiLoading && aiAnalysis">Regenerar análisis</span>
-        </button>
-      </div>
-
-      <p class="ai-error" *ngIf="aiError">{{ aiError }}</p>
-
-      <div class="ai-loading-bar" *ngIf="aiLoading">
-        <div class="ai-loading-fill"></div>
-      </div>
-
-      <ng-container *ngIf="aiAnalysis && !aiLoading">
-        <div class="ai-generated-at">
-          Generado {{ aiAnalysis.generated_at | date:'dd/MM/yyyy HH:mm' }} · {{ aiAnalysis.model }}
-        </div>
-
-        <!-- Veredicto humano -->
-        <div class="ai-verdict-card">
-          <div class="ai-verdict-label">Veredicto</div>
-          <p class="ai-verdict-text">{{ aiAnalysis.report.veredicto_humano }}</p>
-          <div class="ai-verdict-row">
-            <span class="ai-medal ai-medal-gold">Mejor: {{ aiAnalysis.report.mejor_modo }}</span>
-            <span class="ai-medal ai-medal-red">Peor: {{ aiAnalysis.report.peor_modo }}</span>
-          </div>
-        </div>
-
-        <!-- Análisis por modo -->
-        <div class="ai-modes-grid">
-          <div class="ai-mode-card" *ngFor="let m of aiAnalysis.report.analisis_modos">
-            <div class="ai-mode-header">
-              <span class="ai-mode-name">{{ m.modo }}</span>
-              <span class="ai-level-chip"
-                [class.ai-level-elite]="m.nivel === 'Urban Elite'"
-                [class.ai-level-high]="m.nivel === 'High Tier'"
-                [class.ai-level-standard]="m.nivel === 'Standard'"
-                [class.ai-level-marginal]="m.nivel === 'Marginal'"
-                [class.ai-level-no-apto]="m.nivel === 'No Apto'">
-                {{ m.nivel }}
-              </span>
-            </div>
-            <p class="ai-mode-analisis">{{ m.explicacion_porque }}</p>
-            <div class="ai-dato-clave">
-              <span class="ai-dato-label">Dato clave</span>
-              <span class="ai-dato-value">{{ m.dato_clave }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Análisis técnico y jitter -->
-        <div class="ai-tech-grid">
-          <div class="ai-tech-card">
-            <div class="ai-tech-label">Por qué unos modos superan a otros</div>
-            <p>{{ aiAnalysis.report.explicacion_tecnica_sencilla }}</p>
-          </div>
-          <div class="ai-tech-card">
-            <div class="ai-tech-label">El ritmo en tu muñeca</div>
-            <p>{{ aiAnalysis.report.el_gancho_del_jitter }}</p>
-          </div>
-          <div class="ai-tech-card ai-tech-card-warning" *ngIf="aiAnalysis.report.advertencia_ultratrac">
-            <div class="ai-tech-label">UltraTrac en ciudad</div>
-            <p>{{ aiAnalysis.report.advertencia_ultratrac }}</p>
-          </div>
-        </div>
-
-        <!-- Conclusión práctica -->
-        <div class="ai-conclusion">
-          <div class="ai-tech-label">Conclusión práctica</div>
-          <div class="ai-recommendation">
-            <span class="ai-rec-icon">→</span>
-            <span>{{ aiAnalysis.report.conclusion_practica }}</span>
-          </div>
-        </div>
-
-      </ng-container>
     </section>
 
   </div>

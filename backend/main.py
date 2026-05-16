@@ -80,6 +80,8 @@ def _ser(doc: dict, *, keep_fc: bool = False) -> dict:
         doc["device_id"] = str(doc["device_id"])
     if isinstance(doc.get("created_at"), datetime):
         doc["created_at"] = doc["created_at"].isoformat()
+    if isinstance(doc.get("activity_date"), datetime):
+        doc["activity_date"] = doc["activity_date"].isoformat()
     if not keep_fc:
         doc.pop("fc_data", None)
     # Never expose raw binary file bytes in API responses
@@ -354,7 +356,7 @@ async def list_device_sessions(
     cursor = db().sessions.find(
         query,
         {"device_file_bytes": 0, "reference_file_bytes": 0},
-    ).sort("created_at", -1)
+    ).sort("activity_date", -1)
 
     results = []
     async for d in cursor:
@@ -463,6 +465,34 @@ async def reanalyze_session(session_id: str) -> dict:
 
     updated = await db().sessions.find_one({"_id": _oid(session_id)})
     return _ser(updated, keep_fc=True)
+
+
+@app.post("/api/admin/backfill-activity-dates", status_code=200)
+async def backfill_activity_dates() -> dict:
+    """One-time migration: extract activity_date from stored file bytes for sessions that lack it."""
+    from analyzer import read_fc_from_bytes
+    cursor = db().sessions.find(
+        {"activity_date": {"$exists": False}},
+        {"device_file_bytes": 1, "device_file_name": 1},
+    )
+    updated = 0
+    skipped = 0
+    async for doc in cursor:
+        raw = doc.get("device_file_bytes")
+        if not raw:
+            skipped += 1
+            continue
+        try:
+            series = read_fc_from_bytes(bytes(raw), doc.get("device_file_name", ""))
+            activity_date = datetime.utcfromtimestamp(int(series.index[0]))
+            await db().sessions.update_one(
+                {"_id": doc["_id"]},
+                {"$set": {"activity_date": activity_date}},
+            )
+            updated += 1
+        except Exception:
+            skipped += 1
+    return {"updated": updated, "skipped": skipped}
 
 
 @app.get("/api/sessions/{session_id}/files/{file_type}")

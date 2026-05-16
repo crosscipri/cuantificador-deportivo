@@ -24,11 +24,11 @@ from datetime import datetime
 # CONSTANTS
 # ─────────────────────────────────────────────────────────────────────────────
 ZONAS_FC = [
-    ("Z1 Recuperación", 0,   130),
-    ("Z2 Aeróbico",   130,   145),
-    ("Z3 Tempo",      145,   151),
-    ("Z4 Subumbral",  151,   161),
-    ("Z5 Máximo",     161,   999),
+    ("Z1 Aeróbico bajo",          44,  134),
+    ("Z2 Aeróbico base",         134,  154),
+    ("Z3 Umbral láctico",        154,  167),
+    ("Z4 Supra-umbral",          167,  176),
+    ("Z5 VO2máx / neuromuscular",176,  999),
 ]
 COLORES_ZONA = ["#3498db", "#2ecc71", "#f1c40f", "#e67e22", "#e74c3c"]
 
@@ -260,8 +260,18 @@ def calculate_metrics(fc_ref: pd.Series, fc_dev: pd.Series) -> dict:
     denom = ms_b + ms_e + 2 * (ms_j - ms_e) / n
     icc   = (ms_b - ms_e) / denom if denom > 0 else 0.0
 
-    r, p = stats.pearsonr(fc_ref.values, fc_dev.values)
-    lr   = stats.linregress(fc_ref.values, fc_dev.values)
+    try:
+        r, p = stats.pearsonr(fc_ref.values, fc_dev.values)
+    except Exception:
+        r, p = 0.0, 1.0
+
+    try:
+        lr = stats.linregress(fc_ref.values, fc_dev.values)
+        slope     = round(float(lr.slope), 4)
+        intercept = round(float(lr.intercept), 2)
+    except Exception:
+        slope     = 1.0
+        intercept = 0.0
 
     return {
         "mae":       round(mae,  2),
@@ -274,8 +284,8 @@ def calculate_metrics(fc_ref: pd.Series, fc_dev: pd.Series) -> dict:
         "icc":       round(float(icc), 4),
         "r":         round(r,    4),
         "p":         float(p),
-        "slope":     round(float(lr.slope), 4),
-        "intercept": round(float(lr.intercept), 2),
+        "slope":     slope,
+        "intercept": intercept,
         "n":         n,
         "media_ref": round(m1, 1),
         "media_dev": round(m2, 1),
@@ -603,12 +613,16 @@ def analyze_session(
         "step":      step,
     }
 
+    # Activity start date from the earliest timestamp in the device file
+    activity_date = datetime.utcfromtimestamp(int(fc_dev.index[0]))
+
     return {
         "metrics":          metrics,
         "zones":            zones,
         "lag":              lag,
         "fcmax":            fcmax,
         "duration_seconds": int(len(ref_aligned)),
+        "activity_date":    activity_date,
         "charts": {
             "temporal":   temporal_chart,
             "validation": validation_chart,

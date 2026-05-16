@@ -1,11 +1,11 @@
 import { Component, OnInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 
 import { GpxParserService } from '../../services/gpx-parser.service';
 import { ApiService } from '../../services/api.service';
-import { GpsMode, GPS_MODE_COLORS, GpsTestSummary, GpsTestDetail, GpsAiAnalysis } from '../../models/gps-analysis.model';
+import { GpsMode, GPS_MODE_COLORS, GpsTestSummary, GpsTestDetail } from '../../models/gps-analysis.model';
 import {
   STRAIGHT, R_INNER, LANE_W, N_LANES,
   runRadius, trackBbox, lapLength, pathEdge, pointAt, nearestOnLane1,
@@ -82,10 +82,8 @@ export class GpsTrackAnalysisComponent implements OnInit {
   analytics: GpsModeAnalytics[] | null = null;
   hoveredModeId: string | null = null;
 
-  aiAnalysis: GpsAiAnalysis | null = null;
-  aiLoading  = false;
-  aiError    = '';
-  aiTab      = false;
+  aiLoading = false;
+  aiError   = '';
 
   trackStyle: 'realista' | 'esquematica' | 'blueprint' = 'realista';
   trackZoom   = 1;
@@ -263,6 +261,7 @@ export class GpsTrackAnalysisComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private gpxParser: GpxParserService,
     private api: ApiService,
   ) {}
@@ -288,7 +287,7 @@ export class GpsTrackAnalysisComponent implements OnInit {
   }
 
   loadTest(testId: string): void {
-    this.aiAnalysis = null; this.aiError = ''; this.aiTab = false;
+    this.aiError = '';
     this.api.getGpsTest(testId).subscribe({
       next: (test: GpsTestDetail) => {
         this.referenceDistance = test.reference_distance;
@@ -306,13 +305,19 @@ export class GpsTrackAnalysisComponent implements OnInit {
         this.analytics = this.buildAnalytics(gpsModes);
         this.currentTestId = testId;
         this.trackZoom = 1; this.trackPanX = 0; this.trackPanY = 0;
-        // Try to load existing AI analysis
-        this.api.getGpsTestAiAnalysis(testId).subscribe({
-          next: ai => { this.aiAnalysis = ai; },
-          error: () => {},
-        });
+        this.cacheModesStats(testId);
       },
     });
+  }
+
+  private cacheModesStats(testId: string): void {
+    if (!this.analytics) return;
+    const modesStats = this.analytics.map(m => ({
+      name: m.modeName, rmse: m.rmse, p95: m.p95Err,
+      mean_err: m.meanErr, mape: m.mape, delta_dist: m.deltaDist,
+      sample_hz: m.sampleHz, n_samples: m.nSamples,
+    }));
+    sessionStorage.setItem(`gps-track-modesStats-${testId}`, JSON.stringify(modesStats));
   }
 
   deleteTest(testId: string, event: Event): void {
@@ -350,6 +355,7 @@ export class GpsTrackAnalysisComponent implements OnInit {
         this.currentTestId = saved.id;
         this.savedTests = [saved, ...this.savedTests];
         this.savingTest = false;
+        this.cacheModesStats(saved.id);
       },
       error: () => { this.savingTest = false; },
     });
@@ -414,46 +420,16 @@ export class GpsTrackAnalysisComponent implements OnInit {
     this.currentTestId = null;
     this.hoveredModeId = null;
     this.hoveredTrackPoint = null;
-    this.aiAnalysis = null; this.aiError = ''; this.aiTab = false;
+    this.aiError = '';
     this.trackZoom = 1; this.trackPanX = 0; this.trackPanY = 0;
     this.modes.forEach(m => { m.fileInputFiles = []; m.error = ''; });
   }
 
-  generateAiAnalysis(): void {
-    if (!this.currentTestId || !this.analytics) return;
-    this.aiLoading = true; this.aiError = '';
-    const modesStats = this.analytics.map(m => ({
-      name:       m.modeName,
-      rmse:       m.rmse,
-      p95:        m.p95Err,
-      mean_err:   m.meanErr,
-      mape:       m.mape,
-      delta_dist: m.deltaDist,
-      sample_hz:  m.sampleHz,
-      n_samples:  m.nSamples,
-    }));
-    this.api.generateGpsTestAiAnalysis(this.currentTestId, modesStats).subscribe({
-      next: ai => {
-        this.aiAnalysis = ai;
-        this.aiLoading  = false;
-        this.aiTab      = true;
-      },
-      error: (err) => {
-        this.aiError  = err?.error?.detail ?? 'Error al generar el análisis IA';
-        this.aiLoading = false;
-      },
-    });
+  goToAiPage(): void {
+    if (!this.currentTestId) return;
+    this.router.navigate(['/devices', this.deviceId, 'gps-analysis', 'track-ai', this.currentTestId]);
   }
 
-  nivelClass(nivel: string): string {
-    const map: Record<string, string> = {
-      'Competición': 'nivel-comp',
-      'Excelente':   'nivel-exc',
-      'Apto':        'nivel-apto',
-      'No Apto':     'nivel-no',
-    };
-    return map[nivel] ?? '';
-  }
 
   // ── Analytics computation ────────────────────────────────────────────────
 

@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-import openai
+import anthropic
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SYSTEM PROMPTS
@@ -715,10 +715,31 @@ Genera el VEREDICTO FINAL basándote en el patrón de rendimiento a través de t
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _parse_json(content: str) -> dict:
-    """Extract and parse JSON from GPT response, stripping any markdown fences."""
+    """Extract and parse JSON from model response, stripping markdown and finding the outermost object."""
     content = re.sub(r"```json\s*", "", content)
     content = re.sub(r"```\s*",     "", content)
-    return json.loads(content.strip())
+    content = content.strip()
+    start = content.find("{")
+    end   = content.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        content = content[start:end + 1]
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as e:
+        print(f"[JSON ERROR] {e}")
+        print(f"[JSON RAW] ...{content[max(0,e.pos-120):e.pos+120]}...")
+        raise
+
+
+def _anthropic_client() -> anthropic.AsyncAnthropic:
+    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY no está configurada en .env")
+    return anthropic.AsyncAnthropic(api_key=api_key)
+
+
+def _cached_system(prompt: str) -> list:
+    return [{"type": "text", "text": prompt, "cache_control": {"type": "ephemeral"}}]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -727,27 +748,20 @@ def _parse_json(content: str) -> dict:
 
 async def generate_session_ai_analysis(session_doc: dict) -> dict:
     """
-    Call GPT-4o to analyse a session, then produce annotated charts.
+    Call Claude Sonnet to analyse a session, then produce annotated charts.
     Returns a dict suitable for storage in sessions.ai_analysis.
     """
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY no está configurada en .env")
+    client = _anthropic_client()
 
-    client = openai.AsyncOpenAI(api_key=api_key)
-
-    response = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": _build_session_prompt(session_doc)},
-        ],
-        response_format={"type": "json_object"},
+    response = await client.messages.create(
+        model="claude-sonnet-4-6",
+        system=_cached_system(SYSTEM_PROMPT),
+        messages=[{"role": "user", "content": _build_session_prompt(session_doc)}],
         temperature=0.25,
-        max_tokens=2200,
+        max_tokens=8192,
     )
 
-    report = _parse_json(response.choices[0].message.content or "{}")
+    report = _parse_json(response.content[0].text or "{}")
     annotations = report.get("anotaciones_temporales", [])
 
     fc_data   = session_doc.get("fc_data",   {})
@@ -768,7 +782,7 @@ async def generate_session_ai_analysis(session_doc: dict) -> dict:
         "report":           report,
         "annotated_charts": {"temporal": temporal, "validation": validation},
         "generated_at":     datetime.utcnow().isoformat(),
-        "model":            "gpt-4o",
+        "model":            "claude-sonnet-4-6",
     }
 
 
@@ -802,30 +816,23 @@ async def generate_gps_track_ai_analysis(
     reference_distance: float,
     modes_stats:        list[dict],
 ) -> dict:
-    """Call GPT to analyse GPS track test results. Returns dict for storage in gps_tests.ai_analysis."""
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY no está configurada en .env")
+    """Call Claude Sonnet to analyse GPS track test results. Returns dict for storage in gps_tests.ai_analysis."""
+    client = _anthropic_client()
 
-    client = openai.AsyncOpenAI(api_key=api_key)
-
-    response = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": GPS_TRACK_SYSTEM_PROMPT},
-            {"role": "user",   "content": _build_gps_track_prompt(test_name, reference_distance, modes_stats)},
-        ],
-        response_format={"type": "json_object"},
+    response = await client.messages.create(
+        model="claude-sonnet-4-6",
+        system=_cached_system(GPS_TRACK_SYSTEM_PROMPT),
+        messages=[{"role": "user", "content": _build_gps_track_prompt(test_name, reference_distance, modes_stats)}],
         temperature=0.25,
         max_tokens=2000,
     )
 
-    report = _parse_json(response.choices[0].message.content or "{}")
+    report = _parse_json(response.content[0].text or "{}")
 
     return {
         "report":       report,
         "generated_at": datetime.utcnow().isoformat(),
-        "model":        "gpt-4o",
+        "model":        "claude-sonnet-4-6",
     }
 
 
@@ -926,30 +933,23 @@ async def generate_gps_urban_ai_analysis(
     ref_meters: float,
     modes_stats: list[dict],
 ) -> dict:
-    """Call GPT to analyse urban GPS test results. Returns dict for storage in urban_tests.ai_analysis."""
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY no está configurada en .env")
+    """Call Claude Sonnet to analyse urban GPS test results. Returns dict for storage in urban_tests.ai_analysis."""
+    client = _anthropic_client()
 
-    client = openai.AsyncOpenAI(api_key=api_key)
-
-    response = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": GPS_URBAN_SYSTEM_PROMPT},
-            {"role": "user",   "content": _build_gps_urban_prompt(test_name, ref_meters, modes_stats)},
-        ],
-        response_format={"type": "json_object"},
+    response = await client.messages.create(
+        model="claude-sonnet-4-6",
+        system=_cached_system(GPS_URBAN_SYSTEM_PROMPT),
+        messages=[{"role": "user", "content": _build_gps_urban_prompt(test_name, ref_meters, modes_stats)}],
         temperature=0.25,
         max_tokens=2000,
     )
 
-    report = _parse_json(response.choices[0].message.content or "{}")
+    report = _parse_json(response.content[0].text or "{}")
 
     return {
         "report":       report,
         "generated_at": datetime.utcnow().isoformat(),
-        "model":        "gpt-4o",
+        "model":        "claude-sonnet-4-6",
     }
 
 
@@ -959,31 +959,24 @@ async def generate_device_ai_verdict(
     sessions:    list[dict],
 ) -> dict:
     """
-    Call GPT-4o to produce a device-level verdict from all sessions.
+    Call Claude Sonnet to produce a device-level verdict from all sessions.
     Returns a dict suitable for storage in devices.ai_verdict.
     """
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY no está configurada en .env")
+    client = _anthropic_client()
 
-    client = openai.AsyncOpenAI(api_key=api_key)
-
-    response = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": DEVICE_SYSTEM_PROMPT},
-            {"role": "user",   "content": _build_device_prompt(device_name, ref_name, sessions)},
-        ],
-        response_format={"type": "json_object"},
+    response = await client.messages.create(
+        model="claude-sonnet-4-6",
+        system=_cached_system(DEVICE_SYSTEM_PROMPT),
+        messages=[{"role": "user", "content": _build_device_prompt(device_name, ref_name, sessions)}],
         temperature=0.35,
-        max_tokens=1600,
+        max_tokens=8192,
     )
 
-    verdict = _parse_json(response.choices[0].message.content or "{}")
+    verdict = _parse_json(response.content[0].text or "{}")
 
     return {
         "verdict":           verdict,
         "generated_at":      datetime.utcnow().isoformat(),
-        "model":             "gpt-4o",
+        "model":             "claude-sonnet-4-6",
         "sessions_analyzed": len(sessions),
     }

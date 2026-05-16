@@ -1,0 +1,108 @@
+<div class="ai-page">
+
+  <div class="ai-page-header">
+    <a class="back-link" [routerLink]="['/devices', deviceId, 'gps-analysis', 'track']">← Análisis GPS Pista</a>
+    <div class="ai-page-title-group">
+      <span class="eyebrow">Informe IA · GPS Pista</span>
+      <h1 class="ai-page-title">Análisis GPS con inteligencia artificial</h1>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="ai-state-box" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Cargando informe IA…</p>
+  </div>
+
+  <!-- Generating -->
+  <div class="ai-state-box" *ngIf="generating">
+    <div class="spinner"></div>
+    <p>Generando análisis con GPT-4o…</p>
+  </div>
+
+  <!-- Error -->
+  <div class="ai-state-box ai-state-error" *ngIf="error && !generating">
+    <p>⚠ {{ error }}</p>
+    <button class="ec-btn" (click)="generate()" *ngIf="modesStats">Reintentar</button>
+  </div>
+
+  <!-- No analysis yet -->
+  <div class="ai-state-box" *ngIf="!loading && !generating && !error && !aiAnalysis">
+    <p class="ai-empty-text">No hay ningún informe IA generado para este test.</p>
+    <button class="ec-btn primary" (click)="generate()" *ngIf="modesStats">Generar informe IA</button>
+    <p class="ai-back-hint" *ngIf="!modesStats">
+      Para generar el análisis, carga el test en
+      <a [routerLink]="['/devices', deviceId, 'gps-analysis', 'track']">Análisis GPS Pista</a>.
+    </p>
+  </div>
+
+  <!-- Report -->
+  <ng-container *ngIf="aiAnalysis && !generating">
+
+    <div class="ai-card ai-card-verdict">
+      <div class="ai-card-label">Veredicto general</div>
+      <p class="ai-verdict-text">{{ aiAnalysis.report.veredicto_general }}</p>
+      <div class="ai-verdict-badges">
+        <span class="ai-badge ai-badge-best">🏆 Mejor: {{ aiAnalysis.report.mejor_modo }}</span>
+        <span class="ai-badge ai-badge-worst">⚠ Peor: {{ aiAnalysis.report.peor_modo }}</span>
+      </div>
+    </div>
+
+    <div class="ai-card">
+      <div class="ai-card-label">Análisis por modos</div>
+      <div class="ai-mode-grid">
+        <div class="ai-mode-card" *ngFor="let m of aiAnalysis.report.tabla_comparativa">
+          <div class="ai-mode-head">
+            <span class="ai-mode-name">{{ m.modo }}</span>
+            <span class="ai-nivel-chip" [ngClass]="nivelClass(m.nivel)">{{ m.nivel }}</span>
+          </div>
+          <p class="ai-mode-analisis">{{ m.analisis }}</p>
+          <div class="ai-mode-points" *ngIf="m.puntos_fuertes.length">
+            <div class="ai-point ai-point-good" *ngFor="let p of m.puntos_fuertes">
+              <span class="ai-point-ico">✓</span> {{ p }}
+            </div>
+          </div>
+          <div class="ai-mode-points" *ngIf="m.puntos_debiles.length">
+            <div class="ai-point ai-point-bad" *ngFor="let p of m.puntos_debiles">
+              <span class="ai-point-ico">✗</span> {{ p }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ai-card">
+      <div class="ai-card-label">Explicación técnica</div>
+      <p class="ai-body-text">{{ aiAnalysis.report.explicacion_tecnica }}</p>
+    </div>
+
+    <div class="ai-two-col" *ngIf="aiAnalysis.report.caso_ultratrac || aiAnalysis.report.veredicto_satiq">
+      <div class="ai-card" *ngIf="aiAnalysis.report.caso_ultratrac">
+        <div class="ai-card-label">El caso UltraTrac</div>
+        <p class="ai-body-text">{{ aiAnalysis.report.caso_ultratrac }}</p>
+      </div>
+      <div class="ai-card" *ngIf="aiAnalysis.report.veredicto_satiq">
+        <div class="ai-card-label">Veredicto SatIQ</div>
+        <p class="ai-body-text">{{ aiAnalysis.report.veredicto_satiq }}</p>
+      </div>
+    </div>
+
+    <div class="ai-two-col">
+      <div class="ai-card">
+        <div class="ai-card-label">Conclusión práctica</div>
+        <p class="ai-body-text">{{ aiAnalysis.report.conclusion_practica }}</p>
+      </div>
+      <div class="ai-card ai-card-rec">
+        <div class="ai-card-label">Recomendación</div>
+        <p class="ai-rec-text">{{ aiAnalysis.report.recomendacion_usuario }}</p>
+      </div>
+    </div>
+
+    <div class="ai-footer-row">
+      <span class="ai-footer-meta">Generado por {{ aiAnalysis.model }} · {{ aiAnalysis.generated_at | date:'dd/MM/yyyy HH:mm' }}</span>
+      <button class="ec-btn" (click)="generate()" *ngIf="modesStats" [disabled]="generating">↻ Re-generar</button>
+    </div>
+
+  </ng-container>
+
+</div>

@@ -1,0 +1,132 @@
+<!-- Loading device -->
+<div class="center-spinner" *ngIf="loading && !device">
+  <div class="spinner"></div>
+</div>
+
+<div class="verdict-page" *ngIf="device">
+
+  <!-- Breadcrumb -->
+  <div class="breadcrumb">
+    <a routerLink="/devices">Dispositivos</a>
+    <span class="bc-sep">›</span>
+    <a [routerLink]="['/devices', deviceId]">{{ device.name }}</a>
+    <span class="bc-sep">›</span>
+    <span class="bc-current">Veredicto IA</span>
+  </div>
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <div class="eyebrow">Análisis IA del dispositivo · GPT-4o</div>
+      <h1 class="h1-display">{{ device.name }}</h1>
+      <div class="page-sub">Veredicto consolidado basado en todas las sesiones</div>
+    </div>
+    <a class="ec-btn" [routerLink]="['/devices', deviceId]">← Volver</a>
+  </div>
+
+  <!-- Loading verdict -->
+  <div class="ai-v-loading" *ngIf="loading || generating">
+    <div class="spinner"></div>
+    <p>{{ generating ? 'Generando veredicto con GPT-4o…' : 'Cargando veredicto…' }}</p>
+  </div>
+
+  <!-- Error -->
+  <div class="ai-v-error" *ngIf="error && !loading && !generating">
+    <p>{{ error }}</p>
+    <button class="ec-btn" (click)="generate()">Reintentar</button>
+  </div>
+
+  <!-- No verdict yet -->
+  <div class="no-verdict" *ngIf="!loading && !generating && !error && !aiVerdict">
+    <div class="no-verdict-icon">✦</div>
+    <p>No hay ningún veredicto generado para este dispositivo.</p>
+    <button class="ec-btn primary" (click)="generate()">Generar análisis IA</button>
+  </div>
+
+  <!-- Verdict content -->
+  <ng-container *ngIf="aiVerdict && !loading && !generating">
+
+    <!-- Header -->
+    <div class="ai-v-header">
+      <div class="ai-v-header-left">
+        <div class="eyebrow" style="margin-bottom:6px">Veredicto IA · {{ device.name }}</div>
+        <h2 class="ai-v-title">{{ aiVerdict.verdict?.etiqueta_final }}</h2>
+        <div class="ai-v-meta">
+          {{ aiVerdict.sessions_analyzed }} sesiones analizadas
+          · {{ aiVerdict.generated_at | date:'dd/MM/yyyy HH:mm' }}
+          · {{ aiVerdict.model }}
+        </div>
+      </div>
+      <div class="ai-v-cal-badge" [ngClass]="calClass(aiVerdict.verdict?.calificacion_final)">
+        {{ aiVerdict.verdict?.calificacion_final | titlecase }}
+      </div>
+    </div>
+
+    <!-- General verdict -->
+    <div class="ai-v-card accent">
+      <div class="ai-v-card-title">Veredicto general</div>
+      <p class="ai-v-card-body">{{ aiVerdict.verdict?.veredicto_general }}</p>
+    </div>
+
+    <!-- Strengths / weaknesses -->
+    <div class="ai-v-sw-grid">
+      <div class="ai-v-card">
+        <div class="ai-v-card-title good-txt">Fortalezas</div>
+        <ul class="ai-v-list">
+          <li *ngFor="let f of aiVerdict.verdict?.fortalezas">{{ f }}</li>
+        </ul>
+      </div>
+      <div class="ai-v-card">
+        <div class="ai-v-card-title bad-txt">Debilidades</div>
+        <ul class="ai-v-list">
+          <li *ngFor="let d of aiVerdict.verdict?.debilidades">{{ d }}</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- By training type -->
+    <div class="ai-v-card" *ngIf="aiVerdict.verdict?.por_tipo_entrenamiento | keyvalue as entries">
+      <div class="ai-v-card-title">Por tipo de entrenamiento</div>
+      <div class="ai-v-type-rows">
+        <div class="ai-v-type-row" *ngFor="let e of entries">
+          <span class="ai-v-type-key">{{ e.key }}</span>
+          <span class="ai-v-type-val">{{ e.value }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profiles -->
+    <div class="ai-v-profiles">
+      <div class="ai-v-card good-border">
+        <div class="ai-v-card-title">Perfil de deportista ideal</div>
+        <p class="ai-v-card-body">{{ aiVerdict.verdict?.perfil_deportista_ideal }}</p>
+      </div>
+      <div class="ai-v-card bad-border">
+        <div class="ai-v-card-title">No recomendado para</div>
+        <p class="ai-v-card-body">{{ aiVerdict.verdict?.no_recomendado_para }}</p>
+      </div>
+    </div>
+
+    <!-- Final recommendation -->
+    <div class="ai-v-card accent">
+      <div class="ai-v-card-title">Recomendación final</div>
+      <p class="ai-v-card-body">{{ aiVerdict.verdict?.recomendacion_final }}</p>
+    </div>
+
+    <!-- Literature comparison -->
+    <div class="ai-v-card" *ngIf="aiVerdict.verdict?.comparativa_literatura">
+      <div class="ai-v-card-title">Comparativa con la literatura</div>
+      <p class="ai-v-card-body">{{ aiVerdict.verdict?.comparativa_literatura }}</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="ai-v-footer">
+      <button class="ec-btn" (click)="generate()" [disabled]="generating">
+        <span *ngIf="generating" class="spinner-xs"></span>
+        {{ generating ? 'Generando…' : '↻ Re-generar veredicto' }}
+      </button>
+    </div>
+
+  </ng-container>
+
+</div>

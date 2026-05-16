@@ -11,9 +11,9 @@ import { DrawingCanvasComponent, DrawTool } from '../drawing-canvas/drawing-canv
 
 // ─── Zone helpers ────────────────────────────────────────────────────────────
 const ZONE_RANGES: [number, number][] = [
-  [0, 130], [130, 145], [145, 151], [151, 161], [161, 9999],
+  [44, 134], [134, 154], [154, 167], [167, 176], [176, 9999],
 ];
-const ZONE_LABELS = ['Z1', 'Z2 Aeróbico', 'Z3 Tempo', 'Z4 Subumbral', 'Z5 Máximo'];
+const ZONE_LABELS = ['Z1 Aeróbico bajo', 'Z2 Aeróbico base', 'Z3 Umbral láctico', 'Z4 Supra-umbral', 'Z5 VO2máx'];
 const ZONE_COLORS = ['#3b82f6', '#22c55e', '#eab308', '#f97316', '#ef4444'];
 const TAB_FILENAMES = ['correlacion', 'bland-altman', 'error-zonas'];
 

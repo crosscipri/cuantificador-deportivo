@@ -33,6 +33,21 @@ export const routes: Routes = [
       import('./pages/gps-urban-analysis/gps-urban-analysis.component').then(m => m.GpsUrbanAnalysisComponent),
   },
   {
+    path: 'devices/:deviceId/gps-analysis/track-ai/:testId',
+    loadComponent: () =>
+      import('./pages/gps-track-ai/gps-track-ai.component').then(m => m.GpsTrackAiComponent),
+  },
+  {
+    path: 'devices/:deviceId/gps-analysis/urban-ai/:testId',
+    loadComponent: () =>
+      import('./pages/gps-urban-ai/gps-urban-ai.component').then(m => m.GpsUrbanAiComponent),
+  },
+  {
+    path: 'devices/:deviceId/ai-verdict',
+    loadComponent: () =>
+      import('./pages/device-ai-verdict/device-ai-verdict.component').then(m => m.DeviceAiVerdictComponent),
+  },
+  {
     path: 'overview',
     loadComponent: () =>
       import('./pages/overview/overview.component').then(m => m.OverviewComponent),
