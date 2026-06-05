@@ -274,6 +274,113 @@
     </div>
   </ng-container>
 
+  <!-- ── GPS Score ── -->
+  <ng-container *ngIf="gpsTrackData || gpsUrbanData">
+    <div class="section-header" style="margin-top:28px">
+      <div class="section-inner">
+        <span class="section-num">GPS</span>
+        <h2>Puntuación GPS</h2>
+        <span class="section-sub">0–100 · basado en el último análisis cargado</span>
+      </div>
+      <div class="divider"></div>
+    </div>
+
+    <div class="gps-score-grid">
+
+      <!-- Pista -->
+      <div class="gps-rank-panel" *ngIf="gpsTrackData">
+        <div class="gps-panel-header">
+          <span class="gps-panel-eyebrow">Pista</span>
+          <span class="gps-panel-sub">{{ gpsTrackData.testName }}</span>
+        </div>
+        <div class="gps-rank-rows">
+          <div class="gps-rank-entry" *ngFor="let row of sortedGpsBy('track'); let i = index">
+            <div class="gps-rank-row">
+              <span class="gps-rank-pos">{{ i + 1 }}</span>
+              <span class="gps-mode-dot" [style.background]="row.color"></span>
+              <span class="gps-mode-name">{{ row.name }}</span>
+              <div class="gps-bar-wrap">
+                <div class="gps-bar" [style.width.%]="row.trackScore ?? 0"
+                     [ngClass]="gpsScoreColor(row.trackScore)"></div>
+              </div>
+              <span class="gps-score-val" [ngClass]="gpsScoreColor(row.trackScore)">
+                {{ formatScore(row.trackScore) }}
+              </span>
+            </div>
+            <div class="gps-sub-row">
+              <span class="gps-sub-chip">Dist {{ formatScore(row.distScore) }}</span>
+              <span class="gps-sub-sep">·</span>
+              <span class="gps-sub-chip">Trazada {{ formatScore(row.pathScore) }}</span>
+              <span class="gps-sub-sep">·</span>
+              <span class="gps-sub-dim">RMSE {{ row.rmseTrack | number:'1.2-2' }}m  MAPE {{ row.mapeTrack | number:'1.2-2' }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Urbano -->
+      <div class="gps-rank-panel" *ngIf="gpsUrbanData">
+        <div class="gps-panel-header">
+          <span class="gps-panel-eyebrow">Urbano</span>
+          <span class="gps-panel-sub">{{ gpsUrbanData.testName }}</span>
+        </div>
+        <div class="gps-rank-rows">
+          <div class="gps-rank-entry" *ngFor="let row of sortedGpsBy('urban'); let i = index">
+            <div class="gps-rank-row">
+              <span class="gps-rank-pos">{{ i + 1 }}</span>
+              <span class="gps-mode-dot" [style.background]="row.color"></span>
+              <span class="gps-mode-name">{{ row.name }}</span>
+              <div class="gps-bar-wrap">
+                <div class="gps-bar" [style.width.%]="row.urbanScore ?? 0"
+                     [ngClass]="gpsScoreColor(row.urbanScore)"></div>
+              </div>
+              <span class="gps-score-val" [ngClass]="gpsScoreColor(row.urbanScore)">
+                {{ formatScore(row.urbanScore) }}
+              </span>
+            </div>
+            <div class="gps-sub-row">
+              <span class="gps-sub-chip">Consist. {{ formatScore(row.consistencyScore) }}</span>
+              <span class="gps-sub-sep">·</span>
+              <span class="gps-sub-dim">RMSE {{ row.rmseUrban | number:'1.2-2' }}m  Jitter {{ row.speedJitter | number:'1.3-3' }}m/s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Global -->
+      <div class="gps-rank-panel gps-rank-panel-global" *ngIf="gpsTrackData && gpsUrbanData">
+        <div class="gps-panel-header">
+          <span class="gps-panel-eyebrow">Global</span>
+          <span class="gps-panel-sub">0.55 Urb · 0.35 Pista · 0.10 Consist.</span>
+        </div>
+        <div class="gps-rank-rows">
+          <div class="gps-rank-entry" *ngFor="let row of sortedGpsBy('global'); let i = index">
+            <div class="gps-rank-row">
+              <span class="gps-rank-pos">{{ i + 1 }}</span>
+              <span class="gps-mode-dot" [style.background]="row.color"></span>
+              <span class="gps-mode-name">{{ row.name }}</span>
+              <div class="gps-bar-wrap">
+                <div class="gps-bar" [style.width.%]="row.globalScore ?? 0"
+                     [ngClass]="gpsScoreColor(row.globalScore)"></div>
+              </div>
+              <span class="gps-score-val" [ngClass]="gpsScoreColor(row.globalScore)">
+                {{ formatScore(row.globalScore) }}
+              </span>
+            </div>
+            <div class="gps-sub-row">
+              <span class="gps-sub-chip">Urb {{ formatScore(row.urbanScore) }}×0.55</span>
+              <span class="gps-sub-sep">+</span>
+              <span class="gps-sub-chip">Pista {{ formatScore(row.trackScore) }}×0.35</span>
+              <span class="gps-sub-sep">+</span>
+              <span class="gps-sub-chip">Cons {{ formatScore(row.consistencyScore) }}×0.10</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </ng-container>
+
   <!-- ── AI Verdict entry point ── -->
   <div class="ai-verdict-entry">
     <div class="ai-verdict-entry-left">

@@ -57,12 +57,31 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   private sportSub?: Subscription;
   reanalyzing = false;
 
+  // ── Interval analysis ────────────────────────────────────────────────────
+  intervalStart    = 0;
+  intervalEnd      = 0;
+  analyzingInterval = false;
+  intervalResult: { metrics: any; zones: any[]; lag: number; fcmax: number; duration_seconds: number; fc_data: any } | null = null;
+
+  get activeMetrics() { return this.intervalResult?.metrics  ?? this.session?.metrics; }
+  get activeZones()   { return this.intervalResult?.zones    ?? this.session?.zones; }
+  get activeFcData()  { return this.intervalResult?.fc_data  ?? this.session?.fc_data; }
+  get activeFcmax()   { return this.intervalResult?.fcmax    ?? this.session?.fcmax; }
+  get activeDuration(){ return this.intervalResult?.duration_seconds ?? this.session?.duration_seconds ?? 0; }
+
+  get activeSessionForCharts(): any {
+    if (!this.session) return null;
+    if (!this.intervalResult) return this.session;
+    return { ...this.session, metrics: this.intervalResult.metrics, zones: this.intervalResult.zones, fc_data: this.intervalResult.fc_data, fcmax: this.intervalResult.fcmax };
+  }
+
   // ── AI analysis ───────────────────────────────────────────────────────────
   activeTab: 'stats' | 'ai' = 'stats';
-  aiAnalysis:  AiAnalysis | null = null;
-  aiLoading  = false;
-  aiError    = '';
-  aiGenerating = false;
+  aiAnalysis:   AiAnalysis | null = null;
+  aiLoading   = false;
+  aiError     = '';
+  aiGenerating  = false;
+  aiIsInterval  = false;
   editForm = this.fb.group({
     session_name:       [''],
     training_type:      ['', Validators.required],
@@ -128,7 +147,10 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
     this.aiError     = '';
     this.api.getSession(id).subscribe({
       next: s => {
-        this.session = s;
+        this.session   = s;
+        this.intervalStart = 0;
+        this.intervalEnd   = s.duration_seconds ?? 0;
+        this.intervalResult = null;
         this.loading = false;
         if (s.has_ai_analysis) {
           this.loadAiAnalysis(id);
@@ -149,16 +171,20 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
     });
   }
 
-  triggerAiAnalysis(sessionId: string): void {
+  triggerAiAnalysis(sessionId: string, intervalData?: typeof this.intervalResult): void {
     this.aiLoading    = true;
     this.aiGenerating = true;
     this.aiError      = '';
-    this.api.generateSessionAiAnalysis(sessionId).subscribe({
+    this.aiIsInterval = !!intervalData;
+    const obs = intervalData
+      ? this.api.generateSessionAiAnalysis(sessionId, intervalData)
+      : this.api.generateSessionAiAnalysis(sessionId);
+    obs.subscribe({
       next: a => {
         this.aiAnalysis   = a;
         this.aiLoading    = false;
         this.aiGenerating = false;
-        if (this.session) this.session.has_ai_analysis = true;
+        if (!intervalData && this.session) this.session.has_ai_analysis = true;
       },
       error: err => {
         this.aiError      = err.error?.detail || 'Error al generar el análisis IA';
@@ -171,7 +197,7 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   reAnalyzeAi(): void {
     if (!this.session) return;
     this.aiAnalysis = null;
-    this.triggerAiAnalysis(this.session.id);
+    this.triggerAiAnalysis(this.session.id, this.intervalResult ?? undefined);
     this.activeTab = 'ai';
   }
 
@@ -329,5 +355,63 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   zoneCssClass(name: string): string {
     const z = name.split(' ')[0].toLowerCase();
     return `zone-${z}`;
+  }
+
+  get intervalStartMin(): number { return Math.floor(this.intervalStart / 60); }
+  get intervalStartSec(): number { return this.intervalStart % 60; }
+  get intervalEndMin():   number { return Math.floor(this.intervalEnd / 60); }
+  get intervalEndSec():   number { return this.intervalEnd % 60; }
+
+  onIntervalStartMinChange(e: Event): void {
+    const m = +(e.target as HTMLInputElement).value;
+    this.intervalStart = m * 60 + this.intervalStartSec;
+  }
+  onIntervalStartSecChange(e: Event): void {
+    const s = Math.min(59, +(e.target as HTMLInputElement).value);
+    this.intervalStart = this.intervalStartMin * 60 + s;
+  }
+  onIntervalEndMinChange(e: Event): void {
+    const m = +(e.target as HTMLInputElement).value;
+    this.intervalEnd = m * 60 + this.intervalEndSec;
+  }
+  onIntervalEndSecChange(e: Event): void {
+    const s = Math.min(59, +(e.target as HTMLInputElement).value);
+    this.intervalEnd = this.intervalEndMin * 60 + s;
+  }
+
+  analyzeInterval(): void {
+    if (!this.session) return;
+    if (this.intervalEnd <= this.intervalStart) {
+      this.snack.open('El tiempo final debe ser mayor que el inicial.', '', { duration: 3000 });
+      return;
+    }
+    this.analyzingInterval = true;
+    this.api.analyzeInterval(this.session.id, this.intervalStart, this.intervalEnd).subscribe({
+      next: (result) => {
+        this.intervalResult     = result;
+        this.analyzingInterval  = false;
+      },
+      error: (err) => {
+        this.snack.open(err?.error?.detail ?? 'Error al analizar el intervalo.', '', { duration: 4000 });
+        this.analyzingInterval = false;
+      },
+    });
+  }
+
+  clearInterval(): void {
+    this.intervalResult = null;
+    if (this.aiIsInterval && this.session) {
+      this.aiIsInterval = false;
+      this.aiAnalysis   = null;
+      if (this.session.has_ai_analysis) {
+        this.loadAiAnalysis(this.session.id);
+      }
+    }
+  }
+
+  secToMmss(sec: number): string {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
   }
 }

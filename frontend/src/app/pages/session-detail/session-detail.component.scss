@@ -707,7 +707,9 @@
 // ── AI report header (PDF button) ─────────────────────────────────
 .ai-report-header {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
@@ -882,6 +884,9 @@
   flex-wrap: wrap;
 
   .ann-icon  { font-size: 15px; flex-shrink: 0; }
+  .ann-serie { font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+               padding: 1px 6px; border-radius: 100px; background: var(--accent-soft);
+               color: var(--accent); flex-shrink: 0; }
   .ann-time  { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); flex-shrink: 0; }
   .ann-tipo  { font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
   .ann-sev   { font-size: 10px; padding: 1px 7px; border-radius: 100px; flex-shrink: 0;
@@ -958,4 +963,88 @@
 .zone-z5 {
   background: var(--z5-soft);
   color: var(--bad-ink);
+}
+
+// ── Interval badge ────────────────────────────────────────────────
+.interval-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 10px;
+  border-radius: 100px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+
+  .interval-badge-clear {
+    appearance: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    font-size: 10px;
+    padding: 0;
+    line-height: 1;
+    &:hover { opacity: 1; }
+  }
+}
+
+// ── Interval controls ─────────────────────────────────────────────
+.interval-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.interval-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  label {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+}
+
+.interval-input {
+  width: 72px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-xs);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  text-align: right;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+}
+
+.interval-sep {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+}
+
+.interval-input-sec {
+  width: 52px;
 }

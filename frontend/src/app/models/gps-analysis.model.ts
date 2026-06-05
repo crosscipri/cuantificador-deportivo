@@ -75,12 +75,25 @@ export interface GpsAiModeAnalysis {
   puntos_debiles: string[];
 }
 
+export interface GpsAiComparacion {
+  modos:      string;
+  delta_rmse: string;
+  delta_mape: string;
+  causa:      string;
+}
+
+export interface GpsAiComparativa {
+  resumen:      string;
+  comparaciones: GpsAiComparacion[];
+}
+
 export interface GpsAiReport {
   veredicto_general: string;
   mejor_modo: string;
   peor_modo: string;
   tabla_comparativa: GpsAiModeAnalysis[];
   explicacion_tecnica: string;
+  comparativa_entre_modos?: GpsAiComparativa;
   caso_ultratrac: string | null;
   veredicto_satiq: string | null;
   conclusion_practica: string;
@@ -132,6 +145,7 @@ export interface UrbanAiReport {
   peor_modo: string;
   analisis_modos: UrbanAiModeAnalysis[];
   explicacion_tecnica_sencilla: string;
+  comparativa_entre_modos?: GpsAiComparativa;
   el_gancho_del_jitter: string;
   advertencia_ultratrac: string | null;
   conclusion_practica: string;
@@ -141,4 +155,30 @@ export interface UrbanAiAnalysis {
   report: UrbanAiReport;
   generated_at: string;
   model: string;
+}
+
+export interface GpsTrackModeScore {
+  id: string; name: string; color: string;
+  trackScore: number; distScore: number; pathScore: number;
+  rmse: number; mape: number;
+}
+
+export interface GpsUrbanModeScore {
+  id: string; name: string; color: string;
+  urbanScore: number; consistencyScore: number;
+  rmse: number; speedJitter: number;
+}
+
+export interface GpsStoredScores<T> {
+  deviceId: string; testId: string; testName: string;
+  computedAt: string; modes: T[];
+}
+
+export interface GpsOverviewEntry {
+  device_id:    string;
+  name:         string;
+  global_score: number;
+  best_mode:    string;
+  has_track:    boolean;
+  has_urban:    boolean;
 }

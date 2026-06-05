@@ -142,6 +142,7 @@ export interface AiAnnotation {
   tiempo_inicio:    number;
   tiempo_fin:       number;
   tipo:             'lag' | 'overshooting' | 'cadence_lock' | 'alta_discrepancia' | 'recuperacion_lenta';
+  num_serie?:       number;
   descripcion:      string;
   severidad:        'leve' | 'moderada' | 'severa';
   causa?:           string;

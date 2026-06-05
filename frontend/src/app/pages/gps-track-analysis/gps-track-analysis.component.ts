@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 
 import { GpxParserService } from '../../services/gpx-parser.service';
 import { ApiService } from '../../services/api.service';
-import { GpsMode, GPS_MODE_COLORS, GpsTestSummary, GpsTestDetail } from '../../models/gps-analysis.model';
+import { GpsMode, GPS_MODE_COLORS, GpsTestSummary, GpsTestDetail, GpsTrackModeScore, GpsStoredScores } from '../../models/gps-analysis.model';
 import {
   STRAIGHT, R_INNER, LANE_W, N_LANES,
   runRadius, trackBbox, lapLength, pathEdge, pointAt, nearestOnLane1,
@@ -306,6 +306,7 @@ export class GpsTrackAnalysisComponent implements OnInit {
         this.currentTestId = testId;
         this.trackZoom = 1; this.trackPanX = 0; this.trackPanY = 0;
         this.cacheModesStats(testId);
+        this.persistTrackScores();
       },
     });
   }
@@ -318,6 +319,27 @@ export class GpsTrackAnalysisComponent implements OnInit {
       sample_hz: m.sampleHz, n_samples: m.nSamples,
     }));
     sessionStorage.setItem(`gps-track-modesStats-${testId}`, JSON.stringify(modesStats));
+  }
+
+  private persistTrackScores(): void {
+    if (!this.analytics?.length || !this.deviceId) return;
+    const clamp = (v: number) => Math.max(0, Math.min(100, v));
+    const r1    = (v: number) => Math.round(v * 10) / 10;
+    const modes: GpsTrackModeScore[] = this.analytics.map(m => {
+      const distScore  = clamp(100 - (m.mape - 0.1) / 2.9 * 100);
+      const pathScore  = clamp(100 - (m.rmse - 0.2) / 2.8 * 100);
+      return { id: m.modeId, name: m.modeName, color: m.color,
+               trackScore: r1((distScore + pathScore) / 2),
+               distScore:  r1(distScore), pathScore: r1(pathScore),
+               rmse: m.rmse, mape: m.mape };
+    });
+    const testName = this.savedTests.find(t => t.id === this.currentTestId)?.name ?? '';
+    const payload: GpsStoredScores<GpsTrackModeScore> = {
+      deviceId: this.deviceId, testId: this.currentTestId ?? '',
+      testName, computedAt: new Date().toISOString(), modes,
+    };
+    localStorage.setItem(`gps-scores-track-${this.deviceId}`, JSON.stringify(payload));
+    this.api.saveGpsScores(this.deviceId, 'track', payload).subscribe();
   }
 
   deleteTest(testId: string, event: Event): void {
@@ -408,6 +430,7 @@ export class GpsTrackAnalysisComponent implements OnInit {
       this.analytics = this.buildAnalytics(gpsModes);
       this.trackZoom = 1; this.trackPanX = 0; this.trackPanY = 0;
       this.saveCurrentTest(gpsModes);
+      this.persistTrackScores();
     } catch (err: any) {
       this.analyzeError = err?.message ?? 'Error al procesar los ficheros GPX';
     } finally {
@@ -653,8 +676,8 @@ export class GpsTrackAnalysisComponent implements OnInit {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  fmt(v: number, dec = 1): string { return isNaN(v) ? '—' : v.toFixed(dec); }
-  fmtSign(v: number, dec = 1): string { return (v >= 0 ? '+' : '') + v.toFixed(dec); }
+  fmt(v: number, dec = 2): string { return isNaN(v) ? '—' : v.toFixed(dec); }
+  fmtSign(v: number, dec = 2): string { return (v >= 0 ? '+' : '') + v.toFixed(dec); }
   fmtHz(v: number): string { return v > 0 ? `${v.toFixed(2)} Hz` : '—'; }
 
   histBarHeight(count: number): string {
@@ -694,6 +717,8 @@ export class GpsTrackAnalysisComponent implements OnInit {
   }
 
   get sortedByRmse(): GpsModeAnalytics[] {
-    return [...(this.analytics ?? [])].sort((a, b) => a.rmse - b.rmse);
+    return [...(this.analytics ?? [])].sort((a, b) =>
+      a.rmse !== b.rmse ? a.rmse - b.rmse : a.mape - b.mape
+    );
   }
 }

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry } from '../models/session.model';
-import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail, UrbanAiAnalysis } from '../models/gps-analysis.model';
+import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail, UrbanAiAnalysis, GpsTrackModeScore, GpsUrbanModeScore, GpsStoredScores, GpsOverviewEntry } from '../models/gps-analysis.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -80,6 +80,10 @@ export class ApiService {
     return this.http.post<Session>(`${this.base}/sessions/${id}/reanalyze`, {});
   }
 
+  analyzeInterval(id: string, startSec: number, endSec: number): Observable<any> {
+    return this.http.post<any>(`${this.base}/sessions/${id}/analyze-interval`, { start_sec: startSec, end_sec: endSec });
+  }
+
   // ── Overview ──────────────────────────────────────────────────────────────
 
   getOverviewChart(sportType: SportType = 'running'): Observable<{ chart: string; device_count: number; total_sessions: number }> {
@@ -109,8 +113,18 @@ export class ApiService {
     return this.http.get<AiAnalysis>(`${this.base}/sessions/${sessionId}/ai-analysis`);
   }
 
-  generateSessionAiAnalysis(sessionId: string): Observable<AiAnalysis> {
-    return this.http.post<AiAnalysis>(`${this.base}/sessions/${sessionId}/ai-analysis`, {});
+  generateSessionAiAnalysis(sessionId: string, intervalData?: {
+    metrics: any; zones: any[]; fc_data: any; lag: number; fcmax: number; duration_seconds: number;
+  }): Observable<AiAnalysis> {
+    const body = intervalData ? {
+      interval_metrics:  intervalData.metrics,
+      interval_zones:    intervalData.zones,
+      interval_fc_data:  intervalData.fc_data,
+      interval_lag:      intervalData.lag,
+      interval_fcmax:    intervalData.fcmax,
+      interval_duration: intervalData.duration_seconds,
+    } : {};
+    return this.http.post<AiAnalysis>(`${this.base}/sessions/${sessionId}/ai-analysis`, body);
   }
 
   // ── AI Verdict (device) ───────────────────────────────────────────────────
@@ -192,5 +206,22 @@ export class ApiService {
       `${this.base}/urban-tests/${testId}/ai-analysis`,
       { modes_stats: modesStats, ref_meters: refMeters },
     );
+  }
+
+  getOverviewGpsScores(): Observable<GpsOverviewEntry[]> {
+    return this.http.get<GpsOverviewEntry[]>(`${this.base}/overview/gps-scores`);
+  }
+
+  // ── GPS Scores ────────────────────────────────────────────────────────────
+
+  getGpsScores(deviceId: string): Observable<{
+    track?: GpsStoredScores<GpsTrackModeScore>;
+    urban?: GpsStoredScores<GpsUrbanModeScore>;
+  }> {
+    return this.http.get<any>(`${this.base}/devices/${deviceId}/gps-scores`);
+  }
+
+  saveGpsScores(deviceId: string, type: 'track' | 'urban', data: GpsStoredScores<GpsTrackModeScore> | GpsStoredScores<GpsUrbanModeScore>): Observable<{ ok: boolean }> {
+    return this.http.put<{ ok: boolean }>(`${this.base}/devices/${deviceId}/gps-scores`, { type, data });
   }
 }

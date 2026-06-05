@@ -1,12 +1,12 @@
 .chart-card {
   background: #ffffff;
-  border: 1px solid #e2e5ec;
-  border-radius: 12px;
+  border: 1px solid #e9edf5;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.04);
   transition: box-shadow 0.2s;
 
-  &:hover { box-shadow: 0 4px 16px rgba(0,0,0,.09); }
+  &:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.07); }
 
   &.fullscreen {
     position: fixed;
@@ -21,7 +21,7 @@
     .chart-canvas-wrap {
       flex: 1;
       height: unset;
-      padding: 16px 24px 20px;
+      padding: 16px 28px 24px;
     }
   }
 }
@@ -30,18 +30,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 8px 8px 16px;
-  border-bottom: 1px solid #f0f2f5;
+  padding: 10px 10px 10px 18px;
+  border-bottom: 1px solid #f0f3f8;
   background: #fafbfd;
   gap: 12px;
   flex-shrink: 0;
 
   .chart-title {
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
-    color: #6b7280;
+    color: #9ca3af;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.6px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -63,28 +63,23 @@
       align-items: center;
       justify-content: center;
       color: #9ca3af;
+      border-radius: 8px;
       transition: color 0.15s, background 0.15s;
-      &:hover { color: #374151; }
+      &:hover { color: #374151; background: #f3f4f6; }
 
       &.tool-active {
-        color: #2563eb;
-        background: rgba(37,99,235,.1);
-        border-radius: 6px;
-      }
-
-      &.stroke-active mat-icon {
-        color: inherit;
+        color: #6366f1;
+        background: rgba(99,102,241,0.1);
       }
     }
   }
 }
 
-// Color swatch button
 .color-btn {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: 2px solid rgba(0,0,0,.15);
+  border: 2px solid rgba(0,0,0,.12);
   cursor: pointer;
   flex-shrink: 0;
   display: inline-block;
@@ -92,7 +87,7 @@
   position: relative;
   margin: 0 4px;
   transition: transform 0.15s, box-shadow 0.15s;
-  &:hover { transform: scale(1.15); box-shadow: 0 0 0 2px #2563eb55; }
+  &:hover { transform: scale(1.15); box-shadow: 0 0 0 2px #6366f155; }
 
   input[type=color] {
     position: absolute;
@@ -108,13 +103,52 @@
 
 .toolbar-sep {
   width: 1px;
-  height: 20px;
-  background: #e5e7eb;
+  height: 18px;
+  background: #e9edf5;
   margin: 0 4px;
 }
 
 .chart-canvas-wrap {
   position: relative;
-  height: 380px;
-  padding: 16px 16px 8px;
+  height: 390px;
+  padding: 20px 20px 10px;
+}
+
+.hover-bar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 440px;
+  background: rgba(17, 24, 39, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 5px 18px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #e5e7eb;
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+
+  .hb-time { color: #9ca3af; display: inline-block; min-width: 40px; text-align: center; }
+  .hb-sep  { color: #374151; }
+  .hb-ref  { color: #a5b4fc; display: inline-block; min-width: 120px; text-align: center; }
+  .hb-dev  { color: #6ee7b7; display: inline-block; min-width: 120px; text-align: center; }
+
+  .hb-diff {
+    font-weight: 600;
+    display: inline-block;
+    min-width: 64px;
+    text-align: center;
+    &.good { color: #34d399; }
+    &.warn { color: #fbbf24; }
+    &.bad  { color: #f87171; }
+  }
 }

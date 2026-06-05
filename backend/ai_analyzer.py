@@ -106,6 +106,13 @@ Describe lo que se ve en la gráfica segundo a segundo. Señala:
 - Si el error es sistemático (siempre por arriba o por abajo) o aleatorio
 Explica cada fenómeno con lenguaje directo: qué significa para el deportista, qué información falsa está recibiendo en ese momento.
 
+**Si la sesión contiene series o intervalos de entrenamiento (visible como subidas y bajadas repetidas de FC), analiza CADA SERIE INDIVIDUALMENTE:**
+- Identifica cuántas series hay y en qué instantes aproximados empieza y termina cada una.
+- Para cada serie: indica el tiempo de inicio y fin, la FC pico de referencia, la FC pico del dispositivo, el lag (en segundos), si hay overshooting en la recuperación, y el MAE estimado de esa serie en concreto.
+- Compara las series entre sí: ¿el error del dispositivo empeora en las series finales (fatiga / vasoconstricción acumulada)? ¿o es constante a lo largo del entrenamiento?
+- Si el dispositivo no llega a recuperar la FC basal antes de la siguiente serie, señálalo explícitamente.
+- Cada serie detectada debe aparecer como una anotación independiente en `anotaciones_temporales` con su `num_serie` correspondiente.
+
 ### 2. Gráfica de Bland-Altman
 Describe visualmente lo que muestra el gráfico:
 - Dónde está el sesgo medio y si es clínicamente relevante
@@ -203,7 +210,8 @@ Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto extr
       "tiempo_inicio": 120,
       "tiempo_fin": 180,
       "tipo": "lag",
-      "descripcion": "Retraso algorítmico al inicio del esfuerzo intenso. El deportista ya lleva 20 segundos en esfuerzo máximo y el reloj aún no lo ha registrado.",
+      "num_serie": 1,
+      "descripcion": "Serie 1 — Retraso algorítmico al inicio del esfuerzo intenso. El deportista ya lleva 20 segundos en esfuerzo máximo y el reloj aún no lo ha registrado. FC pico referencia: 178 bpm, FC pico dispositivo: 165 bpm, lag estimado: 18 s.",
       "causa": "Filtro de promediado con ventana de ~15-20 s que no ha convergido aún al nuevo nivel de FC. El algoritmo PPG necesita suficientes ciclos cardíacos estables para actualizar la estimación.",
       "severidad": "moderada",
       "frase_para_video": "Frase literal que el presentador puede decir mientras señala este tramo en pantalla."
@@ -280,10 +288,21 @@ Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto extr
     }
   ],
   "explicacion_tecnica": "Párrafo de 3-4 frases. Física de señal GPS en entorno abierto. Por qué los resultados son los que son. Diferencia entre RMSE y MAPE como métricas independientes.",
+  "conclusion_practica": "¿Para qué uso concreto sirve cada modo? Respuesta directa para el deportista.",
+  "recomendacion_usuario": "1 frase: el modo óptimo para el usuario y por qué.",
   "caso_ultratrac": "Párrafo específico sobre UltraTrac: corner cutting, consecuencias métricas y biomecánicas. null si no hay modo UltraTrac.",
   "veredicto_satiq": "Párrafo específico sobre SatIQ: si la selección automática es realmente inteligente según los datos. null si no hay modo SatIQ.",
-  "conclusion_practica": "¿Para qué uso concreto sirve cada modo? Respuesta directa para el deportista.",
-  "recomendacion_usuario": "1 frase: el modo óptimo para el usuario y por qué."
+  "comparativa_entre_modos": {
+    "resumen": "Párrafo de 2-3 frases describiendo el patrón global de diferencias entre todos los modos: qué brecha hay entre el mejor y el peor, si los modos intermedios forman grupos, y qué factor técnico explica la jerarquía observada.",
+    "comparaciones": [
+      {
+        "modos": "Modo A vs Modo B",
+        "delta_rmse": "Diferencia concreta en RMSE con unidades y quién gana. Ej: 'All Systems supera a GPS Solo en 1.8 m de RMSE'.",
+        "delta_mape": "Diferencia concreta en MAPE. Ej: 'Diferencia de 0.4% — ambos dentro del rango Excelente'.",
+        "causa": "Explicación técnica directa de por qué existe esa diferencia. Física de señal, constelaciones, algoritmos de filtrado o frecuencia de muestreo."
+      }
+    ]
+  }
 }
 
 Responde en español. Cita métricas concretas con cifras del input. Sé riguroso y directo."""
@@ -714,6 +733,41 @@ Genera el VEREDICTO FINAL basándote en el patrón de rendimiento a través de t
 # JSON PARSER
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _fix_json_strings(content: str) -> str:
+    """Escape ALL unescaped control characters (U+0000–U+001F) inside JSON string values."""
+    result = []
+    in_string   = False
+    escape_next = False
+    for ch in content:
+        if escape_next:
+            result.append(ch)
+            escape_next = False
+        elif ch == '\\' and in_string:
+            result.append(ch)
+            escape_next = True
+        elif ch == '"':
+            in_string = not in_string
+            result.append(ch)
+        elif in_string and ord(ch) < 0x20:
+            # Escape every control character, not just \n \r \t
+            if ch == '\n':
+                result.append('\\n')
+            elif ch == '\r':
+                result.append('\\r')
+            elif ch == '\t':
+                result.append('\\t')
+            else:
+                result.append(f'\\u{ord(ch):04x}')
+        else:
+            result.append(ch)
+    return ''.join(result)
+
+
+def _strip_trailing_commas(content: str) -> str:
+    """Remove trailing commas before ] or } (common LLM mistake)."""
+    return re.sub(r',\s*([}\]])', r'\1', content)
+
+
 def _parse_json(content: str) -> dict:
     """Extract and parse JSON from model response, stripping markdown and finding the outermost object."""
     content = re.sub(r"```json\s*", "", content)
@@ -723,11 +777,45 @@ def _parse_json(content: str) -> dict:
     end   = content.rfind("}")
     if start != -1 and end != -1 and end > start:
         content = content[start:end + 1]
+
+    # Attempt 1 — vanilla
     try:
         return json.loads(content)
+    except json.JSONDecodeError:
+        pass
+
+    # Attempt 2 — escape control chars inside strings
+    fixed = _fix_json_strings(content)
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        pass
+
+    # Attempt 3 — also strip trailing commas
+    fixed2 = _strip_trailing_commas(fixed)
+    try:
+        return json.loads(fixed2)
+    except json.JSONDecodeError:
+        pass
+
+    # Attempt 4 — json_repair (handles missing commas, unquoted keys, truncation, etc.)
+    try:
+        from json_repair import repair_json
+        repaired = repair_json(content, return_objects=True)
+        if isinstance(repaired, dict):
+            return repaired
+        # repair_json may return a string if it couldn't produce an object
+        if isinstance(repaired, str):
+            return json.loads(repaired)
+    except Exception:
+        pass
+
+    # Final fallback: raise the original error with context
+    try:
+        return json.loads(fixed2)
     except json.JSONDecodeError as e:
         print(f"[JSON ERROR] {e}")
-        print(f"[JSON RAW] ...{content[max(0,e.pos-120):e.pos+120]}...")
+        print(f"[JSON RAW] ...{fixed2[max(0, e.pos-120):e.pos+120]}...")
         raise
 
 
@@ -824,7 +912,7 @@ async def generate_gps_track_ai_analysis(
         system=_cached_system(GPS_TRACK_SYSTEM_PROMPT),
         messages=[{"role": "user", "content": _build_gps_track_prompt(test_name, reference_distance, modes_stats)}],
         temperature=0.25,
-        max_tokens=2000,
+        max_tokens=8192,
     )
 
     report = _parse_json(response.content[0].text or "{}")
@@ -892,7 +980,18 @@ Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto extr
   "explicacion_tecnica_sencilla": "Un párrafo que explique por qué el modo inteligente (SatIQ) o Multibanda ha marcado la diferencia hoy frente a los modos antiguos, basándote en el comportamiento de la señal entre edificios.",
   "el_gancho_del_jitter": "Explica qué sentirá el corredor en su muñeca con estos datos de jitter. ¿Es un ritmo estable o una tómbola de números?",
   "advertencia_ultratrac": "Un mensaje breve y ácido sobre por qué usar UltraTrac en ciudad es tirar el entrenamiento a la basura. null si no hay modo UltraTrac.",
-  "conclusion_practica": "Consejo final directo: 'Si vas a entrenar series en este barrio, usa el modo X; si solo vas a trotar, con el modo Y te sobra'."
+  "conclusion_practica": "Consejo final directo: 'Si vas a entrenar series en este barrio, usa el modo X; si solo vas a trotar, con el modo Y te sobra'.",
+  "comparativa_entre_modos": {
+    "resumen": "Párrafo de 2-3 frases describiendo el patrón global de diferencias entre todos los modos: qué brecha hay entre el mejor y el peor, si hay grupos de modos con rendimiento similar, y qué factor técnico (multibanda, Hz, filtrado) explica la jerarquía.",
+    "comparaciones": [
+      {
+        "modos": "Modo A vs Modo B",
+        "delta_rmse": "Diferencia concreta con unidades y quién gana. Ej: 'SatIQ supera a GPS Solo en 3.2 m de RMSE'.",
+        "delta_mape": "Diferencia concreta. Ej: 'Diferencia de 1.1% — GPS Solo acumula metros fantasma en cada giro'.",
+        "causa": "Explicación técnica directa. En entorno urbano: multipath, reflexión en fachadas, geometría DOP entre edificios, frecuencias L1/L5. Di cómo afecta físicamente a cada modo."
+      }
+    ]
+  }
 }
 
 Responde en español, sé crítico y basa tus argumentos en la física del GPS y en los datos recibidos."""
@@ -941,7 +1040,7 @@ async def generate_gps_urban_ai_analysis(
         system=_cached_system(GPS_URBAN_SYSTEM_PROMPT),
         messages=[{"role": "user", "content": _build_gps_urban_prompt(test_name, ref_meters, modes_stats)}],
         temperature=0.25,
-        max_tokens=2000,
+        max_tokens=4096,
     )
 
     report = _parse_json(response.content[0].text or "{}")

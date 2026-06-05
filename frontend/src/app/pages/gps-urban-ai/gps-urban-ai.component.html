@@ -73,6 +73,24 @@
       </div>
     </div>
 
+    <!-- Comparativa entre modos -->
+    <div class="ai-comparativa-card" *ngIf="aiAnalysis.report.comparativa_entre_modos">
+      <div class="ai-tech-label">Comparativa entre modos</div>
+      <p class="ai-comparativa-resumen">{{ aiAnalysis.report.comparativa_entre_modos.resumen }}</p>
+      <div class="ai-comparaciones">
+        <div class="ai-comparacion-row" *ngFor="let c of aiAnalysis.report.comparativa_entre_modos.comparaciones">
+          <div class="ai-comp-header">
+            <span class="ai-comp-modos">{{ c.modos }}</span>
+          </div>
+          <div class="ai-comp-deltas">
+            <span class="ai-comp-delta"><span class="ai-comp-delta-label">RMSE</span>{{ c.delta_rmse }}</span>
+            <span class="ai-comp-delta"><span class="ai-comp-delta-label">MAPE</span>{{ c.delta_mape }}</span>
+          </div>
+          <p class="ai-comp-causa">{{ c.causa }}</p>
+        </div>
+      </div>
+    </div>
+
     <div class="ai-tech-grid">
       <div class="ai-tech-card">
         <div class="ai-tech-label">Por qué unos modos superan a otros</div>

@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { ApiService } from '../../services/api.service';
 import { OverviewEntry, SportType, SPORT_TYPE_LABELS } from '../../models/session.model';
+import { GpsOverviewEntry } from '../../models/gps-analysis.model';
 
 // ── Colour thresholds ─────────────────────────────────────────────
 export function colorForR(r: number): string {
@@ -38,6 +39,15 @@ export interface LollipopItem {
   entry:   OverviewEntry;
   color:   string;
   quality: string;
+  cx:      number;
+  cy:      number;
+  x0:      number;
+  labelX:  number;
+}
+
+export interface GpsLollipopItem {
+  entry:   GpsOverviewEntry;
+  color:   string;
   cx:      number;
   cy:      number;
   x0:      number;
@@ -84,6 +94,11 @@ export class OverviewComponent implements OnInit {
   // ── Viz switcher ─────────────────────────────────────────────────
   viz: VizMode = 'lollipop';
 
+  // ── GPS lollipop ─────────────────────────────────────────────────
+  gpsItems:     GpsLollipopItem[] = [];
+  gpsSvgHeight  = 0;
+  gpsChartW     = SW - ML - MR;
+
 
   // Expose layout to template
   readonly ML = ML;
@@ -93,7 +108,7 @@ export class OverviewComponent implements OnInit {
 
   constructor(private api: ApiService) {}
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void { this.load(); this.loadGps(); }
 
   load(): void {
     this.loading = true;
@@ -106,7 +121,39 @@ export class OverviewComponent implements OnInit {
     });
   }
 
+  loadGps(): void {
+    this.api.getOverviewGpsScores().subscribe({
+      next:  data => this._buildGps(data),
+      error: ()   => {},  // no GPS scores yet — silent
+    });
+  }
+
   // ── Private ───────────────────────────────────────────────────────
+  private _buildGps(entries: GpsOverviewEntry[]): void {
+    if (!entries.length) { this.gpsItems = []; return; }
+    this.gpsSvgHeight = entries.length * RH + MT + MB;
+    this.gpsItems = entries.map((entry, i) => {
+      const cy = MT + i * RH + RH / 2;
+      const cx = (entry.global_score / 100) * this.gpsChartW;
+      const x0 = 0;
+      return { entry, color: this._gpsColor(entry.global_score), cx, cy, x0, labelX: cx + 14 };
+    });
+  }
+
+  private _gpsColor(v: number): string {
+    if (v >= 85) return 'var(--good)';
+    if (v >= 70) return 'var(--warn)';
+    if (v >= 50) return 'var(--orange)';
+    return 'var(--bad)';
+  }
+
+  gpsTickPx(v: number): number { return (v / 100) * this.gpsChartW; }
+  readonly gpsTicks = [0, 20, 40, 60, 70, 80, 85, 90, 100];
+  readonly gpsRefLines = [
+    { v: 70, label: '70' },
+    { v: 85, label: '85' },
+  ];
+
   private _build(entries: OverviewEntry[]): void {
     if (!entries.length) return;
 

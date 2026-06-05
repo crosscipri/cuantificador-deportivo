@@ -47,10 +47,29 @@
     </div>
   </div>
 
-  <div class="chart-canvas-wrap">
+  <div class="chart-canvas-wrap"
+       (mousemove)="onChartMouseMove($event)"
+       (mouseleave)="onChartMouseLeave()">
+
+    <div class="hover-bar" *ngIf="hoverVisible">
+      <span class="hb-time">{{ hoverTime }}</span>
+      <span class="hb-sep">·</span>
+      <span class="hb-ref">{{ refName }} <strong>{{ hoverRef }}</strong> ppm</span>
+      <span class="hb-sep">·</span>
+      <span class="hb-dev">{{ devName }} <strong>{{ hoverDev }}</strong> ppm</span>
+      <span class="hb-sep">·</span>
+      <span class="hb-diff"
+            [class.good]="hoverDiff <= 3"
+            [class.warn]="hoverDiff > 3 && hoverDiff <= 8"
+            [class.bad]="hoverDiff > 8">
+        Δ {{ hoverDiff }} bpm
+      </span>
+    </div>
+
     <canvas baseChart
       [data]="chartData"
       [options]="chartOptions"
+      [plugins]="chartPlugins"
       type="line">
     </canvas>
     <app-drawing-canvas *ngIf="fullscreen"

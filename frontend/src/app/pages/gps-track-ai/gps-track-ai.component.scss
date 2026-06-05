@@ -93,3 +93,69 @@
   padding-top: 10px; border-top: 1px solid var(--line); margin-top: 4px; flex-wrap: wrap;
 }
 .ai-footer-meta { font-size: 11px; color: var(--ink-4); font-family: var(--font-mono); }
+
+// ── Comparativa entre modos ───────────────────────────────────────
+.ai-comparativa-resumen {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin: 0 0 16px;
+}
+
+.ai-comparaciones {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-comparacion-row {
+  background: var(--bg-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+}
+
+.ai-comp-header {
+  margin-bottom: 8px;
+}
+
+.ai-comp-modos {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.ai-comp-deltas {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-comp-delta {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+}
+
+.ai-comp-delta-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  font-family: var(--font-sans);
+}
+
+.ai-comp-causa {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}

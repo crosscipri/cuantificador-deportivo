@@ -15,8 +15,20 @@ import { Device, Session, AggregateResult,
          TRAINING_TYPES_BY_SPORT, SPORT_HAS_DIFFICULTY, GYM_DIFFICULTY,
          WeightedScore, computeWeightedScore, scoreQuality,
          MetricQuality } from '../../models/session.model';
+import { GpsTrackModeScore, GpsUrbanModeScore, GpsStoredScores } from '../../models/gps-analysis.model';
 import { ChartViewerComponent } from '../../shared/chart-viewer/chart-viewer.component';
 import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.component';
+
+interface GpsScoreRow {
+  name: string; color: string;
+  trackScore: number | null;
+  distScore: number | null; pathScore: number | null;
+  rmseTrack: number | null; mapeTrack: number | null;
+  urbanScore: number | null;
+  consistencyScore: number | null;
+  rmseUrban: number | null; speedJitter: number | null;
+  globalScore: number | null;
+}
 
 export interface SessionGroup {
   type: string;
@@ -59,6 +71,9 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
   sportTabs: SportTab[] = [];
   loading = true;
 
+  gpsTrackData: GpsStoredScores<GpsTrackModeScore> | null = null;
+  gpsUrbanData: GpsStoredScores<GpsUrbanModeScore> | null = null;
+
   showUpload = false;
   uploadForm = this.fb.group({
     sportType:         ['' as SportType,         Validators.required],
@@ -98,6 +113,7 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
     this.deviceId = this.route.snapshot.paramMap.get('deviceId') || '';
     if (!this.deviceId) { this.router.navigate(['/devices']); return; }
     this.loadDevice();
+    this.loadGpsScores();
 
     this.sportSub = this.uploadForm.get('sportType')!.valueChanges.subscribe(sport => {
       this.uploadForm.get('trainingType')!.reset('');
@@ -298,6 +314,78 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
         this.snack.open(err.error?.detail || 'Error en el análisis agregado', 'Cerrar', { duration: 5000 });
       },
     });
+  }
+
+  // ── GPS Scores ────────────────────────────────────────────────────────────
+
+  loadGpsScores(): void {
+    // Prefer localStorage (most recent, even before backend sync)
+    const tk = localStorage.getItem(`gps-scores-track-${this.deviceId}`);
+    const uk = localStorage.getItem(`gps-scores-urban-${this.deviceId}`);
+    this.gpsTrackData = tk ? JSON.parse(tk) : null;
+    this.gpsUrbanData = uk ? JSON.parse(uk) : null;
+
+    // Fill any missing data from backend
+    if (!this.gpsTrackData || !this.gpsUrbanData) {
+      this.api.getGpsScores(this.deviceId).subscribe({
+        next: scores => {
+          if (!this.gpsTrackData && scores.track) this.gpsTrackData = scores.track;
+          if (!this.gpsUrbanData && scores.urban) this.gpsUrbanData = scores.urban;
+        },
+        error: () => {},  // 404 = no scores yet, ignore
+      });
+    }
+  }
+
+  get gpsScoreRows(): GpsScoreRow[] {
+    const names = new Set([
+      ...(this.gpsTrackData?.modes.map(m => m.name) ?? []),
+      ...(this.gpsUrbanData?.modes.map(m => m.name) ?? []),
+    ]);
+    return Array.from(names).map(name => {
+      const key = name.toLowerCase();
+      const tr = this.gpsTrackData?.modes.find(m => m.name.toLowerCase() === key);
+      const ur = this.gpsUrbanData?.modes.find(m => m.name.toLowerCase() === key);
+      const color = tr?.color ?? ur?.color ?? '#888';
+      const globalScore = (tr && ur)
+        ? Math.round((ur.urbanScore * 0.55 + tr.trackScore * 0.35 + ur.consistencyScore * 0.10) * 10) / 10
+        : null;
+      return { name, color,
+        trackScore:       tr?.trackScore       ?? null,
+        distScore:        tr?.distScore        ?? null,
+        pathScore:        tr?.pathScore        ?? null,
+        rmseTrack:        tr?.rmse             ?? null,
+        mapeTrack:        tr?.mape             ?? null,
+        urbanScore:       ur?.urbanScore        ?? null,
+        consistencyScore: ur?.consistencyScore  ?? null,
+        rmseUrban:        ur?.rmse              ?? null,
+        speedJitter:      ur?.speedJitter       ?? null,
+        globalScore };
+    });
+  }
+
+  sortedGpsBy(dim: 'track' | 'urban' | 'global'): GpsScoreRow[] {
+    const keyMap: Record<string, keyof GpsScoreRow> = {
+      track: 'trackScore', urban: 'urbanScore', global: 'globalScore',
+    };
+    return [...this.gpsScoreRows].sort((a, b) => {
+      const av = a[keyMap[dim]] as number | null;
+      const bv = b[keyMap[dim]] as number | null;
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return bv - av;
+    });
+  }
+
+  formatScore(v: number | null): string { return v != null ? v.toFixed(1) : '—'; }
+
+  gpsScoreColor(v: number | null): string {
+    if (v == null) return '';
+    if (v >= 85) return 'q-good';
+    if (v >= 70) return 'q-warn';
+    if (v >= 50) return 'q-orange';
+    return 'q-bad';
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

@@ -423,3 +423,144 @@
   .ai-verdict-entry-title { font-size: 15px; font-weight: 600; color: var(--ink); }
   .ai-verdict-entry-sub { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
 }
+
+// ── GPS Score section ──────────────────────────────────────────────
+.gps-score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.gps-rank-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+
+  &.gps-rank-panel-global {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+  }
+}
+
+.gps-panel-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.gps-panel-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+.gps-panel-sub {
+  font-size: 11px;
+  color: var(--ink-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gps-rank-rows { display: flex; flex-direction: column; gap: 9px; }
+
+.gps-rank-entry { display: flex; flex-direction: column; gap: 3px; }
+
+.gps-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gps-sub-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 20px;
+}
+
+.gps-sub-chip {
+  font-size: 10px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.gps-sub-sep {
+  font-size: 10px;
+  color: var(--ink-4);
+  flex-shrink: 0;
+}
+
+.gps-sub-dim {
+  font-size: 10px;
+  color: var(--ink-4);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.gps-rank-pos {
+  font-size: 11px;
+  color: var(--ink-4);
+  width: 14px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.gps-mode-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.gps-mode-name {
+  font-size: 12px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 88px;
+  flex-shrink: 0;
+}
+
+.gps-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.gps-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+  background: var(--ink-3);
+
+  &.q-good   { background: var(--good); }
+  &.q-warn   { background: oklch(72% 0.17 95); }
+  &.q-orange { background: oklch(68% 0.18 55); }
+  &.q-bad    { background: var(--bad); }
+}
+
+.gps-score-val {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  width: 38px;
+  text-align: right;
+  flex-shrink: 0;
+
+  &.q-good   { color: var(--good-ink); }
+  &.q-warn   { color: var(--warn-ink); }
+  &.q-orange { color: oklch(52% 0.18 55); }
+  &.q-bad    { color: var(--bad-ink); }
+}

@@ -18,6 +18,8 @@ import {
   GpsRunFile,
   GPS_MODE_COLORS,
   UrbanTestSummary,
+  GpsUrbanModeScore,
+  GpsStoredScores,
 } from "../../models/gps-analysis.model";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -469,6 +471,7 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
         this.analytics = result;
         result[0].selected = true;
         this.saveCurrentTest(result);
+        this.persistUrbanScores();
         this.loadBuildings();
       }
     } catch (err: any) {
@@ -887,6 +890,7 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
           this.leafletMap?.remove();
           this.leafletMap = undefined;
           this.runLayers.clear();
+          this.persistUrbanScores();
           this.loadBuildings();
           this.cacheUrbanStats(testId);
         }
@@ -957,6 +961,28 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
       refMeters: this.refIdx.totalArc,
     };
     sessionStorage.setItem(`gps-urban-aiCache-${testId}`, JSON.stringify(cache));
+  }
+
+  private persistUrbanScores(): void {
+    if (!this.analytics?.length || !this.deviceId) return;
+    const clamp = (v: number) => Math.max(0, Math.min(100, v));
+    const r1    = (v: number) => Math.round(v * 10) / 10;
+    const modes: GpsUrbanModeScore[] = this.analytics.map(m => {
+      const jitter = isNaN(m.speedJitter) ? 0 : m.speedJitter;
+      return {
+        id: m.modeId, name: m.modeName, color: m.color,
+        urbanScore:       r1(clamp(100 - (m.rmse  - 1.0) / 9.0 * 100)),
+        consistencyScore: r1(clamp(100 - (jitter  - 0.2) / 1.6 * 100)),
+        rmse: m.rmse, speedJitter: jitter,
+      };
+    });
+    const testName = this.savedTests.find(t => t.id === this.currentTestId)?.name ?? '';
+    const payload: GpsStoredScores<GpsUrbanModeScore> = {
+      deviceId: this.deviceId, testId: this.currentTestId ?? '',
+      testName, computedAt: new Date().toISOString(), modes,
+    };
+    localStorage.setItem(`gps-scores-urban-${this.deviceId}`, JSON.stringify(payload));
+    this.api.saveGpsScores(this.deviceId, 'urban', payload).subscribe();
   }
 
   goToAiPage(): void {

@@ -239,6 +239,95 @@
 
     </div>
 
+    <!-- ── GPS Lollipop ── -->
+    <ng-container *ngIf="gpsItems.length">
+      <div class="section-header" style="margin-top:40px">
+        <div class="section-inner">
+          <span class="section-num">GPS</span>
+          <h2>Ranking GPS global</h2>
+          <span class="section-sub">Mejor modo · 0.55 Urbano · 0.35 Pista · 0.10 Consistencia · de peor a mejor</span>
+        </div>
+        <div class="divider"></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="svg-wrap">
+          <svg [attr.viewBox]="'0 0 ' + SW + ' ' + gpsSvgHeight" [attr.height]="gpsSvgHeight" width="100%"
+               xmlns="http://www.w3.org/2000/svg">
+
+            <!-- Reference lines -->
+            <g class="ref-lines">
+              <ng-container *ngFor="let ref of gpsRefLines">
+                <line [attr.x1]="ML + gpsTickPx(ref.v)" [attr.y1]="MT"
+                      [attr.x2]="ML + gpsTickPx(ref.v)" [attr.y2]="gpsSvgHeight - MB"
+                      class="ref-line" />
+                <text [attr.x]="ML + gpsTickPx(ref.v)" [attr.y]="MT - 8"
+                      class="ref-label" text-anchor="middle">{{ ref.label }}</text>
+              </ng-container>
+            </g>
+
+            <!-- X axis -->
+            <line [attr.x1]="ML" [attr.y1]="gpsSvgHeight - MB"
+                  [attr.x2]="ML + gpsChartW" [attr.y2]="gpsSvgHeight - MB"
+                  class="axis-line" />
+
+            <!-- X ticks -->
+            <g class="x-ticks">
+              <ng-container *ngFor="let tick of gpsTicks">
+                <line [attr.x1]="ML + gpsTickPx(tick)" [attr.y1]="gpsSvgHeight - MB"
+                      [attr.x2]="ML + gpsTickPx(tick)" [attr.y2]="gpsSvgHeight - MB + 5"
+                      class="tick-line" />
+                <text [attr.x]="ML + gpsTickPx(tick)" [attr.y]="gpsSvgHeight - MB + 17"
+                      class="tick-label" text-anchor="middle">{{ tick }}</text>
+              </ng-container>
+            </g>
+
+            <!-- X axis label -->
+            <text [attr.x]="ML + gpsChartW / 2" [attr.y]="gpsSvgHeight - 8"
+                  class="axis-label" text-anchor="middle">Puntuación GPS Global · 0–100</text>
+
+            <!-- Lollipops -->
+            <g class="lollipops">
+              <g *ngFor="let item of gpsItems" class="lollipop-row">
+                <!-- Device name -->
+                <text [attr.x]="ML - 14" [attr.y]="item.cy - 5"
+                      class="device-name" text-anchor="end">{{ item.entry.name }}</text>
+                <text [attr.x]="ML - 14" [attr.y]="item.cy + 11"
+                      class="lag-label" text-anchor="end">{{ item.entry.best_mode }}</text>
+
+                <!-- Track -->
+                <line [attr.x1]="ML" [attr.y1]="item.cy"
+                      [attr.x2]="ML + gpsChartW" [attr.y2]="item.cy"
+                      class="track-line" />
+
+                <!-- Stem -->
+                <line [attr.x1]="ML" [attr.y1]="item.cy"
+                      [attr.x2]="ML + item.cx" [attr.y2]="item.cy"
+                      [attr.stroke]="item.color" class="stem-line" />
+
+                <!-- Dot -->
+                <circle [attr.cx]="ML + item.cx" [attr.cy]="item.cy"
+                        r="6" [attr.fill]="item.color" class="dot-circle" />
+
+                <!-- Score label -->
+                <text [attr.x]="ML + item.labelX" [attr.y]="item.cy + 4"
+                      [attr.fill]="item.color" class="r-label">
+                  {{ item.entry.global_score | number:'1.1-1' }}
+                </text>
+
+                <!-- Icons: track / urban coverage -->
+                <text [attr.x]="ML + gpsChartW + 14" [attr.y]="item.cy + 4"
+                      font-size="10" fill="var(--ink-3)" font-family="var(--font-sans)">
+                  {{ item.entry.has_track ? '🏃' : '○' }}{{ item.entry.has_urban ? '🏙' : '' }}
+                </text>
+              </g>
+            </g>
+
+          </svg>
+        </div>
+      </div>
+    </ng-container>
+
     <!-- ── Verdict: top device ── -->
     <ng-container *ngIf="topItem">
       <div class="section-header" style="margin-top:36px">

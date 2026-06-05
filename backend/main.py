@@ -17,7 +17,9 @@ from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from analyzer import (analyze_session, generate_aggregate_analysis,
-                      generate_overview_chart, _weighted_global_score)
+                      generate_overview_chart, _weighted_global_score,
+                      read_fc_from_bytes, align, calculate_metrics,
+                      analyze_by_zones, estimate_lag)
 from ai_analyzer import generate_session_ai_analysis, generate_device_ai_verdict, generate_gps_track_ai_analysis, generate_gps_urban_ai_analysis
 
 load_dotenv()
@@ -52,6 +54,7 @@ async def startup() -> None:
     await app.state.db.gps_tests.create_index([("created_at", -1)])
     await app.state.db.urban_tests.create_index("device_id")
     await app.state.db.urban_tests.create_index([("created_at", -1)])
+    await app.state.db.gps_scores.create_index("device_id", unique=True)
 
 
 @app.on_event("shutdown")
@@ -467,6 +470,60 @@ async def reanalyze_session(session_id: str) -> dict:
     return _ser(updated, keep_fc=True)
 
 
+@app.post("/api/sessions/{session_id}/analyze-interval", status_code=200)
+async def analyze_session_interval(session_id: str, body: dict) -> dict:
+    """Recalculate all metrics for a specific time window [start_sec, end_sec]."""
+    start_sec = float(body.get("start_sec", 0))
+    end_sec   = float(body.get("end_sec",   0))
+
+    if end_sec <= start_sec:
+        raise HTTPException(status_code=422, detail="end_sec debe ser mayor que start_sec")
+
+    doc = await db().sessions.find_one({"_id": _oid(session_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+
+    device_bytes    = doc.get("device_file_bytes")
+    reference_bytes = doc.get("reference_file_bytes")
+    if not device_bytes or not reference_bytes:
+        raise HTTPException(status_code=422, detail="Esta sesión no tiene los ficheros originales almacenados.")
+
+    import numpy as np
+    fc_ref = read_fc_from_bytes(bytes(reference_bytes), doc.get("reference_file_name", ""))
+    fc_dev = read_fc_from_bytes(bytes(device_bytes),    doc.get("device_file_name",    ""))
+
+    ref_aligned, dev_aligned, x_seg, _ = align(fc_ref, fc_dev)
+
+    mask = (x_seg >= start_sec) & (x_seg <= end_sec)
+    ref_interval = ref_aligned[mask]
+    dev_interval = dev_aligned[mask]
+    x_interval   = x_seg[mask] - start_sec
+
+    if len(ref_interval) < 10:
+        raise HTTPException(status_code=422, detail="Intervalo demasiado corto (mínimo 10 s).")
+
+    metrics        = calculate_metrics(ref_interval, dev_interval)
+    zones, fcmax   = analyze_by_zones(ref_interval, dev_interval)
+    lag            = estimate_lag(ref_interval, dev_interval)
+
+    step = max(1, len(ref_interval) // 2000)
+    fc_data = {
+        "reference": ref_interval.values[::step].round(1).tolist(),
+        "device":    dev_interval.values[::step].round(1).tolist(),
+        "time":      x_interval[::step].tolist(),
+        "step":      step,
+    }
+
+    return {
+        "metrics":          metrics,
+        "zones":            zones,
+        "lag":              lag,
+        "fcmax":            fcmax,
+        "duration_seconds": int(len(ref_interval)),
+        "fc_data":          fc_data,
+    }
+
+
 @app.post("/api/admin/backfill-activity-dates", status_code=200)
 async def backfill_activity_dates() -> dict:
     """One-time migration: extract activity_date from stored file bytes for sessions that lack it."""
@@ -588,6 +645,56 @@ async def get_overview_chart(sport_type: str = "running") -> dict:
         "device_count":   len(devices_data),
         "total_sessions": total_sessions,
     }
+
+
+@app.get("/api/overview/gps-scores")
+async def get_overview_gps_scores() -> list[dict]:
+    """Best global GPS score per device (best mode present in both track+urban, or best available)."""
+    result = []
+    async for doc in db().gps_scores.find():
+        dev = await db().devices.find_one({"_id": doc["device_id"]}, {"name": 1})
+        if not dev:
+            continue
+
+        track_modes = {m["name"].lower(): m for m in (doc.get("track") or {}).get("modes", [])}
+        urban_modes = {m["name"].lower(): m for m in (doc.get("urban") or {}).get("modes", [])}
+
+        best_global: float | None = None
+        best_mode: str | None = None
+
+        # Prefer modes present in both
+        for key, urban in urban_modes.items():
+            track = track_modes.get(key)
+            if track:
+                g = round(urban["urbanScore"] * 0.55 + track["trackScore"] * 0.35 + urban["consistencyScore"] * 0.10, 1)
+                if best_global is None or g > best_global:
+                    best_global = g
+                    best_mode = urban["name"]
+
+        # Fallback: track-only or urban-only
+        if best_global is None and track_modes:
+            bm = max(track_modes.values(), key=lambda m: m["trackScore"])
+            best_global = bm["trackScore"]
+            best_mode = bm["name"]
+        elif best_global is None and urban_modes:
+            bm = max(urban_modes.values(), key=lambda m: m["urbanScore"])
+            best_global = bm["urbanScore"]
+            best_mode = bm["name"]
+
+        if best_global is None:
+            continue
+
+        result.append({
+            "device_id":    str(doc["device_id"]),
+            "name":         dev["name"],
+            "global_score": best_global,
+            "best_mode":    best_mode,
+            "has_track":    bool(doc.get("track")),
+            "has_urban":    bool(doc.get("urban")),
+        })
+
+    result.sort(key=lambda x: x["global_score"])  # ascending: worst → best (matches lollipop convention)
+    return result
 
 
 @app.get("/api/overview/data")
@@ -876,27 +983,75 @@ async def get_session_ai_analysis(session_id: str) -> dict:
 
 
 @app.post("/api/sessions/{session_id}/ai-analysis", status_code=200)
-async def create_session_ai_analysis(session_id: str) -> dict:
-    """Generate (or re-generate) the AI analysis for a session."""
+async def create_session_ai_analysis(session_id: str, body: dict = None) -> dict:
+    """Generate (or re-generate) the AI analysis for a session.
+    If body contains interval_* keys, analyse only that time window and do NOT persist."""
     doc = await db().sessions.find_one({"_id": _oid(session_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
 
+    body = body or {}
+    is_interval = bool(body.get("interval_metrics"))
+
+    if is_interval:
+        # Build an ephemeral session doc overriding metrics/zones/fc_data with interval data
+        session_doc = {
+            **doc,
+            "metrics":          body["interval_metrics"],
+            "zones":            body.get("interval_zones", []),
+            "fc_data":          body.get("interval_fc_data", {}),
+            "lag":              body.get("interval_lag", 0),
+            "fcmax":            body.get("interval_fcmax", 0),
+            "duration_seconds": body.get("interval_duration", 0),
+        }
+    else:
+        session_doc = doc
+
     try:
-        result = await generate_session_ai_analysis(doc)
+        result = await generate_session_ai_analysis(session_doc)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Error al llamar a GPT: {exc}")
+        raise HTTPException(status_code=500, detail=f"Error al llamar a Claude: {exc}")
 
-    await db().sessions.update_one(
-        {"_id": _oid(session_id)},
-        {"$set": {"ai_analysis": result}},
-    )
+    if not is_interval:
+        await db().sessions.update_one(
+            {"_id": _oid(session_id)},
+            {"$set": {"ai_analysis": result}},
+        )
     return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ── GPS SCORES ────────────────────────────────────────────────────────────────
+
+@app.get("/api/devices/{device_id}/gps-scores")
+async def get_gps_scores(device_id: str) -> dict:
+    doc = await db().gps_scores.find_one({"device_id": _oid(device_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Sin puntuaciones GPS guardadas")
+    return {
+        "track": doc.get("track"),
+        "urban": doc.get("urban"),
+    }
+
+
+@app.put("/api/devices/{device_id}/gps-scores", status_code=200)
+async def save_gps_scores(device_id: str, body: dict) -> dict:
+    if not await db().devices.find_one({"_id": _oid(device_id)}):
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+    score_type = body.get("type")  # "track" or "urban"
+    data       = body.get("data")
+    if score_type not in ("track", "urban") or not data:
+        raise HTTPException(status_code=422, detail="type ('track'|'urban') y data son obligatorios")
+    await db().gps_scores.update_one(
+        {"device_id": _oid(device_id)},
+        {"$set": {"device_id": _oid(device_id), score_type: data}},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
 # AI VERDICT  (device-level)
 # ─────────────────────────────────────────────────────────────────────────────
 

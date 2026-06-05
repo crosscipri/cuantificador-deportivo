@@ -123,35 +123,38 @@
       <div class="section-header">
         <div class="section-inner">
           <h2>Métricas principales</h2>
-          <span class="section-sub">contra {{ session.reference_name }} · n = {{ session.metrics.n | number }}
-            muestras</span>
+          <span class="section-sub">
+            contra {{ session.reference_name }} · n = {{ activeMetrics?.n | number }} muestras
+          </span>
+          <span class="interval-badge" *ngIf="intervalResult">
+            {{ secToMmss(intervalStart) }} – {{ secToMmss(intervalEnd) }}
+            <button class="interval-badge-clear" (click)="clearInterval()">✕</button>
+          </span>
         </div>
         <div class="divider"></div>
       </div>
 
       <div class="hero-metrics">
-        <div class="metric-hero" [ngClass]="mq('ccc', session.metrics.ccc)">
+        <div class="metric-hero" [ngClass]="mq('ccc', activeMetrics?.ccc)">
           <div class="eyebrow">CCC de Lin</div>
-          <div class="metric-hero-val num">{{ session.metrics.ccc | number:'1.3-3' }}</div>
-          <div class="metric-hero-hint">r = {{ session.metrics.r | number:'1.3-3' }}</div>
+          <div class="metric-hero-val num">{{ activeMetrics?.ccc | number:'1.3-3' }}</div>
+          <div class="metric-hero-hint">r = {{ activeMetrics?.r | number:'1.3-3' }}</div>
         </div>
-        <div class="metric-hero" [ngClass]="mq('mae', session.metrics.mae)">
+        <div class="metric-hero" [ngClass]="mq('mae', activeMetrics?.mae)">
           <div class="eyebrow">MAE</div>
-          <div class="metric-hero-val num">{{ session.metrics.mae | number:'1.1-1' }}<span class="unit">bpm</span></div>
-          <div class="metric-hero-hint">{{ session.metrics.mape | number:'1.1-1' }}% relativo</div>
+          <div class="metric-hero-val num">{{ activeMetrics?.mae | number:'1.1-1' }}<span class="unit">bpm</span></div>
+          <div class="metric-hero-hint">{{ activeMetrics?.mape | number:'1.1-1' }}% relativo</div>
         </div>
         <div class="metric-hero"
-          [ngClass]="mq('bias_abs', (session.metrics.bias < 0 ? -session.metrics.bias : session.metrics.bias))">
+          [ngClass]="mq('bias_abs', (activeMetrics?.bias < 0 ? -activeMetrics?.bias : activeMetrics?.bias))">
           <div class="eyebrow">Bias</div>
-          <div class="metric-hero-val num">{{ biasSign(session.metrics.bias) }}{{ session.metrics.bias | number:'1.1-1'
-            }}<span class="unit">bpm</span></div>
+          <div class="metric-hero-val num">{{ biasSign(activeMetrics?.bias) }}{{ activeMetrics?.bias | number:'1.1-1' }}<span class="unit">bpm</span></div>
           <div class="metric-hero-hint">Bland–Altman</div>
         </div>
-        <div class="metric-hero" [ngClass]="mq('loa_semiancho', loaSemi(session))">
+        <div class="metric-hero" [ngClass]="mq('loa_semiancho', loaSemi(activeSessionForCharts))">
           <div class="eyebrow">LoA 95%</div>
-          <div class="metric-hero-val num">±{{ loaSemi(session) }}<span class="unit">bpm</span></div>
-          <div class="metric-hero-hint">[{{ session.metrics.loa_l | number:'1.1-1' }}, {{ session.metrics.loa_u |
-            number:'1.1-1' }}]</div>
+          <div class="metric-hero-val num">±{{ loaSemi(activeSessionForCharts) }}<span class="unit">bpm</span></div>
+          <div class="metric-hero-hint">[{{ activeMetrics?.loa_l | number:'1.1-1' }}, {{ activeMetrics?.loa_u | number:'1.1-1' }}]</div>
         </div>
       </div>
 
@@ -195,7 +198,7 @@
       </div>
 
       <div class="chart-card">
-        <app-fc-temporal-chart *ngIf="session.fc_data; else temporalPng" [fcData]="session.fc_data!"
+        <app-fc-temporal-chart *ngIf="activeFcData; else temporalPng" [fcData]="activeFcData!"
           [refName]="session.reference_name" [devName]="session.device_name">
         </app-fc-temporal-chart>
         <ng-template #temporalPng>
@@ -204,6 +207,33 @@
             [filename]="session.session_name + '-fc-comparativa.png'">
           </app-chart-viewer>
         </ng-template>
+      </div>
+
+      <!-- ── Interval controls ── -->
+      <div class="interval-controls">
+        <div class="interval-field">
+          <label>Inicio</label>
+          <input type="number" min="0" [value]="intervalStartMin"
+                 (change)="onIntervalStartMinChange($event)" class="interval-input">
+          <span class="interval-sep">m</span>
+          <input type="number" min="0" max="59" [value]="intervalStartSec"
+                 (change)="onIntervalStartSecChange($event)" class="interval-input interval-input-sec">
+          <span class="interval-sep">s</span>
+        </div>
+        <div class="interval-field">
+          <label>Fin</label>
+          <input type="number" min="0" [value]="intervalEndMin"
+                 (change)="onIntervalEndMinChange($event)" class="interval-input">
+          <span class="interval-sep">m</span>
+          <input type="number" min="0" max="59" [value]="intervalEndSec"
+                 (change)="onIntervalEndSecChange($event)" class="interval-input interval-input-sec">
+          <span class="interval-sep">s</span>
+        </div>
+        <button class="ec-btn primary" (click)="analyzeInterval()" [disabled]="analyzingInterval">
+          <span *ngIf="analyzingInterval" class="spinner-xs"></span>
+          {{ analyzingInterval ? 'Analizando…' : 'Analizar intervalo' }}
+        </button>
+        <button class="ec-btn" *ngIf="intervalResult" (click)="clearInterval()">Restaurar</button>
       </div>
 
       <!-- ── § 3 · Validación científica ── -->
@@ -216,8 +246,8 @@
       </div>
 
       <div class="chart-card">
-        <app-session-validation-charts *ngIf="session.fc_data || session.zones?.length; else validationPng"
-          [session]="session">
+        <app-session-validation-charts *ngIf="activeSessionForCharts?.fc_data || activeSessionForCharts?.zones?.length; else validationPng"
+          [session]="activeSessionForCharts">
         </app-session-validation-charts>
         <ng-template #validationPng>
           <app-chart-viewer [chartB64]="session.charts.validation"
@@ -250,7 +280,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let z of session.zones">
+            <tr *ngFor="let z of activeZones">
               <td><span class="zone-chip" [ngClass]="zoneCssClass(z.zone)">{{ z.zone }}</span></td>
               <td class="num">{{ z.range }}</td>
               <td>
@@ -301,6 +331,9 @@
 
         <!-- Cabecera del informe IA -->
         <div class="ai-report-header">
+          <span class="interval-badge" *ngIf="aiIsInterval">
+            Intervalo {{ secToMmss(intervalStart) }} – {{ secToMmss(intervalEnd) }}
+          </span>
           <button class="ec-btn ai-pdf-btn" (click)="downloadPdf()" title="Descargar informe como PDF">
             ↓ Descargar PDF
           </button>
@@ -446,6 +479,7 @@
             <div class="ai-ann-item" *ngFor="let ann of aiAnalysis.report.anotaciones_temporales"
               [ngClass]="'ann-' + ann.tipo">
               <span class="ann-icon">{{ aiAnnotationIcon(ann.tipo) }}</span>
+              <span class="ann-serie" *ngIf="ann.num_serie">S{{ ann.num_serie }}</span>
               <span class="ann-time">
                 {{ (ann.tiempo_inicio / 60) | number:'1.0-0' }}:{{ (ann.tiempo_inicio % 60) | number:'2.0-0' }}
                 –
@@ -495,7 +529,7 @@
           </span>
           <button class="ec-btn" (click)="reAnalyzeAi()" [disabled]="aiLoading || aiGenerating">
             <span *ngIf="aiGenerating" class="spinner-xs"></span>
-            {{ aiGenerating ? 'Analizando…' : '↻ Volver a analizar' }}
+            {{ aiGenerating ? 'Analizando…' : intervalResult ? '↻ Analizar intervalo' : '↻ Volver a analizar' }}
           </button>
         </div>
 

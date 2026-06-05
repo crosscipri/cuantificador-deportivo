@@ -16,6 +16,57 @@ function secToMmss(sec: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+const ZONE_BANDS = [
+  { lo: 44,  hi: 134, color: 'rgba(99,102,241,0.045)' },
+  { lo: 134, hi: 154, color: 'rgba(34,197,94,0.04)'   },
+  { lo: 154, hi: 167, color: 'rgba(234,179,8,0.05)'   },
+  { lo: 167, hi: 176, color: 'rgba(249,115,22,0.055)' },
+  { lo: 176, hi: 999, color: 'rgba(239,68,68,0.055)'  },
+];
+
+const gradientPlugin: any = {
+  id: 'gradientFill',
+  beforeUpdate(chart: any) {
+    const { ctx, chartArea } = chart;
+    if (!chartArea) return;
+    const { top, bottom } = chartArea;
+
+    const g0 = ctx.createLinearGradient(0, top, 0, bottom);
+    g0.addColorStop(0, 'rgba(99,102,241,0.20)');
+    g0.addColorStop(0.6, 'rgba(99,102,241,0.05)');
+    g0.addColorStop(1, 'rgba(99,102,241,0.0)');
+
+    const g1 = ctx.createLinearGradient(0, top, 0, bottom);
+    g1.addColorStop(0, 'rgba(16,185,129,0.18)');
+    g1.addColorStop(0.6, 'rgba(16,185,129,0.04)');
+    g1.addColorStop(1, 'rgba(16,185,129,0.0)');
+
+    if (chart.data.datasets[0]) chart.data.datasets[0].backgroundColor = g0;
+    if (chart.data.datasets[1]) chart.data.datasets[1].backgroundColor = g1;
+  },
+};
+
+const zoneBandsPlugin: any = {
+  id: 'zoneBands',
+  beforeDatasetsDraw(chart: any) {
+    const { ctx, chartArea, scales } = chart;
+    if (!chartArea || !scales['y']) return;
+    const yScale = scales['y'];
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(chartArea.left, chartArea.top, chartArea.width, chartArea.height);
+    ctx.clip();
+    ZONE_BANDS.forEach(z => {
+      const yTop = Math.min(yScale.getPixelForValue(z.hi), chartArea.bottom);
+      const yBot = Math.max(yScale.getPixelForValue(z.lo), chartArea.top);
+      if (yBot <= yTop) return;
+      ctx.fillStyle = z.color;
+      ctx.fillRect(chartArea.left, yTop, chartArea.width, yBot - yTop);
+    });
+    ctx.restore();
+  },
+};
+
 @Component({
   selector: 'app-fc-temporal-chart',
   standalone: true,
@@ -29,37 +80,43 @@ export class FcTemporalChartComponent implements OnChanges {
   @Input() refName = 'Referencia';
   @Input() devName = 'Dispositivo';
 
-  @ViewChild(BaseChartDirective)   chartRef?:   BaseChartDirective;
+  @ViewChild(BaseChartDirective)     chartRef?:   BaseChartDirective;
   @ViewChild(DrawingCanvasComponent) drawCanvas?: DrawingCanvasComponent;
 
   chartData: ChartConfiguration<'line'>['data'] = { datasets: [] };
-  fullscreen   = false;
-  drawingMode  = false;
-  drawColor    = '#e53e3e';
-  drawStroke   = 3;
+  chartPlugins = [gradientPlugin, zoneBandsPlugin];
+
+  fullscreen  = false;
+  drawingMode = false;
+  drawColor   = '#e53e3e';
+  drawStroke  = 3;
   drawTool: DrawTool = 'pen';
+
+  hoverVisible = false;
+  hoverTime    = '';
+  hoverRef     = 0;
+  hoverDev     = 0;
+  hoverDiff    = 0;
 
   readonly STROKES = [2, 5, 10];
 
   readonly chartOptions: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
-    animation: false,
+    animation: { duration: 500, easing: 'easeOutQuart' } as any,
     interaction: { mode: 'index', intersect: false },
     plugins: {
+      tooltip: { enabled: false },
       legend: {
         position: 'top',
-        labels: { color: '#374151', font: { size: 12 }, boxWidth: 16 },
-      },
-      tooltip: {
-        backgroundColor: '#ffffff',
-        borderColor: '#e2e5ec',
-        borderWidth: 1,
-        titleColor: '#111827',
-        bodyColor: '#374151',
-        callbacks: {
-          title: (items) => `Tiempo: ${secToMmss(Math.round(items[0].parsed.x ?? 0))}`,
-          label: (item) => ` ${item.dataset.label}: ${(item.parsed.y ?? 0).toFixed(0)} ppm`,
+        align: 'end',
+        labels: {
+          color: '#6b7280',
+          font: { size: 12 },
+          boxWidth: 24,
+          boxHeight: 3,
+          padding: 20,
+          usePointStyle: false,
         },
       },
     },
@@ -69,16 +126,17 @@ export class FcTemporalChartComponent implements OnChanges {
         ticks: {
           callback: (val) => secToMmss(val as number),
           maxTicksLimit: 10,
-          color: '#6b7280',
+          color: '#9ca3af',
           font: { size: 11 },
         },
-        grid: { color: '#e5e8ef' },
-        title: { display: true, text: 'Tiempo', color: '#6b7280', font: { size: 11 } },
+        grid: { color: 'rgba(229,232,239,0.7)' },
+        border: { display: false },
       },
       y: {
-        ticks: { color: '#6b7280', font: { size: 11 } },
-        grid: { color: '#e5e8ef' },
-        title: { display: true, text: 'FC (ppm)', color: '#6b7280', font: { size: 11 } },
+        ticks: { color: '#9ca3af', font: { size: 11 }, padding: 8 },
+        grid: { color: 'rgba(229,232,239,0.7)' },
+        border: { display: false },
+        title: { display: true, text: 'ppm', color: '#9ca3af', font: { size: 10 } },
       },
     },
   };
@@ -93,25 +151,33 @@ export class FcTemporalChartComponent implements OnChanges {
     this.chartData = {
       datasets: [
         {
-          label: `${this.refName} (referencia)`,
+          label: this.refName,
           data: refPts,
-          borderColor: '#1d4ed8',
-          backgroundColor: 'rgba(29,78,216,0.07)',
-          fill: { target: 1, above: 'rgba(29,78,216,0.08)', below: 'rgba(220,38,38,0.08)' } as any,
+          borderColor: '#818cf8',
+          backgroundColor: 'rgba(99,102,241,0.15)',
+          fill: 'origin',
           pointRadius: 0,
-          borderWidth: 2,
-          tension: 0.3,
-        },
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#818cf8',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+          borderWidth: 2.5,
+          tension: 0.55,
+        } as any,
         {
           label: this.devName,
           data: devPts,
-          borderColor: '#dc2626',
-          backgroundColor: 'rgba(220,38,38,0.07)',
-          fill: false,
+          borderColor: '#34d399',
+          backgroundColor: 'rgba(16,185,129,0.12)',
+          fill: 'origin',
           pointRadius: 0,
-          borderWidth: 2,
-          tension: 0.3,
-        },
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#34d399',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+          borderWidth: 2.5,
+          tension: 0.55,
+        } as any,
       ],
     };
   }
@@ -138,9 +204,40 @@ export class FcTemporalChartComponent implements OnChanges {
     a.click();
   }
 
-  setColor(e: Event): void {
-    this.drawColor = (e.target as HTMLInputElement).value;
+  setColor(e: Event): void { this.drawColor = (e.target as HTMLInputElement).value; }
+  clearDrawing(): void { this.drawCanvas?.clear(); }
+
+  onChartMouseMove(event: MouseEvent): void {
+    const chart = this.chartRef?.chart;
+    if (!chart) return;
+    const rect    = chart.canvas.getBoundingClientRect();
+    const x       = event.clientX - rect.left;
+    const xScale  = chart.scales['x'];
+    if (!xScale || x < chart.chartArea.left || x > chart.chartArea.right) {
+      this.hoverVisible = false;
+      return;
+    }
+    const time    = xScale.getValueForPixel(x) as number;
+    const refData = chart.data.datasets[0]?.data as {x: number, y: number}[];
+    const devData = chart.data.datasets[1]?.data as {x: number, y: number}[];
+    if (!refData?.length || !devData?.length) return;
+    const idx     = this._nearestIdx(refData, time);
+    this.hoverRef     = Math.round(refData[idx].y);
+    this.hoverDev     = Math.round(devData[idx].y);
+    this.hoverDiff    = Math.abs(this.hoverRef - this.hoverDev);
+    this.hoverTime    = secToMmss(Math.round(refData[idx].x));
+    this.hoverVisible = true;
   }
 
-  clearDrawing(): void { this.drawCanvas?.clear(); }
+  onChartMouseLeave(): void { this.hoverVisible = false; }
+
+  private _nearestIdx(data: {x: number, y: number}[], time: number): number {
+    let lo = 0, hi = data.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (data[mid].x < time) lo = mid + 1; else hi = mid;
+    }
+    if (lo > 0 && Math.abs(data[lo - 1].x - time) < Math.abs(data[lo].x - time)) return lo - 1;
+    return lo;
+  }
 }
