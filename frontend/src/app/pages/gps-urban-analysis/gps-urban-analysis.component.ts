@@ -967,12 +967,16 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     if (!this.analytics?.length || !this.deviceId) return;
     const clamp = (v: number) => Math.max(0, Math.min(100, v));
     const r1    = (v: number) => Math.round(v * 10) / 10;
+    // Sigmoid: lenient 0.2–0.8 m/s, penalty ramps from 1.0 m/s
+    // k=4.6, mid=1.16 → J=0.725 gives ~88 pts
+    const consistencySigmoid = (j: number) =>
+      Math.min(100, 100 / (1 + Math.exp(4.6 * (j - 1.16))));
     const modes: GpsUrbanModeScore[] = this.analytics.map(m => {
       const jitter = isNaN(m.speedJitter) ? 0 : m.speedJitter;
       return {
         id: m.modeId, name: m.modeName, color: m.color,
-        urbanScore:       r1(clamp(100 - (m.rmse  - 1.0) / 9.0 * 100)),
-        consistencyScore: r1(clamp(100 - (jitter  - 0.2) / 1.6 * 100)),
+        urbanScore:       r1(clamp(100 - (m.rmse - 1.0) / 14.5 * 100)),
+        consistencyScore: r1(consistencySigmoid(jitter)),
         rmse: m.rmse, speedJitter: jitter,
       };
     });
