@@ -5,6 +5,7 @@ Hierarchy: Device → Training Type → Sessions
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
 from typing import Any, Optional
@@ -20,7 +21,7 @@ from analyzer import (analyze_session, generate_aggregate_analysis,
                       generate_overview_chart, _weighted_global_score,
                       read_fc_from_bytes, align, calculate_metrics,
                       analyze_by_zones, estimate_lag)
-from ai_analyzer import generate_session_ai_analysis, generate_device_ai_verdict, generate_gps_track_ai_analysis, generate_gps_urban_ai_analysis
+from ai_analyzer import generate_session_ai_analysis, generate_device_ai_verdict, generate_gps_track_ai_analysis, generate_gps_urban_ai_analysis, generate_nocturnal_hrv_ai_analysis
 
 load_dotenv()
 
@@ -55,6 +56,8 @@ async def startup() -> None:
     await app.state.db.urban_tests.create_index("device_id")
     await app.state.db.urban_tests.create_index([("created_at", -1)])
     await app.state.db.gps_scores.create_index("device_id", unique=True)
+    await app.state.db.nocturnal_hrv_sessions.create_index("device_id")
+    await app.state.db.nocturnal_hrv_sessions.create_index([("created_at", -1)])
 
 
 @app.on_event("shutdown")
@@ -263,6 +266,7 @@ async def delete_device(device_id: str) -> dict:
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
     await db().sessions.delete_many({"device_id": oid})
+    await db().nocturnal_hrv_sessions.delete_many({"device_id": oid})
     return {"deleted": True}
 
 
@@ -1100,5 +1104,148 @@ async def create_device_ai_verdict(device_id: str) -> dict:
     await db().devices.update_one(
         {"_id": _oid(device_id)},
         {"$set": {"ai_verdict": result}},
+    )
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NOCTURNAL HRV SESSIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _ser_nocturnal_hrv(doc: dict, *, include_windows: bool = True) -> dict:
+    doc["id"] = str(doc.pop("_id"))
+    if "device_id" in doc:
+        doc["device_id"] = str(doc["device_id"])
+    if isinstance(doc.get("created_at"), datetime):
+        doc["created_at"] = doc["created_at"].isoformat()
+    doc.pop("polar_rr_bytes", None)
+    doc.pop("polar_hr_bytes", None)
+    doc.pop("fitbit_hrv_bytes", None)
+    doc.pop("fitbit_hr_bytes", None)
+    if not include_windows:
+        doc.pop("windows", None)
+    return doc
+
+
+@app.post("/api/devices/{device_id}/nocturnal-hrv", status_code=201)
+async def create_nocturnal_hrv_session(
+    device_id:       str,
+    polar_rr_file:   Optional[UploadFile] = File(default=None),
+    polar_hr_file:   Optional[UploadFile] = File(default=None),
+    fitbit_hrv_file: Optional[UploadFile] = File(default=None),
+    fitbit_hr_file:  Optional[UploadFile] = File(default=None),
+    session_name:    str = Form(default=""),
+    windows_json:    str = Form(default="[]"),
+    summary_json:    str = Form(default="{}"),
+    settings_json:   str = Form(default="{}"),
+) -> dict:
+    if not await db().devices.find_one({"_id": _oid(device_id)}):
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+    try:
+        windows  = json.loads(windows_json)
+        summary  = json.loads(summary_json)
+        settings = json.loads(settings_json)
+    except Exception:
+        raise HTTPException(status_code=422, detail="JSON inválido en los metadatos")
+
+    doc: dict[str, Any] = {
+        "device_id":    ObjectId(device_id),
+        "session_name": session_name.strip() or f"HRV Nocturno {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        "windows":      windows,
+        "summary":      summary,
+        "settings":     settings,
+        "created_at":   datetime.utcnow(),
+    }
+
+    for f, bkey, nkey in [
+        (polar_rr_file,   "polar_rr_bytes",   "polar_rr_filename"),
+        (polar_hr_file,   "polar_hr_bytes",   "polar_hr_filename"),
+        (fitbit_hrv_file, "fitbit_hrv_bytes", "fitbit_hrv_filename"),
+        (fitbit_hr_file,  "fitbit_hr_bytes",  "fitbit_hr_filename"),
+    ]:
+        if f and f.filename:
+            doc[bkey] = Binary(await f.read())
+            doc[nkey] = f.filename
+
+    inserted = await db().nocturnal_hrv_sessions.insert_one(doc)
+    doc["_id"] = inserted.inserted_id
+    return _ser_nocturnal_hrv(doc, include_windows=False)
+
+
+@app.get("/api/devices/{device_id}/nocturnal-hrv")
+async def list_nocturnal_hrv_sessions(device_id: str) -> list[dict]:
+    projection = {
+        "polar_rr_bytes": 0, "polar_hr_bytes": 0,
+        "fitbit_hrv_bytes": 0, "fitbit_hr_bytes": 0,
+        "windows": 0,
+    }
+    return [
+        _ser_nocturnal_hrv(d, include_windows=False)
+        async for d in db().nocturnal_hrv_sessions.find(
+            {"device_id": _oid(device_id)}, projection,
+        ).sort("created_at", -1)
+    ]
+
+
+@app.get("/api/nocturnal-hrv/{session_id}")
+async def get_nocturnal_hrv_session(session_id: str) -> dict:
+    projection = {
+        "polar_rr_bytes": 0, "polar_hr_bytes": 0,
+        "fitbit_hrv_bytes": 0, "fitbit_hr_bytes": 0,
+    }
+    doc = await db().nocturnal_hrv_sessions.find_one({"_id": _oid(session_id)}, projection)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Sesión HRV no encontrada")
+    return _ser_nocturnal_hrv(doc, include_windows=True)
+
+
+@app.delete("/api/nocturnal-hrv/{session_id}")
+async def delete_nocturnal_hrv_session(session_id: str) -> dict:
+    result = await db().nocturnal_hrv_sessions.delete_one({"_id": _oid(session_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Sesión HRV no encontrada")
+    return {"deleted": True}
+
+
+@app.get("/api/nocturnal-hrv/{session_id}/ai-analysis")
+async def get_nocturnal_hrv_ai_analysis(session_id: str) -> dict:
+    doc = await db().nocturnal_hrv_sessions.find_one(
+        {"_id": _oid(session_id)}, {"ai_analysis": 1}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Sesión HRV no encontrada")
+    ai = doc.get("ai_analysis")
+    if not ai:
+        raise HTTPException(status_code=404, detail="Análisis IA no generado aún")
+    return ai
+
+
+@app.post("/api/nocturnal-hrv/{session_id}/ai-analysis", status_code=200)
+async def create_nocturnal_hrv_ai_analysis(session_id: str) -> dict:
+    doc = await db().nocturnal_hrv_sessions.find_one(
+        {"_id": _oid(session_id)}, {"session_name": 1, "summary": 1, "windows": 1}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Sesión HRV no encontrada")
+
+    summary = doc.get("summary") or {}
+    windows = doc.get("windows") or []
+    if not summary:
+        raise HTTPException(status_code=422, detail="La sesión no tiene datos de resumen calculados")
+
+    try:
+        result = await generate_nocturnal_hrv_ai_analysis(
+            session_name=doc.get("session_name", "HRV Nocturno"),
+            summary=summary,
+            n_windows=len(windows),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error generando análisis IA: {exc}")
+
+    await db().nocturnal_hrv_sessions.update_one(
+        {"_id": _oid(session_id)},
+        {"$set": {"ai_analysis": result}},
     )
     return result

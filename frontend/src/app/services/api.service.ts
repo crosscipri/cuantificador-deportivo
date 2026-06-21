@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry } from '../models/session.model';
 import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail, UrbanAiAnalysis, GpsTrackModeScore, GpsUrbanModeScore, GpsStoredScores, GpsOverviewEntry } from '../models/gps-analysis.model';
+import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis } from '../models/hrv-analysis.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -223,5 +224,31 @@ export class ApiService {
 
   saveGpsScores(deviceId: string, type: 'track' | 'urban', data: GpsStoredScores<GpsTrackModeScore> | GpsStoredScores<GpsUrbanModeScore>): Observable<{ ok: boolean }> {
     return this.http.put<{ ok: boolean }>(`${this.base}/devices/${deviceId}/gps-scores`, { type, data });
+  }
+
+  // ── Nocturnal HRV ─────────────────────────────────────────────────────────
+
+  listNocturnalHrvSessions(deviceId: string): Observable<NocturnalHrvSummary[]> {
+    return this.http.get<NocturnalHrvSummary[]>(`${this.base}/devices/${deviceId}/nocturnal-hrv`);
+  }
+
+  saveNocturnalHrvSession(deviceId: string, fd: FormData): Observable<NocturnalHrvSummary> {
+    return this.http.post<NocturnalHrvSummary>(`${this.base}/devices/${deviceId}/nocturnal-hrv`, fd);
+  }
+
+  getNocturnalHrvSession(id: string): Observable<NocturnalHrvDetail> {
+    return this.http.get<NocturnalHrvDetail>(`${this.base}/nocturnal-hrv/${id}`);
+  }
+
+  deleteNocturnalHrvSession(id: string): Observable<{ deleted: boolean }> {
+    return this.http.delete<{ deleted: boolean }>(`${this.base}/nocturnal-hrv/${id}`);
+  }
+
+  getNocturnalHrvAiAnalysis(id: string): Observable<NocturnalHrvAiAnalysis> {
+    return this.http.get<NocturnalHrvAiAnalysis>(`${this.base}/nocturnal-hrv/${id}/ai-analysis`);
+  }
+
+  generateNocturnalHrvAiAnalysis(id: string): Observable<NocturnalHrvAiAnalysis> {
+    return this.http.post<NocturnalHrvAiAnalysis>(`${this.base}/nocturnal-hrv/${id}/ai-analysis`, {});
   }
 }

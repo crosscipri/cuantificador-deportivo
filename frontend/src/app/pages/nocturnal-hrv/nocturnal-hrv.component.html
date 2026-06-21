@@ -1,0 +1,603 @@
+<div class="hrv-page">
+
+  <!-- ── Breadcrumb ─────────────────────────────────────────────────── -->
+  <div class="breadcrumb" *ngIf="deviceId">
+    <a routerLink="/devices">Dispositivos</a>
+    <span class="bc-sep">›</span>
+    <a [routerLink]="['/devices', deviceId]">Dispositivo</a>
+    <span class="bc-sep">›</span>
+    <span class="bc-current">HRV Nocturno</span>
+  </div>
+
+  <!-- ── Page header ─────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div>
+      <div class="eyebrow" style="margin-bottom:8px">Análisis nocturno · VFC</div>
+      <h1 class="h1-display">HRV Nocturno</h1>
+      <p class="page-sub">
+        Carga los ficheros de exportación de Polar H10 y Fitbit para comparar RMSSD, FC
+        y analizar la precisión del sensor óptico durante el sueño.
+      </p>
+    </div>
+    <div class="header-actions" *ngIf="hasData">
+      <ng-container *ngIf="!currentSessionId">
+        <input class="session-name-input" [(ngModel)]="sessionName"
+               placeholder="Nombre de sesión…" maxlength="80">
+        <button class="ec-btn sm primary" (click)="saveCurrentSession()" [disabled]="savingSession">
+          {{ savingSession ? 'Guardando…' : 'Guardar sesión' }}
+        </button>
+      </ng-container>
+      <span class="saved-chip" *ngIf="currentSessionId">✓ Guardada</span>
+      <button class="ec-btn sm" (click)="exportCSV()">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+          <path d="M7 1v8M4 6l3 3 3-3M2 11h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        CSV
+      </button>
+      <button class="ec-btn sm" (click)="exportPNG()">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+          <rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M1 9l3-3 2 2 3-4 4 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        PNG
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Saved sessions ─────────────────────────────────────────────── -->
+  <div class="saved-sessions" *ngIf="deviceId && (savedSessions.length > 0 || loadingSessions)">
+    <div class="saved-sessions-header">
+      <span class="saved-sessions-title">Sesiones guardadas</span>
+      <span class="saved-count" *ngIf="!loadingSessions">{{ savedSessions.length }}</span>
+      <div class="spinner-xs" *ngIf="loadingSessions"></div>
+    </div>
+    <div class="saved-sessions-list">
+      <div *ngFor="let s of savedSessions" class="saved-row"
+           [class.active]="s.id === currentSessionId"
+           (click)="loadSession(s.id)">
+        <div class="saved-row-name">{{ s.session_name }}</div>
+        <div class="saved-row-meta">{{ s.created_at | date:'dd/MM/yy HH:mm' }}</div>
+        <button class="saved-delete-btn" (click)="deleteSession(s.id, $event)" title="Eliminar">×</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Settings panel ─────────────────────────────────────────────── -->
+  <div class="settings-row">
+    <button class="ec-btn sm ghost" (click)="showSettings = !showSettings">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+        <circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.3"/>
+        <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M10.01 10.01l1.06 1.06M2.93 11.07l1.06-1.06M10.01 3.99l1.06-1.06"
+              stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      Parámetros de análisis
+      <span style="font-size:9px;margin-left:2px">{{ showSettings ? '▲' : '▼' }}</span>
+    </button>
+
+    <div class="settings-panel" *ngIf="showSettings">
+      <label class="setting-item">
+        <span class="setting-label">Umbral de ectópicos</span>
+        <div class="setting-control">
+          <input type="number" class="setting-input" [(ngModel)]="artifactThresholdPct"
+                 min="5" max="50" step="1" (change)="processAll()">
+          <span class="setting-unit">%</span>
+        </div>
+        <span class="setting-hint">Latidos eliminados si |RR − mediana local| &gt; X% de la mediana</span>
+      </label>
+      <label class="setting-item">
+        <span class="setting-label">Mínimo de latidos por ventana</span>
+        <div class="setting-control">
+          <input type="number" class="setting-input" [(ngModel)]="minBeatsPerWindow"
+                 min="5" max="100" step="1" (change)="processAll()">
+          <span class="setting-unit">latidos</span>
+        </div>
+        <span class="setting-hint">Ventanas con menos latidos se marcan como sin dato (NaN)</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- ── Upload grid ─────────────────────────────────────────────────── -->
+  <div class="upload-grid">
+
+    <div *ngFor="let key of fileKeys" class="upload-card"
+         [class.loaded]="files[key].loaded"
+         [class.has-error]="!!files[key].error"
+         (dragover)="onDragOver($event)"
+         (dragleave)="onDragLeave($event)"
+         (drop)="onDrop($event, key)">
+
+      <label class="upload-label" [for]="'file-' + key">
+        <!-- Icon -->
+        <div class="upload-icon">
+          <svg *ngIf="!files[key].loaded && !files[key].error" width="22" height="22" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <svg *ngIf="files[key].loaded" width="22" height="22" viewBox="0 0 24 24"
+               fill="none" stroke="var(--good)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <svg *ngIf="files[key].error" width="22" height="22" viewBox="0 0 24 24"
+               fill="none" stroke="var(--bad)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+
+        <!-- Labels -->
+        <div class="upload-text">
+          <div class="upload-title">{{ files[key].label }}</div>
+          <div class="upload-sub" *ngIf="!files[key].loaded && !files[key].error">
+            {{ files[key].sublabel }}<br>
+            <span style="opacity:.6">Arrastra aquí o haz clic</span>
+          </div>
+          <div class="upload-filename" *ngIf="files[key].loaded">{{ files[key].name }}</div>
+          <div class="upload-error"   *ngIf="files[key].error">{{ files[key].error }}</div>
+        </div>
+
+        <!-- Quality badge (after load) -->
+        <div class="quality-badge" *ngIf="files[key].loaded">
+          <ng-container [ngSwitch]="key">
+            <ng-container *ngSwitchCase="'polarRR'">
+              <span class="qb-item">{{ files[key].validWindows }} ventanas</span>
+              <span class="qb-item" [class.bad]="files[key].rejectedPct > 10">
+                {{ files[key].rejectedPct | number:'1.1-1' }}% artefactos
+              </span>
+            </ng-container>
+            <ng-container *ngSwitchCase="'fitbitHrv'">
+              <span class="qb-item">{{ files[key].validWindows }} ventanas</span>
+            </ng-container>
+            <ng-container *ngSwitchDefault>
+              <span class="qb-item good">Cargado</span>
+            </ng-container>
+          </ng-container>
+        </div>
+      </label>
+
+      <input type="file" [id]="'file-' + key" [accept]="files[key].accept"
+             class="file-input" (change)="onFileSelected($event, key)">
+    </div>
+
+  </div>
+
+  <!-- ── Overlap warning ─────────────────────────────────────────────── -->
+  <div class="overlap-warning" *ngIf="overlapWarning">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <span>
+      <strong>Sin solapamiento temporal.</strong> Los rangos horarios de Polar y Fitbit no se cruzan.
+      Verifica que ambos dispositivos graben la misma noche y que las zonas horarias coincidan.
+    </span>
+  </div>
+
+  <!-- ── Summary stats ───────────────────────────────────────────────── -->
+  <div class="stats-grid" *ngIf="summary && hasData">
+
+    <!-- RMSSD Polar -->
+    <div class="stat-card" *ngIf="summary.polarRmssdMean != null">
+      <div class="stat-eyebrow">RMSSD Polar H10</div>
+      <div class="stat-value num">{{ fmt(summary.polarRmssdMean) }}</div>
+      <div class="stat-unit">ms</div>
+      <div class="stat-sub">± {{ fmt(summary.polarRmssdSd) }} ms (DE)</div>
+    </div>
+
+    <!-- RMSSD Fitbit -->
+    <div class="stat-card" *ngIf="summary.fitbitRmssdMean != null">
+      <div class="stat-eyebrow">RMSSD Fitbit</div>
+      <div class="stat-value num">{{ fmt(summary.fitbitRmssdMean) }}</div>
+      <div class="stat-unit">ms</div>
+      <div class="stat-sub">± {{ fmt(summary.fitbitRmssdSd) }} ms (DE)</div>
+    </div>
+
+    <!-- Bias -->
+    <div class="stat-card" [ngClass]="biasClass(summary.biasMean)" *ngIf="summary.biasMean != null">
+      <div class="stat-eyebrow">Sesgo medio</div>
+      <div class="stat-value num">{{ fmtSign(summary.biasMean) }}</div>
+      <div class="stat-unit">ms</div>
+      <div class="stat-sub">{{ fmtPct(summary.biasPct) }} relativo</div>
+    </div>
+
+    <!-- Pearson r -->
+    <div class="stat-card" *ngIf="summary.pearsonR != null">
+      <div class="stat-eyebrow">Correlación (r)</div>
+      <div class="stat-value num">{{ fmt(summary.pearsonR, 3) }}</div>
+      <div class="stat-unit">Pearson</div>
+      <div class="stat-sub">RMSSD Polar vs Fitbit</div>
+    </div>
+
+    <!-- MAE RMSSD -->
+    <div class="stat-card" *ngIf="summary.rmssdMAE != null">
+      <div class="stat-eyebrow">MAE RMSSD</div>
+      <div class="stat-value num">{{ fmt(summary.rmssdMAE) }}</div>
+      <div class="stat-unit">ms</div>
+      <div class="stat-sub">Error absoluto medio</div>
+    </div>
+
+    <!-- LOA -->
+    <div class="stat-card" *ngIf="summary.upperLoa != null">
+      <div class="stat-eyebrow">Límites de acuerdo</div>
+      <div class="stat-value num" style="font-size:14px">
+        {{ fmtSign(summary.lowerLoa) }} / {{ fmtSign(summary.upperLoa) }}
+      </div>
+      <div class="stat-unit">ms (±1.96 DE)</div>
+      <div class="stat-sub">Bland-Altman</div>
+    </div>
+
+    <!-- Polar HR -->
+    <div class="stat-card" *ngIf="summary.polarHRMean != null">
+      <div class="stat-eyebrow">FC media Polar</div>
+      <div class="stat-value num">{{ fmt(summary.polarHRMean, 0) }}</div>
+      <div class="stat-unit">bpm</div>
+      <div class="stat-sub">Mín: {{ fmt(summary.polarHRMin, 0) }} bpm</div>
+    </div>
+
+    <!-- Fitbit HR -->
+    <div class="stat-card" *ngIf="summary.fitbitHRMean != null">
+      <div class="stat-eyebrow">FC media Fitbit</div>
+      <div class="stat-value num">{{ fmt(summary.fitbitHRMean, 0) }}</div>
+      <div class="stat-unit">bpm</div>
+      <div class="stat-sub">Mín: {{ fmt(summary.fitbitHRMin, 0) }} bpm</div>
+    </div>
+
+    <!-- HR MAE -->
+    <div class="stat-card" *ngIf="summary.hrMAE != null">
+      <div class="stat-eyebrow">MAE FC</div>
+      <div class="stat-value num">{{ fmt(summary.hrMAE, 1) }}</div>
+      <div class="stat-unit">bpm</div>
+      <div class="stat-sub">Error absoluto medio FC</div>
+    </div>
+
+  </div>
+
+  <!-- ── Empty state ─────────────────────────────────────────────────── -->
+  <div class="empty-state" *ngIf="!hasData">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" style="opacity:.28">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    </svg>
+    <h3>Carga al menos un fichero para empezar</h3>
+    <p>Con solo Polar RR verás la evolución de RMSSD y FC nocturna.<br>
+       Carga también los datos de Fitbit para la comparación completa.</p>
+  </div>
+
+  <!-- ── Charts area ─────────────────────────────────────────────────── -->
+  <div class="charts-area" *ngIf="hasData">
+
+    <div class="charts-toolbar">
+      <span class="toolbar-hint">
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+          <circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M7 6v4M7 4.5v.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        Rueda del ratón sobre los gráficos para hacer zoom
+      </span>
+      <button class="ec-btn sm ghost" (click)="resetZoom()">
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+          <path d="M12.5 7A5.5 5.5 0 1 1 7 1.5c1.5 0 2.9.6 3.9 1.6L13 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Restablecer zoom
+      </button>
+    </div>
+
+    <!-- Row 1: RMSSD comparison + HR comparison -->
+    <div class="charts-row">
+
+      <!-- Chart 1 — RMSSD comparison -->
+      <div class="chart-card" (wheel)="onChartWheel($event)">
+        <div class="chart-header">
+          <div class="chart-title">Comparativa RMSSD</div>
+          <div class="chart-header-right">
+            <div class="chart-sub" *ngIf="summary?.pearsonR != null">
+              r = {{ fmt(summary!.pearsonR, 3) }}&nbsp;·&nbsp;MAE = {{ fmt(summary!.rmssdMAE) }} ms
+            </div>
+            <button class="chart-export-btn" (click)="exportChart(c1Ref, '1-rmssd')" title="Exportar PNG">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart-body">
+          <canvas baseChart #c1 [type]="'line'" [data]="chart1Data" [options]="chart1Options"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 2 — HR comparison -->
+      <div class="chart-card" (wheel)="onChartWheel($event)">
+        <div class="chart-header">
+          <div class="chart-title">Comparativa FC</div>
+          <div class="chart-header-right">
+            <div class="chart-sub" *ngIf="summary?.hrMAE != null">
+              MAE FC = {{ fmt(summary!.hrMAE, 1) }} bpm
+            </div>
+            <button class="chart-export-btn" (click)="exportChart(c2Ref, '2-fc')" title="Exportar PNG">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart-body">
+          <canvas baseChart #c2 [type]="'line'" [data]="chart2Data" [options]="chart2Options"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 2: Error + Bland-Altman -->
+    <div class="charts-row">
+
+      <!-- Chart 3 — RMSSD error over time -->
+      <div class="chart-card" *ngIf="hasChart3; else noChart3" (wheel)="onChartWheel($event)">
+        <div class="chart-header">
+          <div class="chart-title">Error RMSSD a lo largo de la noche</div>
+          <div class="chart-header-right">
+            <div class="chart-sub">
+              <span class="legend-dot" style="background:#ef4444"></span> sobreestima
+              &nbsp;
+              <span class="legend-dot" style="background:#3b82f6"></span> subestima
+            </div>
+            <button class="chart-export-btn" (click)="exportChart(c3Ref, '3-error')" title="Exportar PNG">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart-body">
+          <canvas baseChart #c3 [type]="'line'" [data]="chart3Data" [options]="chart3Options"></canvas>
+        </div>
+      </div>
+      <ng-template #noChart3>
+        <div class="chart-card chart-placeholder">
+          <div class="chart-title" style="margin-bottom:8px">Error RMSSD a lo largo de la noche</div>
+          <p class="placeholder-hint">Necesita datos de Polar RR y Fitbit HRV</p>
+        </div>
+      </ng-template>
+
+      <!-- Chart 4 — Bland-Altman -->
+      <div class="chart-card" *ngIf="hasChart4; else noChart4">
+        <div class="chart-header">
+          <div class="chart-title">Bland-Altman · RMSSD</div>
+          <div class="chart-header-right">
+            <div class="chart-sub" *ngIf="summary?.biasMean != null">
+              Sesgo {{ fmtSign(summary!.biasMean) }} ms&nbsp;·&nbsp;LA: {{ fmtSign(summary!.lowerLoa) }} / {{ fmtSign(summary!.upperLoa) }} ms
+            </div>
+            <button class="chart-export-btn" (click)="exportChart(c4Ref, '4-bland-altman')" title="Exportar PNG">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart-body">
+          <canvas baseChart #c4 [type]="'scatter'" [data]="chart4Data"
+                  [options]="chart4Options" [plugins]="chart4Plugins"></canvas>
+        </div>
+      </div>
+      <ng-template #noChart4>
+        <div class="chart-card chart-placeholder">
+          <div class="chart-title" style="margin-bottom:8px">Bland-Altman · RMSSD</div>
+          <p class="placeholder-hint">Necesita al menos 3 ventanas de Polar RR y Fitbit HRV solapadas</p>
+        </div>
+      </ng-template>
+
+    </div>
+
+    <!-- Row 3: Correlation scatter RMSSD + HR -->
+    <div class="charts-row">
+
+      <!-- Chart 5 — RMSSD correlation -->
+      <div class="chart-card" *ngIf="hasChart5; else noChart5">
+        <div class="chart-header">
+          <div class="chart-title">Correlación RMSSD · Polar vs Fitbit</div>
+          <div class="chart-header-right">
+            <div class="chart-sub" *ngIf="summary?.pearsonR != null">
+              r = {{ fmt(summary!.pearsonR, 3) }}
+            </div>
+            <button class="chart-export-btn" (click)="exportChart(c5Ref, '5-correlacion-rmssd')" title="Exportar PNG">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart-body">
+          <canvas baseChart #c5 [type]="'scatter'" [data]="chart5Data" [options]="chart5Options"></canvas>
+        </div>
+      </div>
+      <ng-template #noChart5>
+        <div class="chart-card chart-placeholder">
+          <div class="chart-title" style="margin-bottom:8px">Correlación RMSSD · Polar vs Fitbit</div>
+          <p class="placeholder-hint">Necesita datos de Polar RR y Fitbit HRV</p>
+        </div>
+      </ng-template>
+
+      <!-- Chart 6 — HR correlation -->
+      <div class="chart-card" *ngIf="hasChart6; else noChart6">
+        <div class="chart-header">
+          <div class="chart-title">Correlación FC · Polar vs Fitbit</div>
+          <div class="chart-header-right">
+            <div class="chart-sub" *ngIf="summary?.pearsonRHR != null">
+              r = {{ fmt(summary!.pearsonRHR, 3) }}
+            </div>
+            <button class="chart-export-btn" (click)="exportChart(c6Ref, '6-correlacion-fc')" title="Exportar PNG">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart-body">
+          <canvas baseChart #c6 [type]="'scatter'" [data]="chart6Data" [options]="chart6Options"></canvas>
+        </div>
+      </div>
+      <ng-template #noChart6>
+        <div class="chart-card chart-placeholder">
+          <div class="chart-title" style="margin-bottom:8px">Correlación FC · Polar vs Fitbit</div>
+          <p class="placeholder-hint">Necesita datos de Polar HR y Fitbit HR</p>
+        </div>
+      </ng-template>
+
+    </div>
+
+  </div>
+
+  <!-- ── AI Analysis ────────────────────────────────────────────────────────── -->
+  <div class="hrv-ai-section" *ngIf="currentSessionId && hasData">
+
+    <!-- Header -->
+    <div class="hrv-ai-header">
+      <div class="hrv-ai-title-group">
+        <span class="hrv-ai-eyebrow">Análisis IA</span>
+        <h2 class="hrv-ai-title">Interpretación con inteligencia artificial</h2>
+      </div>
+      <div class="hrv-ai-actions">
+        <span class="hrv-ai-meta" *ngIf="aiAnalysis && !generatingAi">
+          {{ aiAnalysis.model }} · {{ aiAnalysis.generated_at | date:'dd/MM/yyyy HH:mm' }}
+        </span>
+        <button class="ec-btn sm" (click)="generateAiAnalysis()"
+                [disabled]="generatingAi || loadingAi">
+          <span *ngIf="!generatingAi">{{ aiAnalysis ? '↻ Re-generar' : 'Generar informe IA' }}</span>
+          <span *ngIf="generatingAi" class="spinner-xs"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading existing -->
+    <div class="hrv-ai-state" *ngIf="loadingAi">
+      <div class="spinner"></div>
+      <p>Cargando informe IA…</p>
+    </div>
+
+    <!-- Generating -->
+    <div class="hrv-ai-state" *ngIf="generatingAi">
+      <div class="spinner"></div>
+      <p>Generando análisis con Claude… (puede tardar 20-30 s)</p>
+    </div>
+
+    <!-- Error -->
+    <div class="hrv-ai-state hrv-ai-state-error" *ngIf="aiError && !generatingAi">
+      <p>⚠ {{ aiError }}</p>
+    </div>
+
+    <!-- No analysis yet -->
+    <div class="hrv-ai-state" *ngIf="!loadingAi && !generatingAi && !aiError && !aiAnalysis">
+      <p class="hrv-ai-empty">No hay informe IA generado. Pulsa "Generar informe IA" para analizar esta sesión.</p>
+    </div>
+
+    <!-- Report -->
+    <ng-container *ngIf="aiAnalysis && !generatingAi">
+
+      <!-- Summary card with verdict badges -->
+      <div class="hrv-ai-card hrv-ai-card-summary">
+        <div class="hrv-ai-card-label">Resumen ejecutivo</div>
+        <p class="hrv-ai-body">{{ aiAnalysis.report.resumen_ejecutivo }}</p>
+        <div class="hrv-ai-badges">
+          <span class="hrv-ai-badge" [ngClass]="'cal-' + aiAnalysis.report.calificacion_hrv">
+            HRV: {{ aiAnalysis.report.calificacion_hrv | titlecase }}
+          </span>
+          <span class="hrv-ai-badge" [ngClass]="'cal-' + aiAnalysis.report.calificacion_fc">
+            FC: {{ aiAnalysis.report.calificacion_fc | titlecase }}
+          </span>
+          <span class="hrv-ai-badge cal-verdict">
+            {{ aiAnalysis.report.veredicto_final.etiqueta }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Two column: RMSSD + FC -->
+      <div class="hrv-ai-two-col">
+
+        <div class="hrv-ai-card">
+          <div class="hrv-ai-card-label">Análisis RMSSD</div>
+          <div class="hrv-ai-field-list">
+            <div class="hrv-ai-field">
+              <span class="hrv-ai-field-key">Correlación</span>
+              <span class="hrv-ai-field-val">{{ aiAnalysis.report.analisis_rmssd.correlacion }}</span>
+            </div>
+            <div class="hrv-ai-field">
+              <span class="hrv-ai-field-key">Error absoluto</span>
+              <span class="hrv-ai-field-val">{{ aiAnalysis.report.analisis_rmssd.error_absoluto }}</span>
+            </div>
+            <div class="hrv-ai-field">
+              <span class="hrv-ai-field-key">Sesgo sistemático</span>
+              <span class="hrv-ai-field-val">{{ aiAnalysis.report.analisis_rmssd.sesgo_sistematico }}</span>
+            </div>
+            <div class="hrv-ai-field">
+              <span class="hrv-ai-field-key">Límites de acuerdo</span>
+              <span class="hrv-ai-field-val">{{ aiAnalysis.report.analisis_rmssd.limites_acuerdo }}</span>
+            </div>
+            <div class="hrv-ai-field">
+              <span class="hrv-ai-field-key">Bland-Altman visual</span>
+              <span class="hrv-ai-field-val">{{ aiAnalysis.report.analisis_rmssd.descripcion_visual_bland_altman }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hrv-ai-card">
+          <div class="hrv-ai-card-label">Análisis FC nocturna</div>
+          <div class="hrv-ai-field-list">
+            <div class="hrv-ai-field">
+              <span class="hrv-ai-field-key">Error absoluto</span>
+              <span class="hrv-ai-field-val">{{ aiAnalysis.report.analisis_fc.error_absoluto }}</span>
+            </div>
+            <div class="hrv-ai-field">
+              <span class="hrv-ai-field-key">Correlación</span>
+              <span class="hrv-ai-field-val">{{ aiAnalysis.report.analisis_fc.correlacion }}</span>
+            </div>
+            <div class="hrv-ai-field">
+              <span class="hrv-ai-field-key">Relevancia clínica</span>
+              <span class="hrv-ai-field-val">{{ aiAnalysis.report.analisis_fc.relevancia_clinica }}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Nocturnal variation + technical causes -->
+      <div class="hrv-ai-two-col">
+        <div class="hrv-ai-card">
+          <div class="hrv-ai-card-label">Variación nocturna</div>
+          <p class="hrv-ai-body">{{ aiAnalysis.report.variacion_nocturna }}</p>
+        </div>
+        <div class="hrv-ai-card">
+          <div class="hrv-ai-card-label">Causas técnicas del error</div>
+          <p class="hrv-ai-body">{{ aiAnalysis.report.causas_tecnicas }}</p>
+        </div>
+      </div>
+
+      <!-- Practical utility -->
+      <div class="hrv-ai-card">
+        <div class="hrv-ai-card-label">Utilidad práctica</div>
+        <div class="hrv-ai-util-grid">
+          <div class="hrv-ai-util-item">
+            <div class="hrv-ai-util-key">Seguimiento de tendencias</div>
+            <p class="hrv-ai-body">{{ aiAnalysis.report.utilidad_practica.tracking_tendencias }}</p>
+          </div>
+          <div class="hrv-ai-util-item">
+            <div class="hrv-ai-util-key">Recovery Score</div>
+            <p class="hrv-ai-body">{{ aiAnalysis.report.utilidad_practica.recovery_score }}</p>
+          </div>
+          <div class="hrv-ai-util-item">
+            <div class="hrv-ai-util-key">Detección de estrés</div>
+            <p class="hrv-ai-body">{{ aiAnalysis.report.utilidad_practica.deteccion_estres }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Literature comparison -->
+      <div class="hrv-ai-card">
+        <div class="hrv-ai-card-label">Comparación con la literatura</div>
+        <p class="hrv-ai-body">{{ aiAnalysis.report.comparacion_literatura }}</p>
+      </div>
+
+      <!-- Final verdict -->
+      <div class="hrv-ai-card hrv-ai-card-verdict">
+        <div class="hrv-ai-card-label">Veredicto final</div>
+        <div class="hrv-ai-verdict-label" [ngClass]="'cal-' + aiAnalysis.report.veredicto_final.calificacion">
+          {{ aiAnalysis.report.veredicto_final.etiqueta }}
+        </div>
+        <p class="hrv-ai-body hrv-ai-rec">{{ aiAnalysis.report.veredicto_final.recomendacion }}</p>
+      </div>
+
+    </ng-container>
+
+  </div>
+
+</div>

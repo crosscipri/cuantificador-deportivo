@@ -52,5 +52,10 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/overview/overview.component').then(m => m.OverviewComponent),
   },
+  {
+    path: 'devices/:deviceId/nocturnal-hrv',
+    loadComponent: () =>
+      import('./pages/nocturnal-hrv/nocturnal-hrv.component').then(m => m.NocturnalHrvComponent),
+  },
   { path: '**', redirectTo: 'devices' },
 ];

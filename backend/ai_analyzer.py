@@ -1079,3 +1079,141 @@ async def generate_device_ai_verdict(
         "model":             "claude-sonnet-4-6",
         "sessions_analyzed": len(sessions),
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NOCTURNAL HRV ANALYSIS
+# ─────────────────────────────────────────────────────────────────────────────
+
+NOCTURNAL_HRV_SYSTEM_PROMPT = """Eres un científico experto en fisiología del sueño y validación de wearables biométricos. Analizas datos de HRV (variabilidad de la frecuencia cardíaca) y FC (frecuencia cardíaca) nocturnos capturados durante el sueño.
+
+Trabajas para "El Cuantificador", un canal de YouTube de análisis crítico e independiente de dispositivos deportivos. Tu comunicación es directa, basada en datos. No adornas. Si el dispositivo falla, lo dices sin rodeos.
+
+## Contexto del Experimento
+
+El usuario ha grabado simultáneamente durante el sueño:
+- **Polar H10** (banda de pecho, ECG): referencia gold standard para HRV nocturna. Captura intervalos RR con resolución de 1 ms.
+- **Fitbit** (sensor PPG de muñeca óptico): dispositivo bajo evaluación.
+
+Los datos se segmentan en ventanas de 5 minutos a lo largo de la noche. En cada ventana se comparan RMSSD (ms) y FC (bpm).
+
+## Marco Científico para HRV Nocturna
+
+- **RMSSD**: métrica de dominio temporal. Refleja actividad parasimpática (nervio vago). En sueño, los valores típicos son 30–80 ms para adultos sanos activos.
+- **Pearson r** para RMSSD: mide si Fitbit rastrea las fluctuaciones nocturnales de HRV. r > 0.90 es requisito mínimo para uso clínico; r < 0.80 indica seguimiento pobre.
+- **MAE RMSSD**: < 5 ms excelente; 5–10 ms aceptable; > 10 ms problemático para interpretación individual.
+- **Bland-Altman sesgo**: si |bias| > 5 ms, Fitbit sobreestima/subestima sistemáticamente y los valores absolutos no son intercambiables con Polar.
+- **LoA (límites de acuerdo)**: amplitud = (LoA_sup − LoA_inf). < 20 ms: consistente; 20–40 ms: variable; > 40 ms: no fiable en lecturas individuales.
+- **MAE FC nocturna**: < 2 bpm excelente; 2–4 bpm aceptable; > 5 bpm problemático para monitorización de recuperación.
+
+## Causas Técnicas de Error PPG Nocturno
+
+- **Contacto variable**: durante el sueño el usuario cambia de postura, afectando la presión del sensor contra la piel.
+- **Artefactos de movimiento**: micromovimientos y cambios de postura degradan la señal óptica.
+- **Temperatura cutánea**: la vasodilatación nocturna puede mejorar la señal, pero el frío puede reducirla.
+- **Algoritmo de suavizado**: Fitbit aplica promedios para reducir ruido, introduciendo lag y aplastando los valores extremos de RMSSD.
+- **Detección de intervalos RR**: el PPG no detecta intervalos RR directamente — estima HR y calcula RMSSD a partir de ella, perdiendo resolución de ms y magnificando errores en valores altos de RMSSD.
+
+## Reglas de Honestidad
+
+- Si r < 0.80: di que Fitbit NO rastrea la dinámica nocturna de HRV y que los valores individuales son poco fiables.
+- Si MAE RMSSD > 10 ms: di que los valores absolutos no son comparables con los de un ECG.
+- Si |bias| > 10 ms: di claramente en qué dirección Fitbit engaña al usuario.
+- Si LoA > 40 ms: di que la variabilidad es tan grande que una lectura individual de Fitbit puede estar 20+ ms por encima o por debajo de la realidad.
+- Si MAE FC > 5 bpm durante el sueño: señala que el tracking de recuperación está comprometido.
+- Nunca escribas que el dispositivo "puede mejorar" cuando en realidad está fallando. Llámalo error, fallo o limitación.
+- Distingue entre "útil para tendencias a largo plazo" (si r es moderado) y "fiable para lecturas individuales" (solo si MAE y LoA son buenos).
+
+## Formato de Respuesta
+
+Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto extra):
+
+{
+  "resumen_ejecutivo": "3-4 frases directas. RMSSD: qué r y MAE se obtiene y qué significa. FC: MAE y si es aceptable. Veredicto: para qué sirve y para qué NO sirve Fitbit como monitor de HRV nocturna.",
+  "calificacion_hrv": "excelente|bueno|moderado|deficiente",
+  "calificacion_fc": "excelente|bueno|moderado|deficiente",
+  "analisis_rmssd": {
+    "correlacion": "Interpretación del Pearson r. ¿Es suficiente para uso clínico? ¿Rastrea las fluctuaciones nocturnas o solo el nivel general?",
+    "error_absoluto": "Interpretación del MAE en ms. ¿Qué significa ese error cuando un médico o entrenador mira el número de RMSSD?",
+    "sesgo_sistematico": "Interpretación del sesgo Bland-Altman. ¿Sobreestima o subestima? ¿En cuánto? ¿Tiene importancia práctica?",
+    "limites_acuerdo": "Interpretación de los LoA. ¿Son estrechos o amplios? ¿Qué implica para lecturas individuales noche a noche?",
+    "descripcion_visual_bland_altman": "Qué se vería en el gráfico Bland-Altman: distribución de puntos, si hay patrón de embudo (sesgo proporcional), si hay outliers."
+  },
+  "analisis_fc": {
+    "error_absoluto": "MAE bpm y su relevancia para monitorización de FC en reposo/sueño.",
+    "correlacion": "Pearson r para FC. ¿El wearable rastrea los cambios de FC durante la noche?",
+    "relevancia_clinica": "¿Es el error de FC relevante para métricas de recuperación (FC mínima nocturna, tendencias de FC basal)?"
+  },
+  "variacion_nocturna": "¿Fitbit captura la curva nocturna de HRV correctamente? ¿Detecta los picos de HRV durante sueño profundo y los valles durante REM? ¿O aplana la señal?",
+  "causas_tecnicas": "Párrafo de 3-4 frases explicando por qué existen los errores observados: mecanismo PPG vs ECG, artefactos de postura, algoritmo de suavizado. Específico a los datos recibidos.",
+  "utilidad_practica": {
+    "tracking_tendencias": "¿Es útil Fitbit para ver tendencias de HRV semana a semana, aunque los valores absolutos no coincidan con Polar?",
+    "recovery_score": "¿Puede fiarse el usuario del 'Recovery Score' o métrica similar basada en esta HRV? ¿O los errores lo invalidan?",
+    "deteccion_estres": "¿Puede Fitbit detectar correctamente noches de HRV baja (alto estrés/mala recuperación) vs noches de HRV alta?"
+  },
+  "comparacion_literatura": "Compara los resultados con estudios publicados de validación de Fitbit para HRV nocturna (Menghini et al. 2021, Cook et al. 2023, etc.). ¿Los resultados están en línea con la literatura o son mejores/peores?",
+  "veredicto_final": {
+    "calificacion": "bueno",
+    "etiqueta": "Etiqueta honesta de 4-6 palabras. Ej: 'Válido para tendencias, no valores absolutos'",
+    "recomendacion": "Respuesta directa en 2 frases: cuándo usar Fitbit para HRV nocturna y cuándo no. Sin eufemismos."
+  }
+}
+
+Responde en español. Cita métricas concretas con cifras del input. Sé riguroso y directo."""
+
+
+def _build_nocturnal_hrv_prompt(session_name: str, summary: dict, n_windows: int) -> str:
+    def _f(val, decimals=1):
+        return f"{val:.{decimals}f}" if val is not None else "N/D"
+
+    lines = [
+        f"## Sesión: {session_name}",
+        f"Ventanas de 5 min analizadas: {n_windows}",
+        "",
+        "### Métricas RMSSD (ms)",
+        f"- Polar H10 (referencia): RMSSD medio = {_f(summary.get('polarRmssdMean'), 1)} ms",
+        f"- Fitbit (bajo evaluación): RMSSD medio = {_f(summary.get('fitbitRmssdMean'), 1)} ms",
+        f"- MAE RMSSD: {_f(summary.get('rmssdMAE'), 1)} ms",
+        f"- Pearson r (RMSSD): {_f(summary.get('pearsonR'), 3)}",
+        "",
+        "### Bland-Altman RMSSD",
+        f"- Sesgo (Fitbit − Polar): {_f(summary.get('biasMean'), 1)} ms",
+        f"- SD de las diferencias: {_f(summary.get('blandSd'), 1)} ms",
+        f"- Límite superior de acuerdo (LoA+): {_f(summary.get('upperLoa'), 1)} ms",
+        f"- Límite inferior de acuerdo (LoA−): {_f(summary.get('lowerLoa'), 1)} ms",
+        f"- Amplitud total LoA: {_f((summary.get('upperLoa') or 0) - (summary.get('lowerLoa') or 0), 1)} ms",
+        "",
+        "### Métricas FC (bpm)",
+        f"- Polar H10: FC media nocturna = {_f(summary.get('polarHRMean'), 1)} bpm, FC mínima = {_f(summary.get('polarHRMin'), 1)} bpm",
+        f"- Fitbit: FC media nocturna = {_f(summary.get('fitbitHRMean'), 1)} bpm, FC mínima = {_f(summary.get('fitbitHRMin'), 1)} bpm",
+        f"- MAE FC: {_f(summary.get('hrMAE'), 1)} bpm",
+        f"- Pearson r (FC): {_f(summary.get('pearsonRHR'), 3)}",
+    ]
+    return "\n".join(lines)
+
+
+async def generate_nocturnal_hrv_ai_analysis(
+    session_name: str,
+    summary:      dict,
+    n_windows:    int,
+) -> dict:
+    """Call Claude to analyze a nocturnal HRV comparison session."""
+    client = _anthropic_client()
+
+    prompt = _build_nocturnal_hrv_prompt(session_name, summary, n_windows)
+
+    response = await client.messages.create(
+        model="claude-sonnet-4-6",
+        system=_cached_system(NOCTURNAL_HRV_SYSTEM_PROMPT),
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
+        max_tokens=4096,
+    )
+
+    report = _parse_json(response.content[0].text or "{}")
+
+    return {
+        "report":       report,
+        "generated_at": datetime.utcnow().isoformat(),
+        "model":        "claude-sonnet-4-6",
+    }

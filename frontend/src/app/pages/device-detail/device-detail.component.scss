@@ -564,3 +564,18 @@
   &.q-orange { color: oklch(52% 0.18 55); }
   &.q-bad    { color: var(--bad-ink); }
 }
+
+// ── Correlation FC by sport chart ──────────────────────────────────
+.corr-chart-wrap {
+  margin-top: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 8px 12px;
+}
+
+.corr-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}

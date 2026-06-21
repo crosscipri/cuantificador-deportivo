@@ -1,0 +1,85 @@
+export interface NocturnalHrvSummary {
+  id: string;
+  device_id: string;
+  session_name: string;
+  created_at: string;
+  polar_rr_filename?: string;
+  polar_hr_filename?: string;
+  fitbit_hrv_filename?: string;
+  fitbit_hr_filename?: string;
+  summary?: {
+    polarRmssdMean: number | null;
+    polarRmssdSd: number | null;
+    fitbitRmssdMean: number | null;
+    fitbitRmssdSd: number | null;
+    biasMean: number | null;
+    biasPct: number | null;
+    pearsonR: number | null;
+    rmssdMAE: number | null;
+    polarHRMean: number | null;
+    polarHRMin: number | null;
+    fitbitHRMean: number | null;
+    fitbitHRMin: number | null;
+    hrMAE: number | null;
+    blandSd: number | null;
+    upperLoa: number | null;
+    lowerLoa: number | null;
+  };
+  settings?: {
+    artifact_threshold_pct: number;
+    min_beats_per_window: number;
+  };
+}
+
+export interface NocturnalHrvAiReport {
+  resumen_ejecutivo: string;
+  calificacion_hrv: 'excelente' | 'bueno' | 'moderado' | 'deficiente';
+  calificacion_fc: 'excelente' | 'bueno' | 'moderado' | 'deficiente';
+  analisis_rmssd: {
+    correlacion: string;
+    error_absoluto: string;
+    sesgo_sistematico: string;
+    limites_acuerdo: string;
+    descripcion_visual_bland_altman: string;
+  };
+  analisis_fc: {
+    error_absoluto: string;
+    correlacion: string;
+    relevancia_clinica: string;
+  };
+  variacion_nocturna: string;
+  causas_tecnicas: string;
+  utilidad_practica: {
+    tracking_tendencias: string;
+    recovery_score: string;
+    deteccion_estres: string;
+  };
+  comparacion_literatura: string;
+  veredicto_final: {
+    calificacion: 'excelente' | 'bueno' | 'moderado' | 'deficiente';
+    etiqueta: string;
+    recomendacion: string;
+  };
+}
+
+export interface NocturnalHrvAiAnalysis {
+  report: NocturnalHrvAiReport;
+  generated_at: string;
+  model: string;
+}
+
+export interface NocturnalHrvDetail extends NocturnalHrvSummary {
+  windows: Array<{
+    tStart: string;
+    label: string;
+    tsMs: number;
+    rmssdPolar: number | null;
+    rmssdFitbit: number | null;
+    hrPolar: number | null;
+    hrFitbit: number | null;
+    sdnnPolar: number | null;
+    pnn50Polar: number | null;
+    breathingPolar: number | null;
+    beatsInWindow: number;
+  }>;
+}

@@ -48,6 +48,15 @@ export interface SportTab {
   scoreQuality: MetricQuality | null;
 }
 
+interface CorrSportPoint { r: number; cx: number; cy: number; }
+interface CorrSportCol {
+  label: string; cx: number;
+  points: CorrSportPoint[];
+  hasBox: boolean;
+  boxX1: number; boxX2: number; boxY1: number; boxY2: number;
+  medianY: number; medianR: number; pct: number; n: number;
+}
+
 const SPORT_ICONS: Record<SportType, string> = {
   running: 'directions_run',
   cycling: 'directions_bike',
@@ -386,6 +395,61 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
     if (v >= 70) return 'q-warn';
     if (v >= 50) return 'q-orange';
     return 'q-bad';
+  }
+
+  // ── Correlation chart ─────────────────────────────────────────────────────
+
+  readonly corrGridLines: { label: string; y: number }[] = [
+    { label: '1.0', y: 35 }, { label: '0.9', y: 66 },
+    { label: '0.8', y: 97 }, { label: '0.7', y: 128 },
+    { label: '0.6', y: 158 }, { label: '0.5', y: 189 },
+  ];
+
+  private corrY(r: number): number {
+    return 220 - (Math.min(Math.max(r, 0.4), 1.0) - 0.4) / 0.6 * 185;
+  }
+
+  private corrMedian(sorted: number[]): number {
+    const n = sorted.length;
+    if (n === 0) return 0;
+    return n % 2 === 0 ? (sorted[n/2-1] + sorted[n/2]) / 2 : sorted[Math.floor(n/2)];
+  }
+
+  get hasCorrData(): boolean {
+    return this.sportTabs.some(tab =>
+      tab.groups.flatMap(g => g.sessions).some(s => s.metrics?.r != null)
+    );
+  }
+
+  get corrChartCols(): CorrSportCol[] {
+    const CX = [128, 285, 442];
+    const BHW = 30;
+    const THR = 0.90;
+    return this.sportTabs.map((tab, i) => {
+      const rVals = tab.groups
+        .flatMap(g => g.sessions)
+        .map(s => s.metrics?.r)
+        .filter((r): r is number => r != null && isFinite(r));
+      const sorted = [...rVals].sort((a, b) => a - b);
+      const n = sorted.length;
+      const half = Math.floor(n / 2);
+      const med = this.corrMedian(sorted);
+      const q1 = n >= 4 ? this.corrMedian(sorted.slice(0, half)) : med;
+      const q3 = n >= 4 ? this.corrMedian(sorted.slice(n % 2 === 0 ? half : half + 1)) : med;
+      const pct = n > 0 ? Math.round(rVals.filter(r => r >= THR).length / n * 100) : 0;
+      const cx = CX[i];
+      const points: CorrSportPoint[] = rVals.map((r, idx) => ({
+        r, cx: cx + ((idx % 7) - 3) * 7, cy: this.corrY(r),
+      }));
+      return {
+        label: tab.label, cx, points, n, pct,
+        hasBox: n >= 3,
+        boxX1: cx - BHW, boxX2: cx + BHW,
+        boxY1: this.corrY(q3), boxY2: this.corrY(q1),
+        medianY: this.corrY(med),
+        medianR: med,
+      };
+    });
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

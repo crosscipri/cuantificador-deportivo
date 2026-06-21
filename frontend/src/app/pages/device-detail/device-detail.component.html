@@ -25,6 +25,9 @@
       </div>
     </div>
     <div class="header-actions">
+      <a class="ec-btn gps-btn" [routerLink]="['/devices', deviceId, 'nocturnal-hrv']">
+        🌙 HRV Nocturno
+      </a>
       <a class="ec-btn gps-btn" [routerLink]="['/devices', deviceId, 'gps-analysis', 'track']">
         📍 Análisis GPS
       </a>
@@ -271,6 +274,70 @@
         </div>
 
       </div>
+    </div>
+  </ng-container>
+
+  <!-- ── Correlación FC por deporte ── -->
+  <ng-container *ngIf="hasCorrData">
+    <div class="section-header" style="margin-top:28px">
+      <div class="section-inner">
+        <span class="section-num">§</span>
+        <h2>Correlación FC por deporte</h2>
+        <span class="section-sub">{{ device?.name }} vs {{ device?.reference_name }} · r Pearson por sesión</span>
+      </div>
+      <div class="divider"></div>
+    </div>
+    <div class="corr-chart-wrap">
+      <svg viewBox="0 0 540 270" class="corr-chart-svg">
+        <!-- Y gridlines -->
+        <g *ngFor="let gl of corrGridLines">
+          <line [attr.x1]="50" [attr.y1]="gl.y" [attr.x2]="520" [attr.y2]="gl.y"
+                stroke="var(--line)" stroke-width="0.5"/>
+          <text [attr.x]="44" [attr.y]="gl.y + 4"
+                text-anchor="end" font-size="10" fill="var(--ink-3)">{{ gl.label }}</text>
+        </g>
+        <!-- Chart frame -->
+        <rect x="50" y="35" width="470" height="185"
+              fill="none" stroke="var(--line)" stroke-width="0.7"/>
+        <!-- Column dividers -->
+        <line x1="207" y1="35" x2="207" y2="220" stroke="var(--line)" stroke-width="0.5" stroke-dasharray="3,3"/>
+        <line x1="363" y1="35" x2="363" y2="220" stroke="var(--line)" stroke-width="0.5" stroke-dasharray="3,3"/>
+        <!-- Y axis label -->
+        <text x="13" y="128" text-anchor="middle" font-size="10" fill="var(--ink-3)"
+              transform="rotate(-90,13,128)">r Pearson (correlación con referencia)</text>
+        <!-- Per-sport columns -->
+        <ng-container *ngFor="let col of corrChartCols">
+          <!-- Scatter dots -->
+          <circle *ngFor="let pt of col.points"
+                  [attr.cx]="pt.cx" [attr.cy]="pt.cy" r="3.5"
+                  fill="oklch(52% 0.14 240)" fill-opacity="0.65"/>
+          <!-- Box IQR + median -->
+          <ng-container *ngIf="col.hasBox">
+            <rect [attr.x]="col.boxX1" [attr.y]="col.boxY1"
+                  [attr.width]="col.boxX2 - col.boxX1"
+                  [attr.height]="col.boxY2 - col.boxY1"
+                  fill="oklch(52% 0.14 240)" fill-opacity="0.1"
+                  stroke="oklch(52% 0.14 240)" stroke-opacity="0.45" stroke-width="1"/>
+            <line [attr.x1]="col.boxX1" [attr.y1]="col.medianY"
+                  [attr.x2]="col.boxX2" [attr.y2]="col.medianY"
+                  stroke="oklch(50% 0.22 25)" stroke-width="2.5"/>
+          </ng-container>
+          <!-- Stat label (top of column) -->
+          <ng-container *ngIf="col.n > 0">
+            <rect [attr.x]="col.cx - 53" y="37" width="106" height="30"
+                  fill="var(--surface)" stroke="var(--line-2)" stroke-width="0.7" rx="3"/>
+            <text [attr.x]="col.cx" y="51" text-anchor="middle"
+                  font-size="9" fill="var(--ink-2)" font-weight="500">{{ device?.name }}</text>
+            <text [attr.x]="col.cx" y="63" text-anchor="middle"
+                  font-size="8.5" fill="var(--ink-3)">r: {{ col.medianR | number:'1.2-2' }} · {{ col.pct }}% ≥ 0.90</text>
+          </ng-container>
+          <!-- Sport label bottom -->
+          <text [attr.x]="col.cx" y="241" text-anchor="middle"
+                font-size="12" fill="var(--ink)" font-weight="500">{{ col.label }}</text>
+          <text [attr.x]="col.cx" y="256" text-anchor="middle"
+                font-size="9.5" fill="var(--ink-4)">({{ col.n }} ses.)</text>
+        </ng-container>
+      </svg>
     </div>
   </ng-container>
 
