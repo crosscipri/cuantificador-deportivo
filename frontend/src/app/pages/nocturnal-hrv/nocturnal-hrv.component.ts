@@ -5,7 +5,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiService } from '../../services/api.service';
-import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis } from '../../models/hrv-analysis.model';
+import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated } from '../../models/hrv-analysis.model';
 import { MatButtonModule }  from '@angular/material/button';
 import { MatIconModule }    from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -119,6 +119,17 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   generatingAi   = false;
   aiError        = '';
 
+  // ── Global aggregated charts ───────────────────────────────────────────────
+  globalData:     NocturnalHrvAggregated | null = null;
+  loadingGlobal   = false;
+  gcRmssdData: any = { datasets: [] };
+  gcBlandData: any = { datasets: [] };
+  gcHrData:    any = { datasets: [] };
+  readonly gcRmssdOptions = this.makeCorrelationOpts('RMSSD Polar H10 (ms)', 'RMSSD Fitbit (ms)');
+  readonly gcBlandOptions = this.makeBaOpts();
+  readonly gcHrOptions    = this.makeCorrelationOpts('FC Polar H10 (bpm)', 'FC Fitbit (bpm)');
+  readonly gcPlugins       = [baLabelsPlugin];
+
   // ── Settings ───────────────────────────────────────────────────────────────
   artifactThresholdPct = 20;
   minBeatsPerWindow    = 30;
@@ -175,6 +186,9 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   @ViewChild('c4', { read: BaseChartDirective }) c4Ref?: BaseChartDirective;
   @ViewChild('c5', { read: BaseChartDirective }) c5Ref?: BaseChartDirective;
   @ViewChild('c6', { read: BaseChartDirective }) c6Ref?: BaseChartDirective;
+  @ViewChild('gcRmssd', { read: BaseChartDirective }) gcRmssdRef?: BaseChartDirective;
+  @ViewChild('gcBland', { read: BaseChartDirective }) gcBlandRef?: BaseChartDirective;
+  @ViewChild('gcHr',    { read: BaseChartDirective }) gcHrRef?:    BaseChartDirective;
 
   constructor(
     private cdRef: ChangeDetectorRef,
@@ -197,6 +211,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       next: sessions => {
         this.savedSessions = sessions;
         this.loadingSessions = false;
+        this.loadGlobalData();
         if (sessions.length > 0 && !this.hasData) {
           this.loadSession(sessions[0].id);
         }
@@ -244,6 +259,148 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ── Global aggregated charts ───────────────────────────────────────────────
+
+  private readonly SESSION_COLORS = [
+    'rgba(99,102,241,0.65)', 'rgba(16,185,129,0.65)', 'rgba(245,158,11,0.65)',
+    'rgba(239,68,68,0.65)',  'rgba(139,92,246,0.65)', 'rgba(14,165,233,0.65)',
+    'rgba(249,115,22,0.65)', 'rgba(236,72,153,0.65)',
+  ];
+
+  loadGlobalData(): void {
+    if (!this.deviceId) return;
+    this.loadingGlobal = true;
+    this.api.getAggregatedHrvData(this.deviceId).subscribe({
+      next:  data => { this.globalData = data; this.loadingGlobal = false; this.buildGlobalCharts(); this.cdRef.markForCheck(); },
+      error: ()   => { this.loadingGlobal = false; this.cdRef.markForCheck(); },
+    });
+  }
+
+  private buildGlobalCharts(): void {
+    const g = this.globalData;
+    if (!g) return;
+    this.buildGcRmssd(g);
+    this.buildGcBland(g);
+    this.buildGcHr(g);
+  }
+
+  private buildGcRmssd(g: NocturnalHrvAggregated): void {
+    const st = g.rmssd.stats;
+    if (!st || g.rmssd.by_session.length === 0) { this.gcRmssdData = { datasets: [] }; return; }
+
+    const scatterDs = g.rmssd.by_session.map((s, i) => ({
+      type: 'scatter',
+      label: s.session_name,
+      data:  s.points,
+      backgroundColor: this.SESSION_COLORS[i % this.SESSION_COLORS.length],
+      borderColor: 'transparent',
+      pointRadius: 5, pointHoverRadius: 7,
+    }));
+
+    const allX = g.rmssd.by_session.flatMap(s => s.points.map(p => p.x));
+    const allY = g.rmssd.by_session.flatMap(s => s.points.map(p => p.y));
+    const all  = [...allX, ...allY];
+    const pad  = (Math.max(...all) - Math.min(...all)) * 0.06 + 2;
+    const vMin = Math.min(...all) - pad;
+    const vMax = Math.max(...all) + pad;
+    const { slope: sl, intercept: ic } = st;
+    const regLabel = sl != null && ic != null
+      ? `Regresión y=${sl.toFixed(2)}x${ic >= 0 ? '+' : ''}${ic.toFixed(1)}`
+      : 'Regresión';
+
+    this.gcRmssdData = {
+      datasets: [
+        ...scatterDs,
+        { type: 'line', label: 'Identidad (y=x)', data: [{ x: vMin, y: vMin }, { x: vMax, y: vMax }],
+          borderColor: 'rgba(150,150,150,0.5)', borderWidth: 1.5, borderDash: [4,4], pointRadius: 0, fill: false },
+        { type: 'line', label: regLabel,
+          data: sl != null && ic != null
+            ? [{ x: vMin, y: sl * vMin + ic }, { x: vMax, y: sl * vMax + ic }]
+            : [],
+          borderColor: '#6366f1', borderWidth: 2, borderDash: [5,3], pointRadius: 0, fill: false },
+      ],
+    };
+  }
+
+  private buildGcBland(g: NocturnalHrvAggregated): void {
+    const st = g.rmssd.stats;
+    if (!st || g.rmssd.by_session.length === 0) { this.gcBlandData = { datasets: [] }; return; }
+
+    const allPts = g.rmssd.by_session.flatMap((s, i) =>
+      s.points.map(p => ({
+        pt: { x: (p.x + p.y) / 2, y: p.y - p.x },
+        color: this.SESSION_COLORS[i % this.SESSION_COLORS.length],
+      }))
+    );
+    const means   = allPts.map(p => p.pt.x);
+    const xPad    = (Math.max(...means) - Math.min(...means)) * 0.1 + 3;
+    const xMin    = Math.min(...means) - xPad;
+    const xMax    = Math.max(...means) + xPad;
+    const { bias, upperLoa: upper, lowerLoa: lower } = st;
+
+    const scatterDs = g.rmssd.by_session.map((s, i) => ({
+      type: 'scatter',
+      label: s.session_name,
+      data:  s.points.map(p => ({ x: (p.x + p.y) / 2, y: p.y - p.x })),
+      backgroundColor: this.SESSION_COLORS[i % this.SESSION_COLORS.length],
+      borderColor: 'transparent',
+      pointRadius: 5, pointHoverRadius: 7,
+    }));
+
+    this.gcBlandData = {
+      datasets: [
+        ...scatterDs,
+        { type: 'line', label: `Sesgo: ${this.fmt(bias)} ms`,
+          data: [{ x: xMin, y: bias }, { x: xMax, y: bias }],
+          borderColor: '#6366f1', borderWidth: 2, borderDash: [5,4], pointRadius: 0, fill: false },
+        { type: 'line', label: `+1.96 DE: ${this.fmt(upper)} ms`,
+          data: [{ x: xMin, y: upper }, { x: xMax, y: upper }],
+          borderColor: '#ef4444', borderWidth: 1.5, borderDash: [2,4], pointRadius: 0, fill: false },
+        { type: 'line', label: `-1.96 DE: ${this.fmt(lower)} ms`,
+          data: [{ x: xMin, y: lower }, { x: xMax, y: lower }],
+          borderColor: '#3b82f6', borderWidth: 1.5, borderDash: [2,4], pointRadius: 0, fill: false },
+      ],
+    };
+  }
+
+  private buildGcHr(g: NocturnalHrvAggregated): void {
+    const st = g.hr.stats;
+    if (!st || g.hr.by_session.length === 0) { this.gcHrData = { datasets: [] }; return; }
+
+    const scatterDs = g.hr.by_session.map((s, i) => ({
+      type: 'scatter',
+      label: s.session_name,
+      data:  s.points,
+      backgroundColor: this.SESSION_COLORS[i % this.SESSION_COLORS.length],
+      borderColor: 'transparent',
+      pointRadius: 5, pointHoverRadius: 7,
+    }));
+
+    const allX = g.hr.by_session.flatMap(s => s.points.map(p => p.x));
+    const allY = g.hr.by_session.flatMap(s => s.points.map(p => p.y));
+    const all  = [...allX, ...allY];
+    const pad  = (Math.max(...all) - Math.min(...all)) * 0.06 + 1;
+    const vMin = Math.min(...all) - pad;
+    const vMax = Math.max(...all) + pad;
+    const { slope: sl, intercept: ic } = st;
+    const regLabel = sl != null && ic != null
+      ? `Regresión y=${sl.toFixed(2)}x${ic >= 0 ? '+' : ''}${ic.toFixed(1)}`
+      : 'Regresión';
+
+    this.gcHrData = {
+      datasets: [
+        ...scatterDs,
+        { type: 'line', label: 'Identidad (y=x)', data: [{ x: vMin, y: vMin }, { x: vMax, y: vMax }],
+          borderColor: 'rgba(150,150,150,0.5)', borderWidth: 1.5, borderDash: [4,4], pointRadius: 0, fill: false },
+        { type: 'line', label: regLabel,
+          data: sl != null && ic != null
+            ? [{ x: vMin, y: sl * vMin + ic }, { x: vMax, y: sl * vMax + ic }]
+            : [],
+          borderColor: '#10b981', borderWidth: 2, borderDash: [5,3], pointRadius: 0, fill: false },
+      ],
+    };
+  }
+
   loadAiAnalysis(id: string): void {
     this.loadingAi = true;
     this.api.getNocturnalHrvAiAnalysis(id).subscribe({
@@ -277,6 +434,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
           this.aiAnalysis = null; this.aiError = '';
           this.resetFileCards();
         }
+        this.loadGlobalData();
       },
     });
   }
@@ -308,6 +466,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
         this.sessionName = saved.session_name;
         this.savedSessions = [saved, ...this.savedSessions];
         this.savingSession = false;
+        this.loadGlobalData();
       },
       error: () => { this.savingSession = false; },
     });
@@ -1165,12 +1324,15 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
 
   exportPNG(): void {
     const items = [
-      { ref: this.c1Ref, name: '1-rmssd' },
-      { ref: this.c2Ref, name: '2-fc' },
-      { ref: this.c3Ref, name: '3-error' },
-      { ref: this.c4Ref, name: '4-bland-altman' },
-      { ref: this.c5Ref, name: '5-correlacion-rmssd' },
-      { ref: this.c6Ref, name: '6-correlacion-fc' },
+      { ref: this.c1Ref,       name: '1-rmssd' },
+      { ref: this.c2Ref,       name: '2-fc' },
+      { ref: this.c3Ref,       name: '3-error' },
+      { ref: this.c4Ref,       name: '4-bland-altman' },
+      { ref: this.c5Ref,       name: '5-correlacion-rmssd' },
+      { ref: this.c6Ref,       name: '6-correlacion-fc' },
+      { ref: this.gcRmssdRef,  name: 'global-correlacion-rmssd' },
+      { ref: this.gcBlandRef,  name: 'global-bland-altman-rmssd' },
+      { ref: this.gcHrRef,     name: 'global-correlacion-fc' },
     ];
     items.forEach(({ ref, name }, i) => {
       setTimeout(() => this.exportChart(ref, name), i * 400);

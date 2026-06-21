@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry } from '../models/session.model';
 import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail, UrbanAiAnalysis, GpsTrackModeScore, GpsUrbanModeScore, GpsStoredScores, GpsOverviewEntry } from '../models/gps-analysis.model';
-import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis } from '../models/hrv-analysis.model';
+import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated } from '../models/hrv-analysis.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -227,6 +227,10 @@ export class ApiService {
   }
 
   // ── Nocturnal HRV ─────────────────────────────────────────────────────────
+
+  getAggregatedHrvData(deviceId: string): Observable<NocturnalHrvAggregated> {
+    return this.http.get<NocturnalHrvAggregated>(`${this.base}/devices/${deviceId}/nocturnal-hrv/aggregated`);
+  }
 
   listNocturnalHrvSessions(deviceId: string): Observable<NocturnalHrvSummary[]> {
     return this.http.get<NocturnalHrvSummary[]>(`${this.base}/devices/${deviceId}/nocturnal-hrv`);

@@ -31,6 +31,32 @@ export interface NocturnalHrvSummary {
   };
 }
 
+export interface AggregatedHrvStats {
+  n: number;
+  polarMean: number;
+  fitbitMean: number;
+  bias: number;
+  sd: number;
+  upperLoa: number;
+  lowerLoa: number;
+  mae: number;
+  pearsonR: number | null;
+  slope: number | null;
+  intercept: number | null;
+}
+
+export interface AggregatedHrvSession {
+  session_id: string;
+  session_name: string;
+  points: { x: number; y: number }[];
+}
+
+export interface NocturnalHrvAggregated {
+  n_sessions: number;
+  rmssd: { stats: AggregatedHrvStats | null; by_session: AggregatedHrvSession[] };
+  hr:    { stats: AggregatedHrvStats | null; by_session: AggregatedHrvSession[] };
+}
+
 export interface NocturnalHrvAiReport {
   resumen_ejecutivo: string;
   calificacion_hrv: 'excelente' | 'bueno' | 'moderado' | 'deficiente';

@@ -62,6 +62,103 @@
     </div>
   </div>
 
+  <!-- ── Global aggregated charts ─────────────────────────────────── -->
+  <div class="global-section" *ngIf="globalData && globalData.n_sessions > 0">
+
+    <div class="global-section-header">
+      <div class="global-title-group">
+        <span class="global-eyebrow">Análisis global</span>
+        <h2 class="global-title">Correlación y Bland-Altman · todas las sesiones</h2>
+      </div>
+      <div class="global-meta">
+        <span>{{ globalData.n_sessions }} sesiones</span>
+        <span *ngIf="globalData.rmssd.stats">· {{ globalData.rmssd.stats.n }} ventanas RMSSD</span>
+      </div>
+    </div>
+
+    <div class="global-stats-row" *ngIf="globalData.rmssd.stats as rs">
+      <span class="global-stat"><span class="global-stat-key">r RMSSD</span> {{ fmt(rs.pearsonR, 3) }}</span>
+      <span class="global-stat"><span class="global-stat-key">MAE RMSSD</span> {{ fmt(rs.mae) }} ms</span>
+      <span class="global-stat"><span class="global-stat-key">Sesgo</span> {{ fmtSign(rs.bias) }} ms</span>
+      <span class="global-stat"><span class="global-stat-key">LoA</span> {{ fmtSign(rs.lowerLoa) }} / {{ fmtSign(rs.upperLoa) }} ms</span>
+      <ng-container *ngIf="globalData.hr.stats as hs">
+        <span class="global-stat-sep">|</span>
+        <span class="global-stat"><span class="global-stat-key">r FC</span> {{ fmt(hs.pearsonR, 3) }}</span>
+        <span class="global-stat"><span class="global-stat-key">MAE FC</span> {{ fmt(hs.mae, 1) }} bpm</span>
+      </ng-container>
+    </div>
+
+    <div class="global-charts-row">
+
+      <!-- G1: RMSSD correlation -->
+      <div class="chart-card" *ngIf="globalData.rmssd.stats; else noGcRmssd">
+        <div class="chart-header">
+          <div class="chart-title">Correlación RMSSD · global</div>
+          <div class="chart-header-right">
+            <div class="chart-sub">r = {{ fmt(globalData.rmssd.stats.pearsonR, 3) }}</div>
+            <button class="chart-export-btn" (click)="exportChart(gcRmssdRef, 'global-correlacion-rmssd')" title="Exportar PNG">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart-body">
+          <canvas baseChart #gcRmssd [type]="'scatter'" [data]="gcRmssdData" [options]="gcRmssdOptions"></canvas>
+        </div>
+      </div>
+      <ng-template #noGcRmssd>
+        <div class="chart-card chart-placeholder">
+          <div class="chart-title" style="margin-bottom:8px">Correlación RMSSD · global</div>
+          <p class="placeholder-hint">Necesita al menos 3 ventanas de Polar RR y Fitbit HRV guardadas</p>
+        </div>
+      </ng-template>
+
+      <!-- G2: Bland-Altman global -->
+      <div class="chart-card" *ngIf="globalData.rmssd.stats; else noGcBland">
+        <div class="chart-header">
+          <div class="chart-title">Bland-Altman RMSSD · global</div>
+          <div class="chart-header-right">
+            <div class="chart-sub" *ngIf="globalData.rmssd.stats as rs">
+              Sesgo {{ fmtSign(rs.bias) }} ms&nbsp;·&nbsp;LoA {{ fmtSign(rs.lowerLoa) }} / {{ fmtSign(rs.upperLoa) }} ms
+            </div>
+            <button class="chart-export-btn" (click)="exportChart(gcBlandRef, 'global-bland-altman-rmssd')" title="Exportar PNG">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart-body">
+          <canvas baseChart #gcBland [type]="'scatter'" [data]="gcBlandData" [options]="gcBlandOptions" [plugins]="gcPlugins"></canvas>
+        </div>
+      </div>
+      <ng-template #noGcBland>
+        <div class="chart-card chart-placeholder">
+          <div class="chart-title" style="margin-bottom:8px">Bland-Altman RMSSD · global</div>
+          <p class="placeholder-hint">Necesita al menos 3 ventanas de Polar RR y Fitbit HRV guardadas</p>
+        </div>
+      </ng-template>
+
+    </div>
+
+    <!-- G3: HR correlation -->
+    <div class="global-charts-row" *ngIf="globalData.hr.stats">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">Correlación FC · global</div>
+          <div class="chart-header-right">
+            <div class="chart-sub">r = {{ fmt(globalData.hr.stats.pearsonR, 3) }}</div>
+            <button class="chart-export-btn" (click)="exportChart(gcHrRef, 'global-correlacion-fc')" title="Exportar PNG">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart-body chart-body-sm">
+          <canvas baseChart #gcHr [type]="'scatter'" [data]="gcHrData" [options]="gcHrOptions"></canvas>
+        </div>
+      </div>
+      <div class="chart-card chart-placeholder" style="visibility:hidden"></div>
+    </div>
+
+  </div>
+
   <!-- ── Settings panel ─────────────────────────────────────────────── -->
   <div class="settings-row">
     <button class="ec-btn sm ghost" (click)="showSettings = !showSettings">

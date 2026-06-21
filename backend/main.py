@@ -6,6 +6,7 @@ Hierarchy: Device → Training Type → Sessions
 from __future__ import annotations
 
 import json
+import math
 import os
 from datetime import datetime
 from typing import Any, Optional
@@ -1125,6 +1126,74 @@ def _ser_nocturnal_hrv(doc: dict, *, include_windows: bool = True) -> dict:
     if not include_windows:
         doc.pop("windows", None)
     return doc
+
+
+@app.get("/api/devices/{device_id}/nocturnal-hrv/aggregated")
+async def get_nocturnal_hrv_aggregated(device_id: str) -> dict:
+    """Aggregate RMSSD and HR windows from all sessions for one device."""
+    if not await db().devices.find_one({"_id": _oid(device_id)}):
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+
+    projection = {"windows": 1, "session_name": 1, "created_at": 1}
+    sessions = await db().nocturnal_hrv_sessions.find(
+        {"device_id": _oid(device_id)}, projection
+    ).sort("created_at", 1).to_list(None)
+
+    rmssd_by_session: list[dict] = []
+    hr_by_session:    list[dict] = []
+
+    for s in sessions:
+        s_name = s.get("session_name", "")
+        s_id   = str(s["_id"])
+        rpts, hpts = [], []
+        for w in (s.get("windows") or []):
+            rp, rf = w.get("rmssdPolar"), w.get("rmssdFitbit")
+            hp, hf = w.get("hrPolar"),    w.get("hrFitbit")
+            if rp is not None and rf is not None:
+                rpts.append({"x": rp, "y": rf})
+            if hp is not None and hf is not None:
+                hpts.append({"x": hp, "y": hf})
+        if rpts:
+            rmssd_by_session.append({"session_id": s_id, "session_name": s_name, "points": rpts})
+        if hpts:
+            hr_by_session.append({"session_id": s_id, "session_name": s_name, "points": hpts})
+
+    def _stats(by_session: list[dict]) -> dict | None:
+        all_pts = [p for s in by_session for p in s["points"]]
+        n = len(all_pts)
+        if n < 3:
+            return None
+        xs = [p["x"] for p in all_pts]
+        ys = [p["y"] for p in all_pts]
+        mx, my = sum(xs) / n, sum(ys) / n
+        diffs  = [y - x for x, y in zip(xs, ys)]
+        bias   = sum(diffs) / n
+        sd     = math.sqrt(sum((d - bias) ** 2 for d in diffs) / (n - 1))
+        cov    = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+        sx_v   = math.sqrt(sum((x - mx) ** 2 for x in xs))
+        sy_v   = math.sqrt(sum((y - my) ** 2 for y in ys))
+        r      = cov / (sx_v * sy_v) if sx_v * sy_v > 0 else None
+        slope  = cov / (sx_v ** 2) if sx_v > 0 else None
+        icpt   = my - slope * mx if slope is not None else None
+        return {
+            "n":          n,
+            "polarMean":  round(mx, 2),
+            "fitbitMean": round(my, 2),
+            "bias":       round(bias, 2),
+            "sd":         round(sd, 2),
+            "upperLoa":   round(bias + 1.96 * sd, 2),
+            "lowerLoa":   round(bias - 1.96 * sd, 2),
+            "mae":        round(sum(abs(d) for d in diffs) / n, 2),
+            "pearsonR":   round(r, 4) if r is not None else None,
+            "slope":      round(slope, 4) if slope is not None else None,
+            "intercept":  round(icpt, 2) if icpt is not None else None,
+        }
+
+    return {
+        "n_sessions": len(sessions),
+        "rmssd": {"stats": _stats(rmssd_by_session), "by_session": rmssd_by_session},
+        "hr":    {"stats": _stats(hr_by_session),    "by_session": hr_by_session},
+    }
 
 
 @app.post("/api/devices/{device_id}/nocturnal-hrv", status_code=201)
