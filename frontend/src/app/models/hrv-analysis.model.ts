@@ -57,6 +57,42 @@ export interface NocturnalHrvAggregated {
   hr:    { stats: AggregatedHrvStats | null; by_session: AggregatedHrvSession[] };
 }
 
+export interface NocturnalHrvGlobalAiReport {
+  resumen_ejecutivo: string;
+  calificacion_hrv: 'excelente' | 'bueno' | 'moderado' | 'deficiente';
+  calificacion_fc:  'excelente' | 'bueno' | 'moderado' | 'deficiente';
+  analisis_rmssd_global: {
+    correlacion: string;
+    error_absoluto: string;
+    sesgo_sistematico: string;
+    limites_acuerdo_global: string;
+  };
+  analisis_fc_global: {
+    error_absoluto: string;
+    correlacion: string;
+  };
+  consistencia_entre_sesiones: string;
+  causas_tecnicas: string;
+  utilidad_practica: {
+    tracking_tendencias: string;
+    recovery_score: string;
+    deteccion_sobreentrenamiento: string;
+  };
+  comparacion_literatura: string;
+  veredicto_final: {
+    calificacion: 'excelente' | 'bueno' | 'moderado' | 'deficiente';
+    etiqueta: string;
+    recomendacion: string;
+  };
+}
+
+export interface NocturnalHrvGlobalAiAnalysis {
+  report: NocturnalHrvGlobalAiReport;
+  generated_at: string;
+  model: string;
+  n_sessions: number;
+}
+
 export interface NocturnalHrvAiReport {
   resumen_ejecutivo: string;
   calificacion_hrv: 'excelente' | 'bueno' | 'moderado' | 'deficiente';

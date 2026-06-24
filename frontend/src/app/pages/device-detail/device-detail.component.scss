@@ -579,3 +579,92 @@
   height: auto;
   display: block;
 }
+
+// ── Sport-level aggregate section ──────────────────────────────────
+.sport-aggregate-section {
+  margin-top: 4px;
+}
+
+.sport-agg-btn {
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+
+.sport-agg-meta {
+  font-size: 0.82rem;
+  color: var(--ink-3);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sport-agg-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// ── Chart card (HRV Nocturno style) ────────────────────────────────
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 10px);
+  padding: 20px 20px 16px;
+  box-shadow: var(--shadow-sm);
+  user-select: none;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.chart-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chart-sub {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart-export-btn {
+  appearance: none;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: var(--r-sm, 4px);
+  padding: 3px 5px;
+  line-height: 0;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.12s, color 0.12s;
+
+  .chart-card:hover & { opacity: 1; }
+  &:hover { background: var(--bg-sunk); color: var(--ink); border-color: var(--line); }
+}
+
+.chart-body {
+  position: relative;
+  height: 480px;
+}

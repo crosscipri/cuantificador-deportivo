@@ -19,10 +19,13 @@ from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from analyzer import (analyze_session, generate_aggregate_analysis,
-                      generate_overview_chart, _weighted_global_score,
+                      generate_overview_chart, generate_sport_aggregate,
+                      build_sport_chart_data,
+                      _weighted_global_score, DIFFICULTY_WEIGHTS,
+                      VALID_CHART_CRITERIA,
                       read_fc_from_bytes, align, calculate_metrics,
                       analyze_by_zones, estimate_lag)
-from ai_analyzer import generate_session_ai_analysis, generate_device_ai_verdict, generate_gps_track_ai_analysis, generate_gps_urban_ai_analysis, generate_nocturnal_hrv_ai_analysis
+from ai_analyzer import generate_session_ai_analysis, generate_device_ai_verdict, generate_gps_track_ai_analysis, generate_gps_urban_ai_analysis, generate_nocturnal_hrv_ai_analysis, generate_nocturnal_hrv_global_ai_analysis
 
 load_dotenv()
 
@@ -589,14 +592,23 @@ async def download_session_file(session_id: str, file_type: str) -> Response:
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.get("/api/overview/chart")
-async def get_overview_chart(sport_type: str = "running") -> dict:
+async def get_overview_chart(
+    sport_type: str = "running",
+    criterion:  str = "mae",
+) -> dict:
     """
-    Build a global comparison chart for every device that has sessions of the
-    given sport_type. Uses difficulty-weighted scoring (MAE_rel, bias, Fisher r).
-    Returns { chart: base64_png, device_count: int, total_sessions: int }.
+    Global comparison lollipop chart.
+    criterion: one of mae | rmse | pearson_fisher | ccc | within_5_bpm |
+               within_3_bpm | within_10_bpm | difficulty_weighted
+    Default criterion is 'mae' (balanced MAE per session).
     """
     if sport_type not in VALID_SPORT_TYPES:
         raise HTTPException(status_code=422, detail=f"sport_type debe ser uno de: {VALID_SPORT_TYPES}")
+    if criterion not in VALID_CHART_CRITERIA:
+        raise HTTPException(
+            status_code=422,
+            detail=f"criterion debe ser uno de: {sorted(VALID_CHART_CRITERIA)}",
+        )
 
     devices = [d async for d in db().devices.find()]
     if not devices:
@@ -609,39 +621,53 @@ async def get_overview_chart(sport_type: str = "running") -> dict:
         sessions = [
             s async for s in db().sessions.find(
                 {"device_id": dev["_id"], "sport_type": sport_type},
-                {"fc_data": 1, "metrics": 1, "training_type": 1, "session_difficulty": 1},
+                {
+                    "metrics": 1, "session_difficulty": 1, "lag": 1,
+                    "duration_seconds": 1, "training_type": 1, "fc_data": 1,
+                },
             )
         ]
         if not sessions:
             continue
 
-        fc_data_list = [s["fc_data"] for s in sessions if s.get("fc_data")]
-        if not fc_data_list:
-            continue
-
-        sessions_info = [
+        session_results = [
             {
+                "session_id":         str(s["_id"]),
+                "sport_type":         sport_type,
+                "training_type":      s.get("training_type", ""),
                 "session_difficulty": s.get("session_difficulty", ""),
-                "metrics":            s.get("metrics", {}),
+                "metrics":            s.get("metrics") or {},
+                "lag":                s.get("lag", 0),
+                "duration_seconds":   s.get("duration_seconds", 0),
+                "fc_data":            s.get("fc_data") or {},
             }
-            for s in sessions if s.get("fc_data")
+            for s in sessions
         ]
 
+        try:
+            sport_agg = generate_sport_aggregate(session_results)
+        except Exception:
+            continue
+
+        difficulty_weighted = _weighted_global_score(session_results)
+        total_samples = (sport_agg.get("weighted_by_samples") or {}).get("n_samples", 0)
+
         devices_data.append({
-            "name":           dev["name"],
-            "reference_name": dev["reference_name"],
-            "fc_data_list":   fc_data_list,
-            "sessions_info":  sessions_info,
-            "session_count":  len(sessions),
+            "name":                dev["name"],
+            "reference_name":      dev["reference_name"],
+            "session_count":       len(sessions),
+            "total_samples":       total_samples,
+            "sport_type":          sport_type,
+            "balanced_by_session": sport_agg["balanced_by_session"],
+            "difficulty_weighted": difficulty_weighted,
         })
         total_sessions += len(sessions)
 
     if not devices_data:
-        raise HTTPException(status_code=404,
-                            detail="No hay sesiones con datos suficientes.")
+        raise HTTPException(status_code=404, detail="No hay sesiones con datos suficientes.")
 
     try:
-        chart = generate_overview_chart(devices_data)
+        chart = generate_overview_chart(devices_data, criterion=criterion)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -649,6 +675,8 @@ async def get_overview_chart(sport_type: str = "running") -> dict:
         "chart":          chart,
         "device_count":   len(devices_data),
         "total_sessions": total_sessions,
+        "criterion":      criterion,
+        "sport_type":     sport_type,
     }
 
 
@@ -705,9 +733,10 @@ async def get_overview_gps_scores() -> list[dict]:
 @app.get("/api/overview/data")
 async def get_overview_data(sport_type: str = "running") -> list[dict]:
     """
-    Structured per-device weighted scores for the given sport_type.
-    Used by the frontend to render an interactive ng2-charts comparison chart.
-    Returns list sorted descending by r_global.
+    Per-device aggregate data for the given sport_type with three independent views:
+      balanced_by_session      — primary: equal weight per session (main result)
+      weighted_by_samples      — secondary: concatenated signal
+      difficulty_weighted_score — editorial score weighted by session difficulty
     """
     if sport_type not in VALID_SPORT_TYPES:
         raise HTTPException(status_code=422,
@@ -720,30 +749,160 @@ async def get_overview_data(sport_type: str = "running") -> list[dict]:
         sessions = [
             s async for s in db().sessions.find(
                 {"device_id": dev["_id"], "sport_type": sport_type},
-                {"metrics": 1, "session_difficulty": 1, "lag": 1, "_id": 0},
+                {
+                    "metrics": 1, "session_difficulty": 1, "lag": 1,
+                    "duration_seconds": 1, "training_type": 1, "fc_data": 1,
+                },
             )
         ]
         if not sessions:
             continue
 
-        score = _weighted_global_score(sessions)
-        if score is None:
+        session_results = [
+            {
+                "session_id":         str(s["_id"]),
+                "sport_type":         sport_type,
+                "training_type":      s.get("training_type", ""),
+                "session_difficulty": s.get("session_difficulty", ""),
+                "metrics":            s.get("metrics") or {},
+                "lag":                s.get("lag", 0),
+                "duration_seconds":   s.get("duration_seconds", 0),
+                "fc_data":            s.get("fc_data") or {},
+            }
+            for s in sessions
+        ]
+
+        try:
+            sport_agg = generate_sport_aggregate(session_results)
+        except Exception:
             continue
 
+        difficulty_weighted = _weighted_global_score(session_results)
+        total_samples = (sport_agg.get("weighted_by_samples") or {}).get("n_samples", 0)
+        bal = sport_agg["balanced_by_session"]
+
         result.append({
-            "name":           dev["name"],
-            "reference_name": dev["reference_name"],
-            "r_global":       score["r_global"],
-            "ccc_global":     score["ccc_global"],
-            "lag_mean":       score["lag_mean"],
-            "mae_global":     score["mae_global"],
-            "bias_global":    score["bias_global"],
-            "session_count":  score["n_weighted"],
-            "total_weight":   score["total_weight"],
+            "device_id":              str(dev["_id"]),
+            "device_name":            dev["name"],
+            "reference_name":         dev["reference_name"],
+            "sport_type":             sport_type,
+            "session_count":          len(sessions),
+            "total_samples":          total_samples,
+            "balanced_by_session":    bal,
+            "weighted_by_samples":    sport_agg.get("weighted_by_samples"),
+            "difficulty_weighted_score": difficulty_weighted,
+            "bland_altman":           sport_agg["bland_altman"],
+            "sessions":               sport_agg["per_session"],
+            # ── Flat aliases for frontend backward compat ─────────────────
+            "name":         dev["name"],
+            "ccc_global":   bal.get("ccc")              or 0.0,
+            "r_global":     bal.get("pearson_fisher")   or 0.0,
+            "mae_global":   bal.get("mae")              or 0.0,
+            "bias_global":  bal.get("bias")             or 0.0,
+            "lag_mean":     bal.get("lag_mean_seconds") or 0.0,
+            "total_weight": len(sessions),
         })
 
-    result.sort(key=lambda x: x["r_global"], reverse=True)
+    result.sort(
+        key=lambda x: (x.get("balanced_by_session") or {}).get("mae") or float("inf")
+    )
     return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SPORT-LEVEL AGGREGATE CHARTS  (per device + sport)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/devices/{device_id}/sport-aggregate/{sport_type}")
+async def get_sport_aggregate_charts(device_id: str, sport_type: str) -> dict:
+    """
+    Returns balanced metrics + two independent charts for all sessions of a
+    given device and sport:
+      - correlation_chart: scatter coloured by session
+      - bland_altman_chart: BA plot with per-session bias segments
+    """
+    if sport_type not in VALID_SPORT_TYPES:
+        raise HTTPException(status_code=422,
+                            detail=f"sport_type debe ser uno de: {VALID_SPORT_TYPES}")
+
+    dev_doc = await db().devices.find_one({"_id": _oid(device_id)})
+    if not dev_doc:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+
+    sessions = [
+        s async for s in db().sessions.find(
+            {"device_id": _oid(device_id), "sport_type": sport_type},
+            {"fc_data": 1, "metrics": 1, "session_difficulty": 1,
+             "lag": 1, "duration_seconds": 1, "training_type": 1,
+             "session_name": 1},
+        ).sort("activity_date", 1)
+    ]
+
+    if not sessions:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay sesiones de {sport_type} para este dispositivo",
+        )
+
+    dev_name = dev_doc["name"]
+    ref_name = dev_doc["reference_name"]
+
+    # Build session_data for chart functions
+    session_data = []
+    session_results = []
+    for s in sessions:
+        fc   = s.get("fc_data") or {}
+        ref  = fc.get("reference", [])
+        dev  = fc.get("device", [])
+        m    = s.get("metrics") or {}
+        name = s.get("session_name") or s.get("training_type") or "Sesión"
+        diff_lbl = s.get("session_difficulty") or s.get("training_type") or ""
+        label = f"{name} ({diff_lbl})" if diff_lbl else name
+
+        if ref and dev:
+            session_data.append({
+                "label": label,
+                "ref":   ref,
+                "dev":   dev,
+                "mae":   m.get("mae"),
+                "bias":  m.get("bias"),
+                "loa_l": m.get("loa_l"),
+                "loa_u": m.get("loa_u"),
+            })
+
+        session_results.append({
+            "session_id":         str(s["_id"]),
+            "sport_type":         sport_type,
+            "training_type":      s.get("training_type", ""),
+            "session_difficulty": s.get("session_difficulty", ""),
+            "metrics":            m,
+            "lag":                s.get("lag", 0),
+            "duration_seconds":   s.get("duration_seconds", 0),
+            "fc_data":            fc,
+        })
+
+    if not session_data:
+        raise HTTPException(status_code=422,
+                            detail="Las sesiones no tienen datos de FC almacenados.")
+
+    chart_data = build_sport_chart_data(session_data)
+
+    try:
+        agg = generate_sport_aggregate(session_results)
+    except Exception:
+        agg = {}
+
+    return {
+        "device_name":         dev_name,
+        "reference_name":      ref_name,
+        "sport_type":          sport_type,
+        "session_count":       len(sessions),
+        "sessions_with_data":  len(session_data),
+        "sessions":            chart_data["sessions"],
+        "global_stats":        chart_data["global_stats"],
+        "balanced_by_session": agg.get("balanced_by_session"),
+        "per_session":         agg.get("per_session", []),
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -754,40 +913,121 @@ async def get_overview_data(sport_type: str = "running") -> list[dict]:
 async def create_aggregate(body: dict) -> dict:
     """
     Aggregate analysis for selected sessions.
-    Body: { "session_ids": ["..."], "training_type": "..." }
+
+    Body: {
+        "session_ids": ["..."],
+        "training_type": "...",           # optional label for legacy chart
+        "allow_mixed_sports": false        # set true only for exploratory cross-sport analysis
+    }
+
+    Returns three independent aggregate views:
+        balanced_by_session  — primary: equal weight per session
+        weighted_by_samples  — secondary: concatenated signal
+        difficulty_weighted_score — editorial score by session difficulty
     """
-    session_ids   = body.get("session_ids", [])
-    training_type = body.get("training_type", "Agregado")
+    session_ids       = body.get("session_ids", [])
+    training_type     = body.get("training_type", "Agregado")
+    allow_mixed       = bool(body.get("allow_mixed_sports", False))
 
     if not session_ids:
         raise HTTPException(status_code=400, detail="Se requiere al menos una sesión.")
 
-    sessions_data: list[dict] = []
-    dev_names: list[str] = []
-    ref_names: list[str] = []
+    raw_docs: list[dict] = []
+    device_ids:  set[str] = set()
+    sport_types: set[str] = set()
 
     for sid in session_ids:
         doc = await db().sessions.find_one(
             {"_id": _oid(sid)},
-            {"fc_data": 1, "device_name": 1, "reference_name": 1},
+            {
+                "fc_data": 1, "device_name": 1, "reference_name": 1,
+                "device_id": 1, "sport_type": 1, "training_type": 1,
+                "session_difficulty": 1, "metrics": 1, "lag": 1,
+                "duration_seconds": 1,
+            },
         )
         if doc:
-            sessions_data.append(doc)
-            dev_names.append(doc.get("device_name", "Dispositivo"))
-            ref_names.append(doc.get("reference_name", "Referencia"))
+            raw_docs.append(doc)
+            device_ids.add(str(doc.get("device_id", "")))
+            sp = doc.get("sport_type")
+            if sp:
+                sport_types.add(sp)
 
-    if not sessions_data:
+    if not raw_docs:
         raise HTTPException(status_code=404, detail="No se encontraron sesiones.")
 
-    dev_name = dev_names[0] if len(set(dev_names)) == 1 else "Dispositivo"
-    ref_name = ref_names[0] if len(set(ref_names)) == 1 else "Referencia"
+    # ── Validate sport consistency ────────────────────────────────────────────
+    if len(sport_types) > 1 and not allow_mixed:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error":       "mixed_sport_types",
+                "message":     "Todas las sesiones del agregado deben pertenecer al mismo deporte.",
+                "sport_types": sorted(sport_types),
+            },
+        )
+
+    sport_type = next(iter(sport_types), "mixed") if sport_types else "unknown"
+
+    # ── Build session_results for generate_sport_aggregate ───────────────────
+    session_results = [
+        {
+            "session_id":         str(d["_id"]),
+            "sport_type":         d.get("sport_type", ""),
+            "training_type":      d.get("training_type", ""),
+            "session_difficulty": d.get("session_difficulty", ""),
+            "metrics":            d.get("metrics") or {},
+            "lag":                d.get("lag", 0),
+            "duration_seconds":   d.get("duration_seconds", 0),
+            "fc_data":            d.get("fc_data") or {},
+        }
+        for d in raw_docs
+    ]
 
     try:
-        result = generate_aggregate_analysis(sessions_data, training_type, dev_name, ref_name)
+        sport_agg = generate_sport_aggregate(session_results)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
-    return result
+    difficulty_weighted = _weighted_global_score(session_results)
+
+    # ── Legacy sample-weighted chart (kept for backward compat) ──────────────
+    dev_names = list({d.get("device_name", "Dispositivo") for d in raw_docs})
+    ref_names = list({d.get("reference_name", "Referencia") for d in raw_docs})
+    dev_name  = dev_names[0] if len(dev_names) == 1 else "Múltiples"
+    ref_name  = ref_names[0] if len(ref_names) == 1 else "Múltiples"
+
+    try:
+        legacy_chart_result = generate_aggregate_analysis(
+            raw_docs, training_type, dev_name, ref_name
+        )
+    except Exception:
+        legacy_chart_result = {}
+
+    # ── Backward-compat flat fields expected by the frontend ─────────────────
+    # The template reads: result.metrics, result.zones, result.chart,
+    # result.n_sessions, result.total_samples
+    legacy_metrics = legacy_chart_result.get("metrics") or {}
+    legacy_zones   = legacy_chart_result.get("zones",  [])
+    legacy_chart   = legacy_chart_result.get("chart")
+    total_samples  = (sport_agg.get("weighted_by_samples") or {}).get("n_samples") \
+                     or legacy_chart_result.get("total_samples", 0)
+
+    return {
+        "device":              dev_name,
+        "reference":           ref_name,
+        "sport_type":          sport_type,
+        "allow_mixed_sports":  allow_mixed,
+        **sport_agg,
+        "difficulty_weighted_score": difficulty_weighted,
+        # ── Legacy flat aliases ──────────────────────────────────────────────
+        "metrics":       legacy_metrics,
+        "zones":         legacy_zones,
+        "chart":         legacy_chart,
+        "n_sessions":    sport_agg["session_count"],
+        "total_samples": total_samples,
+        "fcmax":         legacy_chart_result.get("fcmax", 0),
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1194,6 +1434,88 @@ async def get_nocturnal_hrv_aggregated(device_id: str) -> dict:
         "rmssd": {"stats": _stats(rmssd_by_session), "by_session": rmssd_by_session},
         "hr":    {"stats": _stats(hr_by_session),    "by_session": hr_by_session},
     }
+
+
+@app.get("/api/devices/{device_id}/nocturnal-hrv/ai-analysis")
+async def get_nocturnal_hrv_global_ai(device_id: str) -> dict:
+    doc = await db().devices.find_one({"_id": _oid(device_id)}, {"nocturnal_hrv_global_ai": 1})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+    ai = doc.get("nocturnal_hrv_global_ai")
+    if not ai:
+        raise HTTPException(status_code=404, detail="Análisis IA global no generado aún")
+    return ai
+
+
+@app.post("/api/devices/{device_id}/nocturnal-hrv/ai-analysis", status_code=200)
+async def create_nocturnal_hrv_global_ai(device_id: str) -> dict:
+    device = await db().devices.find_one({"_id": _oid(device_id)}, {"name": 1})
+    if not device:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+
+    projection = {"windows": 1, "session_name": 1}
+    sessions = await db().nocturnal_hrv_sessions.find(
+        {"device_id": _oid(device_id)}, projection
+    ).sort("created_at", 1).to_list(None)
+
+    if not sessions:
+        raise HTTPException(status_code=422, detail="No hay sesiones guardadas para este dispositivo")
+
+    rmssd_by_session, hr_by_session = [], []
+    for s in sessions:
+        rpts, hpts = [], []
+        for w in (s.get("windows") or []):
+            rp, rf = w.get("rmssdPolar"), w.get("rmssdFitbit")
+            hp, hf = w.get("hrPolar"),    w.get("hrFitbit")
+            if rp is not None and rf is not None:
+                rpts.append({"x": rp, "y": rf})
+            if hp is not None and hf is not None:
+                hpts.append({"x": hp, "y": hf})
+        if rpts:
+            rmssd_by_session.append({"session_name": s.get("session_name", ""), "points": rpts})
+        if hpts:
+            hr_by_session.append({"session_name": s.get("session_name", ""), "points": hpts})
+
+    def _agg_stats(by_sess):
+        all_pts = [p for s in by_sess for p in s["points"]]
+        n = len(all_pts)
+        if n < 3:
+            return None
+        xs, ys = [p["x"] for p in all_pts], [p["y"] for p in all_pts]
+        mx, my = sum(xs) / n, sum(ys) / n
+        diffs = [y - x for x, y in zip(xs, ys)]
+        bias = sum(diffs) / n
+        sd = math.sqrt(sum((d - bias) ** 2 for d in diffs) / (n - 1))
+        cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+        sx_v = math.sqrt(sum((x - mx) ** 2 for x in xs))
+        sy_v = math.sqrt(sum((y - my) ** 2 for y in ys))
+        r = cov / (sx_v * sy_v) if sx_v * sy_v > 0 else None
+        return {
+            "n": n, "polarMean": round(mx, 2), "fitbitMean": round(my, 2),
+            "bias": round(bias, 2), "sd": round(sd, 2),
+            "upperLoa": round(bias + 1.96 * sd, 2), "lowerLoa": round(bias - 1.96 * sd, 2),
+            "mae": round(sum(abs(d) for d in diffs) / n, 2),
+            "pearsonR": round(r, 4) if r is not None else None,
+        }
+
+    try:
+        result = await generate_nocturnal_hrv_global_ai_analysis(
+            device_name  = device.get("name", "Dispositivo"),
+            n_sessions   = len(sessions),
+            rmssd_stats  = _agg_stats(rmssd_by_session),
+            hr_stats     = _agg_stats(hr_by_session),
+            by_session   = rmssd_by_session,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error generando análisis IA: {exc}")
+
+    await db().devices.update_one(
+        {"_id": _oid(device_id)},
+        {"$set": {"nocturnal_hrv_global_ai": result}},
+    )
+    return result
 
 
 @app.post("/api/devices/{device_id}/nocturnal-hrv", status_code=201)

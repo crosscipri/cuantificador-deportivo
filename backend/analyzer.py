@@ -17,8 +17,12 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from scipy.signal import correlate
+import math
+import logging
 import fitparse
 from datetime import datetime
+
+_log = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
@@ -31,6 +35,21 @@ ZONAS_FC = [
     ("Z5 VO2máx / neuromuscular",176,  999),
 ]
 COLORES_ZONA = ["#3498db", "#2ecc71", "#f1c40f", "#e67e22", "#e74c3c"]
+
+# Palette for multi-session charts (up to 12 sessions; cycles after that)
+SESSION_PALETTE = [
+    "#1d4ed8", "#dc2626", "#16a34a", "#d97706", "#7c3aed",
+    "#db2777", "#0891b2", "#65a30d", "#ea580c", "#0f766e",
+    "#92400e", "#4338ca",
+]
+
+# Editorial weights for PPG sensor difficulty. Not a statistical property of MAE/CCC/R.
+# Relative scale: how much harder that session type is for optical HR sensors.
+DIFFICULTY_WEIGHTS: dict[str, float] = {
+    "z2":     1.0,
+    "tempo":  1.5,
+    "series": 2.5,
+}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -286,17 +305,25 @@ def calculate_metrics(fc_ref: pd.Series, fc_dev: pd.Series) -> dict:
         "p":         float(p),
         "slope":     slope,
         "intercept": intercept,
-        "n":         n,
-        "media_ref": round(m1, 1),
-        "media_dev": round(m2, 1),
+        "n":           n,
+        "media_ref":   round(m1, 1),
+        "media_dev":   round(m2, 1),
+        # error = device_hr - reference_hr  (positive = overestimation)
+        "within_3_bpm":  round(float((diff.abs() <= 3).mean()  * 100), 1),
+        "within_5_bpm":  round(float((diff.abs() <= 5).mean()  * 100), 1),
+        "within_10_bpm": round(float((diff.abs() <= 10).mean() * 100), 1),
     }
 
 
-def analyze_by_zones(fc_ref: pd.Series, fc_dev: pd.Series, fcmax: int = None):
-    """Per-zone validation metrics."""
+def analyze_by_zones(fc_ref: pd.Series, fc_dev: pd.Series, fcmax: int = None, zone_boundaries=None):
+    """Per-zone validation metrics.
+    zone_boundaries: list of (name, lo, hi) tuples. Defaults to absolute ZONAS_FC ranges.
+    Note: current zones are absolute ppm thresholds, not personalised % of FCmax.
+    """
     fcmax_final = int(fcmax) if fcmax is not None else int(fc_ref.max())
+    zones = zone_boundaries if zone_boundaries is not None else ZONAS_FC
     results = []
-    for name, lo, hi in ZONAS_FC:
+    for name, lo, hi in zones:
         mask  = (fc_ref >= lo) & (fc_ref < hi)
         n     = int(mask.sum())
         lo_str = f"<{hi}" if lo == 0 else f"{lo}-{hi}" if hi < 999 else f">{lo}"
@@ -675,26 +702,25 @@ def generate_aggregate_analysis(
 
 
 def _session_weight(session_difficulty: str) -> float:
-    """
-    Difficulty weight from the explicit session_difficulty field:
-      'series' → 2.5  (FC volátil, el PPG falla más)
-      'tempo'  → 1.5  (FC sostenida alta)
-      'z2'     → 1.0  (FC estable)
-    """
-    weights = {"series": 2.5, "tempo": 1.5, "z2": 1.0}
-    return weights.get(session_difficulty.lower(), 1.0)
+    """Difficulty weight from DIFFICULTY_WEIGHTS. Unknown difficulties default to 1.0."""
+    key = (session_difficulty or "").lower()
+    w = DIFFICULTY_WEIGHTS.get(key)
+    if w is None:
+        _log.warning("Unknown session_difficulty %r — using weight 1.0", session_difficulty)
+        return 1.0
+    return w
 
 
 def _weighted_global_score(sessions_info: list) -> dict | None:
     """
-    Compute weighted global metrics from per-session data.
+    Editorial score weighted by session difficulty (not a statistical aggregate).
 
-    MAE_global  = Σ(MAE_rel_i × w_i) / Σ(w_i)
-                  where MAE_rel_i = (MAE_i / FC_media_ref_i) × 100
+    MAE is computed as relative (%) to mean reference HR so sessions with
+    different HR ranges are comparable. This is an editorial score for
+    PPG sensor difficulty — not a replacement for balanced_by_session metrics.
 
-    Bias_global = Σ(bias_i × w_i) / Σ(w_i)   ← signed, direct weighted mean
-
-    r_global    = Fisher z-transform → weighted mean → inverse transform
+    Returns keys prefixed with difficulty_weighted_* to distinguish from
+    statistical aggregates.
     """
     weights, mae_rels, biases, fisher_zs, cccs, lags = [], [], [], [], [], []
 
@@ -719,7 +745,6 @@ def _weighted_global_score(sessions_info: list) -> dict | None:
         cccs.append(ccc if ccc is not None else 0.0)
         lags.append(float(lag) if lag is not None else 0.0)
 
-        # Fisher z-transform (clip r to avoid ±∞)
         r_clip = float(np.clip(r if r is not None else 0.0, -0.9999, 0.9999))
         fisher_zs.append(0.5 * np.log((1 + r_clip) / (1 - r_clip)))
 
@@ -735,139 +760,667 @@ def _weighted_global_score(sessions_info: list) -> dict | None:
     lag_mean    = sum(l * w for l, w in zip(lags, weights)) / W
 
     return {
-        "mae_global":  round(mae_global,  2),
-        "bias_global": round(bias_global, 2),
-        "r_global":    round(r_global,    4),
-        "ccc_global":  round(ccc_global,  4),
-        "lag_mean":    round(lag_mean,    1),
-        "n_weighted":  len(weights),
-        "total_weight": round(W, 1),
+        "difficulty_weighted_mae":         round(mae_global,  2),  # relative % to mean HR
+        "difficulty_weighted_bias":        round(bias_global, 2),
+        "difficulty_weighted_correlation": round(r_global,    4),
+        "difficulty_weighted_ccc":         round(ccc_global,  4),
+        "lag_mean":                        round(lag_mean,    1),
+        "n_sessions":                      len(weights),
+        "total_weight":                    round(W, 1),
+        "weights_used":                    dict(DIFFICULTY_WEIGHTS),
     }
 
 
-def generate_overview_chart(devices_data: list) -> str:
-    """
-    Lollipop chart comparing every device using weighted global scores:
-      - r_global  : Fisher-weighted Pearson R (accounts for session difficulty)
-      - MAE_global: weighted MAE relative to mean FC (%)
-      - Bias_global: weighted signed bias (bpm)
+# ─────────────────────────────────────────────────────────────────────────────
+# 8. BALANCED SPORT AGGREGATE
+# ─────────────────────────────────────────────────────────────────────────────
 
-    Sorted ascending so the best device (highest r_global) appears at the top.
-    Falls back to concatenated metrics when per-session data is unavailable.
+def generate_sport_aggregate(session_results: list) -> dict:
     """
-    def _color_r(r: float) -> str:
-        if r >= 0.95: return "#16a34a"
-        if r >= 0.90: return "#d97706"
-        if r >= 0.80: return "#ea580c"
-        return "#dc2626"
+    Balanced aggregate: every session contributes equally regardless of duration.
+
+    session_results: list of dicts, each with:
+        session_id, sport_type, training_type, session_difficulty,
+        metrics (from calculate_metrics), lag (int), duration_seconds (int),
+        fc_data (dict with reference/device lists — may be omitted for lightweight use)
+
+    Returns:
+        balanced_by_session — primary result, equal weight per session
+        weighted_by_samples — secondary result, concatenated signal (or None if no fc_data)
+        bland_altman        — concatenated + session-level summary
+        per_session         — individual breakdown
+    """
+    valid = [s for s in session_results if s.get("metrics")]
+    n = len(valid)
+    if n == 0:
+        raise ValueError("No hay sesiones válidas para el agregado.")
+
+    def _clean(vals):
+        return [v for v in vals
+                if v is not None and not (isinstance(v, float) and (math.isnan(v) or math.isinf(v)))]
+
+    def _mean(vals):
+        c = _clean(vals)
+        return (round(sum(c) / len(c), 4) if c else None), len(c)
+
+    def _std(vals):
+        c = _clean(vals)
+        if len(c) < 2:
+            return None
+        m = sum(c) / len(c)
+        return round(math.sqrt(sum((v - m) ** 2 for v in c) / (len(c) - 1)), 4)
+
+    # ── Fisher Z balanced Pearson R ──────────────────────────────────────────
+    fisher_zs = []
+    for s in valid:
+        r = s["metrics"].get("r")
+        if r is None or (isinstance(r, float) and (math.isnan(r) or math.isinf(r))):
+            continue
+        r_clip = max(-0.999999, min(0.999999, float(r)))
+        fisher_zs.append(math.atanh(r_clip))
+
+    balanced_r = math.tanh(sum(fisher_zs) / len(fisher_zs)) if fisher_zs else None
+
+    # ── Per-metric lists ─────────────────────────────────────────────────────
+    def _mget(key):
+        return [s["metrics"].get(key) for s in valid]
+
+    mae_vals   = _mget("mae")
+    mape_vals  = _mget("mape")
+    rmse_vals  = _mget("rmse")
+    bias_vals  = _mget("bias")
+    ccc_vals   = _mget("ccc")
+    icc_vals   = _mget("icc")
+    slope_vals = _mget("slope")
+    loa_l_vals = _mget("loa_l")
+    loa_u_vals = _mget("loa_u")
+    w3_vals    = _mget("within_3_bpm")
+    w5_vals    = _mget("within_5_bpm")
+    w10_vals   = _mget("within_10_bpm")
+    lag_vals   = [s.get("lag") for s in valid]
+
+    mae_clean = _clean(mae_vals)
+
+    balanced = {
+        "pearson_fisher":             round(balanced_r, 4) if balanced_r is not None else None,
+        "valid_correlation_sessions": len(fisher_zs),
+        "mae":                        _mean(mae_vals)[0],
+        "mae_between_session_sd":     _std(mae_vals),
+        "mae_min":                    round(min(mae_clean), 2) if mae_clean else None,
+        "mae_max":                    round(max(mae_clean), 2) if mae_clean else None,
+        "valid_mae_sessions":         _mean(mae_vals)[1],
+        "mape":                       _mean(mape_vals)[0],
+        "rmse":                       _mean(rmse_vals)[0],
+        "bias":                       _mean(bias_vals)[0],
+        "ccc":                        _mean(ccc_vals)[0],
+        "icc":                        _mean(icc_vals)[0],
+        "slope_mean":                 _mean(slope_vals)[0],
+        "lag_mean_seconds":           _mean(lag_vals)[0],
+        "within_3_bpm":               _mean(w3_vals)[0],
+        "within_5_bpm":               _mean(w5_vals)[0],
+        "within_10_bpm":              _mean(w10_vals)[0],
+    }
+
+    # ── Sample-weighted (concatenated signals) ───────────────────────────────
+    all_ref, all_dev = [], []
+    ba_points = []
+    for s in valid:
+        fc  = s.get("fc_data") or {}
+        ref_pts = fc.get("reference", [])
+        dev_pts = fc.get("device",    [])
+        sid = s.get("session_id", "")
+        tt  = s.get("training_type", "")
+        sd  = s.get("session_difficulty", "")
+        for r_val, d_val in zip(ref_pts, dev_pts):
+            if r_val is not None and d_val is not None:
+                all_ref.append(float(r_val))
+                all_dev.append(float(d_val))
+                ba_points.append({
+                    "session_id":         sid,
+                    "training_type":      tt,
+                    "session_difficulty": sd,
+                    "mean":               (float(r_val) + float(d_val)) / 2,
+                    "diff":               float(d_val) - float(r_val),  # positive = overestimation
+                })
+
+    if all_ref:
+        sw_m = calculate_metrics(pd.Series(all_ref, dtype=float),
+                                  pd.Series(all_dev, dtype=float))
+        weighted_by_samples: dict | None = {
+            "pearson_r": sw_m["r"],
+            "mae":       sw_m["mae"],
+            "mape":      sw_m["mape"],
+            "rmse":      sw_m["rmse"],
+            "bias":      sw_m["bias"],
+            "ccc":       sw_m["ccc"],
+            "icc":       sw_m["icc"],
+            "n_samples": sw_m["n"],
+        }
+        diffs = [p["diff"] for p in ba_points]
+        bias_c = sum(diffs) / len(diffs)
+        sd_c = math.sqrt(sum((d - bias_c) ** 2 for d in diffs) / max(len(diffs) - 1, 1))
+        ba_concat: dict | None = {
+            "bias":      round(bias_c, 2),
+            "sd":        round(sd_c, 2),
+            "lower_loa": round(bias_c - 1.96 * sd_c, 2),
+            "upper_loa": round(bias_c + 1.96 * sd_c, 2),
+            "n_points":  len(ba_points),
+        }
+    else:
+        weighted_by_samples = None
+        ba_concat = None
+
+    ba_balanced = {
+        "mean_session_bias": _mean(bias_vals)[0],
+        "session_bias_sd":   _std(bias_vals),
+        "mean_lower_loa":    _mean(loa_l_vals)[0],
+        "mean_upper_loa":    _mean(loa_u_vals)[0],
+        "n_sessions":        _mean(bias_vals)[1],
+    }
+
+    # ── Per-session breakdown ────────────────────────────────────────────────
+    per_session = []
+    for s in valid:
+        m = s["metrics"]
+        per_session.append({
+            "session_id":         s.get("session_id"),
+            "training_type":      s.get("training_type"),
+            "session_difficulty": s.get("session_difficulty"),
+            "valid_samples":      m.get("n"),
+            "duration_seconds":   s.get("duration_seconds"),
+            "metrics": {
+                "pearson_r":        m.get("r"),
+                "mae":              m.get("mae"),
+                "mape":             m.get("mape"),
+                "rmse":             m.get("rmse"),
+                "bias":             m.get("bias"),
+                "loa_lower":        m.get("loa_l"),
+                "loa_upper":        m.get("loa_u"),
+                "ccc":              m.get("ccc"),
+                "icc":              m.get("icc"),
+                "regression_slope": m.get("slope"),
+                "lag_seconds":      s.get("lag"),
+                "mean_ref_hr":      m.get("media_ref"),
+                "within_3_bpm":     m.get("within_3_bpm"),
+                "within_5_bpm":     m.get("within_5_bpm"),
+                "within_10_bpm":    m.get("within_10_bpm"),
+            },
+        })
+
+    return {
+        "session_count":       n,
+        "balanced_by_session": balanced,
+        "weighted_by_samples": weighted_by_samples,
+        "bland_altman": {
+            "concatenated":             ba_concat,
+            "balanced_session_summary": ba_balanced,
+        },
+        "per_session": per_session,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 9. OVERVIEW CHART
+# ─────────────────────────────────────────────────────────────────────────────
+
+_CRITERION_CONFIG: dict[str, dict] = {
+    "mae": {
+        "bal_key":          "mae",
+        "label":            "MAE equilibrado (ppm)",
+        "higher_is_better": False,
+        "thresholds":       [(2, "#16a34a", "≤2"), (5, "#d97706", "≤5"), (10, "#ea580c", "≤10")],
+        "fmt":              ".1f",
+    },
+    "rmse": {
+        "bal_key":          "rmse",
+        "label":            "RMSE equilibrado (ppm)",
+        "higher_is_better": False,
+        "thresholds":       [(3, "#16a34a", "≤3"), (6, "#d97706", "≤6"), (12, "#ea580c", "≤12")],
+        "fmt":              ".1f",
+    },
+    "pearson_fisher": {
+        "bal_key":          "pearson_fisher",
+        "label":            "Pearson R (Fisher, equilibrado)",
+        "higher_is_better": True,
+        "thresholds":       [(0.95, "#16a34a", "0.95"), (0.90, "#d97706", "0.90"), (0.80, "#ea580c", "0.80")],
+        "fmt":              ".4f",
+    },
+    "ccc": {
+        "bal_key":          "ccc",
+        "label":            "CCC medio",
+        "higher_is_better": True,
+        "thresholds":       [(0.95, "#16a34a", "0.95"), (0.90, "#d97706", "0.90"), (0.80, "#ea580c", "0.80")],
+        "fmt":              ".4f",
+    },
+    "within_5_bpm": {
+        "bal_key":          "within_5_bpm",
+        "label":            "Dentro de ±5 ppm (%)",
+        "higher_is_better": True,
+        "thresholds":       [(95, "#16a34a", "95%"), (85, "#d97706", "85%"), (70, "#ea580c", "70%")],
+        "fmt":              ".1f",
+    },
+    "within_3_bpm": {
+        "bal_key":          "within_3_bpm",
+        "label":            "Dentro de ±3 ppm (%)",
+        "higher_is_better": True,
+        "thresholds":       [(90, "#16a34a", "90%"), (75, "#d97706", "75%"), (60, "#ea580c", "60%")],
+        "fmt":              ".1f",
+    },
+    "within_10_bpm": {
+        "bal_key":          "within_10_bpm",
+        "label":            "Dentro de ±10 ppm (%)",
+        "higher_is_better": True,
+        "thresholds":       [(99, "#16a34a", "99%"), (95, "#d97706", "95%"), (90, "#ea580c", "90%")],
+        "fmt":              ".1f",
+    },
+    "difficulty_weighted": {
+        "dw_key":           "difficulty_weighted_correlation",
+        "label":            "R ponderado por dificultad (editorial)",
+        "higher_is_better": True,
+        "thresholds":       [(0.95, "#16a34a", "0.95"), (0.90, "#d97706", "0.90"), (0.80, "#ea580c", "0.80")],
+        "fmt":              ".4f",
+    },
+}
+VALID_CHART_CRITERIA = set(_CRITERION_CONFIG.keys())
+
+
+def generate_overview_chart(
+    devices_data: list,
+    criterion: str = "mae",
+) -> str:
+    """
+    Lollipop chart comparing devices by the chosen criterion.
+
+    devices_data entries must include:
+        name, reference_name, session_count, total_samples, sport_type,
+        balanced_by_session (dict from generate_sport_aggregate),
+        difficulty_weighted (dict from _weighted_global_score, optional)
+
+    criterion: one of VALID_CHART_CRITERIA
+    """
+    cfg = _CRITERION_CONFIG.get(criterion, _CRITERION_CONFIG["mae"])
+    higher_is_better = cfg["higher_is_better"]
+
+    def _get_val(dev: dict) -> float | None:
+        if "bal_key" in cfg:
+            return (dev.get("balanced_by_session") or {}).get(cfg["bal_key"])
+        if "dw_key" in cfg:
+            return (dev.get("difficulty_weighted") or {}).get(cfg["dw_key"])
+        return None
+
+    def _color(val: float) -> str:
+        thresholds = cfg["thresholds"]
+        if higher_is_better:
+            for t, c, _ in thresholds:
+                if val >= t:
+                    return c
+            return "#dc2626"
+        else:
+            for t, c, _ in thresholds:
+                if val <= t:
+                    return c
+            return "#dc2626"
 
     entries = []
     for dev in devices_data:
-        # ── Try weighted scoring from per-session data ────────────────────
-        score = _weighted_global_score(dev.get("sessions_info", []))
-
-        if score is not None:
-            r_val       = score["r_global"]
-            mae_val     = score["mae_global"]
-            bias_val    = score["bias_global"]
-            n_weighted  = score["n_weighted"]
-            weighted    = True
-        else:
-            # Fallback: concatenate all FC data and compute raw metrics
-            all_ref, all_dev_fc = [], []
-            for fc in dev["fc_data_list"]:
-                all_ref.extend(fc.get("reference", []))
-                all_dev_fc.extend(fc.get("device",    []))
-            if len(all_ref) < 10:
-                continue
-            m        = calculate_metrics(pd.Series(all_ref, dtype=float),
-                                         pd.Series(all_dev_fc, dtype=float))
-            r_val    = m["r"]
-            mae_val  = m["mae"]
-            bias_val = m["bias"]
-            n_weighted = m["n"]
-            weighted = False
-
+        val = _get_val(dev)
+        if val is None:
+            continue
+        bal = dev.get("balanced_by_session") or {}
         entries.append({
-            "name":      dev["name"],
-            "ref_name":  dev["reference_name"],
-            "r":         r_val,
-            "mae":       mae_val,
-            "bias":      bias_val,
-            "n":         n_weighted,
-            "sessions":  dev["session_count"],
-            "weighted":  weighted,
+            "name":          dev["name"],
+            "ref_name":      dev.get("reference_name", ""),
+            "value":         val,
+            "mae":           bal.get("mae"),
+            "mae_sd":        bal.get("mae_between_session_sd"),
+            "bias":          bal.get("bias"),
+            "sessions":      dev.get("session_count", 0),
+            "total_samples": dev.get("total_samples", 0),
+            "sport_type":    dev.get("sport_type", ""),
         })
 
     if not entries:
         raise ValueError("No hay datos suficientes para generar el gráfico global.")
 
-    # Sort ascending — best (highest r) at top
-    entries.sort(key=lambda x: x["r"])
+    # Sort: ascending if lower-is-better, descending if higher-is-better
+    # Both orderings put the best device at the top of the chart.
+    entries.sort(key=lambda x: x["value"], reverse=higher_is_better)
 
-    names     = [e["name"]  for e in entries]
-    r_vals    = [e["r"]     for e in entries]
-    mae_vals  = [e["mae"]   for e in entries]
-    bias_vals = [e["bias"]  for e in entries]
-    ref_label = entries[-1]["ref_name"]
-    n_devs    = len(entries)
+    names  = [e["name"]  for e in entries]
+    values = [e["value"] for e in entries]
+    n_devs = len(entries)
+    colors = [_color(v) for v in values]
+    fmt    = cfg["fmt"]
 
-    colors = [_color_r(r) for r in r_vals]
+    val_range = max(values) - min(values)
+    x_pad = val_range * 0.05 if val_range > 0 else abs(values[0]) * 0.05 or 0.01
+    x_min = min(values) - x_pad
+    x_max = max(values) + val_range * 0.35 + x_pad
 
-    # Dynamic figure height
     fig_h = max(5, n_devs * 0.65 + 2.2)
-    fig, ax = plt.subplots(figsize=(9, fig_h), facecolor="#ffffff")
+    fig, ax = plt.subplots(figsize=(10, fig_h), facecolor="#ffffff")
     _style_ax(ax)
 
     y_pos = np.arange(n_devs)
+    for y, v, c in zip(y_pos, values, colors):
+        ax.hlines(y, x_min, v, colors="#d1d5db", linewidth=1.2, zorder=2)
+    ax.scatter(values, y_pos, color=colors, s=90, zorder=4)
 
-    # Lollipop stems
-    x_min = max(0.5, min(r_vals) - 0.05)
-    for y, r, c in zip(y_pos, r_vals, colors):
-        ax.hlines(y, x_min, r, colors="#d1d5db", linewidth=1.2, zorder=2)
+    for y, e, c in zip(y_pos, entries, colors):
+        val_str  = f"{e['value']:{fmt}}"
+        mae_str  = ""
+        if e.get("mae") is not None:
+            mae_str = f"  MAE {e['mae']:.1f}"
+            if e.get("mae_sd") is not None:
+                mae_str += f"±{e['mae_sd']:.1f}"
+            mae_str += " ppm"
+        bias_str = ""
+        if e.get("bias") is not None:
+            sign = "+" if e["bias"] > 0 else ""
+            bias_str = f"  bias {sign}{e['bias']:.1f}"
+        ses_str  = f"  ({e['sessions']} ses.)"
+        label = f" {val_str}{mae_str}{bias_str}{ses_str}"
+        ax.text(e["value"] + x_pad * 0.3, y, label,
+                va="center", ha="left", fontsize=7.5, color=c, fontweight="bold")
 
-    # Dots
-    ax.scatter(r_vals, y_pos, color=colors, s=90, zorder=4)
-
-    # Labels: r_global + MAE% + bias
-    for y, r, mae, bias, c, e in zip(y_pos, r_vals, mae_vals, bias_vals, colors, entries):
-        weighted_tag = "★" if e["weighted"] else ""
-        bias_sign    = "+" if bias > 0 else ""
-        label = (
-            f" {r:.4f}{weighted_tag}   "
-            f"MAE {mae:.1f}{'%' if e['weighted'] else ' bpm'}   "
-            f"bias {bias_sign}{bias:.1f} bpm"
-        )
-        ax.text(r + 0.002, y, label,
-                va="center", ha="left", fontsize=7.5,
-                color=c, fontweight="bold")
-
-    # Reference vertical line at 1.0
-    ax.axvline(1.0, color="#9ca3af", lw=1.2, ls="--", zorder=1)
-    ax.text(1.001, n_devs - 0.5, ref_label,
-            color="#6b7280", fontsize=8, va="top", ha="left")
-
-    # Threshold lines: 0.95 (green), 0.90 (amber), 0.80 (orange)
-    for thresh, col, lbl in [
-        (0.95, "#16a34a", "0.95"),
-        (0.90, "#d97706", "0.90"),
-        (0.80, "#ea580c", "0.80"),
-    ]:
+    for thresh, col, lbl in cfg["thresholds"]:
         ax.axvline(thresh, color=col, lw=0.8, ls=":", alpha=0.6, zorder=1)
-        ax.text(thresh, -0.8, lbl, color=col, fontsize=7,
-                ha="center", va="top")
+        ax.text(thresh, -0.8, lbl, color=col, fontsize=7, ha="center", va="top")
 
+    ref_label  = entries[0]["ref_name"] if entries else ""
+    sport_label = entries[0]["sport_type"] if entries else ""
     ax.set_yticks(y_pos)
     ax.set_yticklabels(names, color="#111827", fontsize=10)
-    ax.set_xlabel("r global ponderado por dificultad de sesión  (★ = ponderado)", color="#374151", fontsize=10)
-    ax.set_xlim(x_min - 0.01, 1.10)
+    ax.set_xlabel(cfg["label"], color="#374151", fontsize=10)
+    ax.set_xlim(x_min, x_max)
     ax.set_ylim(-1, n_devs)
     ax.tick_params(axis="x", colors="#6b7280")
 
     fig.suptitle(
-        f"Comparativa global  ·  referencia: {ref_label}",
+        f"Comparativa global  ·  {sport_label}  ·  referencia: {ref_label}",
         color="#111827", fontsize=13, fontweight="bold",
     )
     fig.tight_layout()
-
     return _fig_to_base64(fig)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 10. SPORT-LEVEL TWO-CHART ANALYSIS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _session_color(idx: int) -> str:
+    return SESSION_PALETTE[idx % len(SESSION_PALETTE)]
+
+
+def generate_sport_correlation_chart(
+    session_data: list,
+    dev_name: str,
+    ref_name: str,
+    sport_type: str = "",
+) -> str:
+    """
+    Correlation scatter chart for all sessions of a sport on one device.
+    Each session is a distinct colour. Up to 800 random points per session.
+
+    session_data: list of dicts with keys:
+        label (str), ref (list[float]), dev (list[float]), mae (float|None)
+    """
+    fig, ax = plt.subplots(figsize=(8, 8), facecolor="#ffffff")
+    _style_ax(ax)
+    ax.set_aspect("equal")
+
+    all_vals: list[float] = []
+    handles = []
+
+    for idx, s in enumerate(session_data):
+        ref_arr = np.array(s["ref"], dtype=float)
+        dev_arr = np.array(s["dev"], dtype=float)
+        if len(ref_arr) == 0:
+            continue
+
+        col = _session_color(idx)
+        # Subsample to ≤800 points for readability
+        n = len(ref_arr)
+        if n > 800:
+            sel = np.random.choice(n, 800, replace=False)
+            ref_arr = ref_arr[sel]
+            dev_arr = dev_arr[sel]
+
+        mae_txt = f"  MAE {s['mae']:.1f} ppm" if s.get("mae") is not None else ""
+        lbl = f"{s['label']}{mae_txt}"
+        sc = ax.scatter(ref_arr, dev_arr, color=col, alpha=0.35, s=12,
+                        linewidths=0, label=lbl, zorder=3)
+        handles.append(sc)
+        all_vals.extend(ref_arr.tolist())
+        all_vals.extend(dev_arr.tolist())
+
+    if not all_vals:
+        raise ValueError("No hay datos de FC para generar el gráfico.")
+
+    lo = min(all_vals) - 2
+    hi = max(all_vals) + 2
+    x_line = np.linspace(lo, hi, 200)
+
+    # Identity line
+    ax.plot(x_line, x_line, color="#9ca3af", lw=1.5, ls="--",
+            label="y = x  (acuerdo perfecto)", zorder=2)
+
+    # Global regression across all concatenated data
+    all_ref_c: list[float] = []
+    all_dev_c: list[float] = []
+    for s in session_data:
+        all_ref_c.extend(s["ref"])
+        all_dev_c.extend(s["dev"])
+    if len(all_ref_c) >= 10:
+        try:
+            lr = stats.linregress(all_ref_c, all_dev_c)
+            ax.plot(x_line, lr.slope * x_line + lr.intercept,
+                    color="#111827", lw=1.8, ls="-",
+                    label=f"Regresión global  y = {lr.slope:.3f}x + {lr.intercept:.1f}",
+                    zorder=4)
+        except Exception:
+            pass
+
+    ax.set_xlim(lo, hi)
+    ax.set_ylim(lo, hi)
+    ax.set_xlabel(f"{ref_name}  (ppm)", color="#374151", fontsize=11)
+    ax.set_ylabel(f"{dev_name}  (ppm)", color="#374151", fontsize=11)
+    ax.legend(loc="lower right", fontsize=8,
+              facecolor="#ffffff", edgecolor="#e5e7eb", labelcolor="#374151",
+              framealpha=0.92)
+    sport_lbl = {"running": "Running", "cycling": "Ciclismo", "gym": "Gimnasio"}.get(sport_type, sport_type)
+    fig.suptitle(
+        f"Correlación FC — {dev_name}  vs  {ref_name}  ·  {sport_lbl}",
+        color="#111827", fontsize=13, fontweight="bold",
+    )
+    fig.tight_layout()
+    return _fig_to_base64(fig)
+
+
+def generate_sport_bland_altman_chart(
+    session_data: list,
+    dev_name: str,
+    ref_name: str,
+    sport_type: str = "",
+) -> str:
+    """
+    Bland-Altman chart for all sessions on one device+sport.
+    Points coloured by session. Per-session bias shown as horizontal
+    dashed segments spanning that session's mean range.
+    Global bias and ±1.96 SD shown as solid reference lines.
+
+    session_data: list of dicts with keys:
+        label, ref (list[float]), dev (list[float]),
+        bias (float|None), loa_l (float|None), loa_u (float|None)
+    """
+    fig, ax = plt.subplots(figsize=(10, 7), facecolor="#ffffff")
+    _style_ax(ax)
+
+    all_means: list[float] = []
+    all_diffs: list[float]  = []
+    session_stats: list[dict] = []
+
+    for idx, s in enumerate(session_data):
+        ref_arr = np.array(s["ref"], dtype=float)
+        dev_arr = np.array(s["dev"], dtype=float)
+        if len(ref_arr) < 3:
+            continue
+
+        col  = _session_color(idx)
+        diffs = dev_arr - ref_arr          # positive = overestimation
+        means = (ref_arr + dev_arr) / 2.0
+
+        # Subsample for readability
+        n = len(diffs)
+        if n > 600:
+            sel = np.random.choice(n, 600, replace=False)
+            ax.scatter(means[sel], diffs[sel], color=col, alpha=0.25, s=9,
+                       linewidths=0, zorder=2)
+        else:
+            ax.scatter(means, diffs, color=col, alpha=0.3, s=9,
+                       linewidths=0, zorder=2)
+
+        all_means.extend(means.tolist())
+        all_diffs.extend(diffs.tolist())
+
+        bias_s = float(diffs.mean())
+        x_lo_s = float(means.min())
+        x_hi_s = float(means.max())
+        session_stats.append({
+            "label": s["label"],
+            "color": col,
+            "bias":  bias_s,
+            "x_lo":  x_lo_s,
+            "x_hi":  x_hi_s,
+        })
+
+    if not all_diffs:
+        raise ValueError("No hay datos de FC para generar el gráfico Bland-Altman.")
+
+    all_means_arr = np.array(all_means)
+    all_diffs_arr = np.array(all_diffs)
+    global_bias   = float(all_diffs_arr.mean())
+    global_sd     = float(all_diffs_arr.std(ddof=1))
+    loa_u         = global_bias + 1.96 * global_sd
+    loa_l         = global_bias - 1.96 * global_sd
+    x_lo_g = all_means_arr.min() - 1
+    x_hi_g = all_means_arr.max() + 1
+
+    # Global reference lines
+    ax.axhline(global_bias, color="#111827", lw=1.8,
+               label=f"Bias global = {global_bias:+.2f} ppm", zorder=5)
+    ax.axhline(loa_u, color="#dc2626", lw=1.3, ls="--",
+               label=f"+LoA global = {loa_u:+.2f} ppm", zorder=5)
+    ax.axhline(loa_l, color="#2563eb", lw=1.3, ls="--",
+               label=f"−LoA global = {loa_l:+.2f} ppm", zorder=5)
+    ax.fill_between([x_lo_g, x_hi_g], loa_l, loa_u,
+                    alpha=0.05, color="#9ca3af", zorder=1)
+
+    # Per-session bias segments
+    for ss in session_stats:
+        sign = "+" if ss["bias"] >= 0 else ""
+        ax.hlines(ss["bias"], ss["x_lo"], ss["x_hi"],
+                  colors=ss["color"], linewidth=2.5,
+                  linestyles="solid", alpha=0.85, zorder=4,
+                  label=f"{ss['label']}  bias = {sign}{ss['bias']:.2f}")
+        # Small marker at segment midpoint
+        mid = (ss["x_lo"] + ss["x_hi"]) / 2
+        ax.plot(mid, ss["bias"], "o", color=ss["color"], ms=7, zorder=6)
+
+    ax.set_xlim(x_lo_g, x_hi_g)
+    y_pad = max(abs(loa_u), abs(loa_l)) * 0.25 + 2
+    ax.set_ylim(loa_l - y_pad, loa_u + y_pad)
+    ax.axhline(0, color="#d1d5db", lw=0.8, zorder=1)
+
+    ax.set_xlabel(f"Media  ({ref_name} + {dev_name}) / 2  (ppm)",
+                  color="#374151", fontsize=10)
+    ax.set_ylabel(f"Diferencia  {dev_name} − {ref_name}  (ppm)",
+                  color="#374151", fontsize=10)
+    ax.legend(loc="upper right", fontsize=8, ncol=1,
+              facecolor="#ffffff", edgecolor="#e5e7eb", labelcolor="#374151",
+              framealpha=0.92)
+
+    sport_lbl = {"running": "Running", "cycling": "Ciclismo", "gym": "Gimnasio"}.get(sport_type, sport_type)
+    fig.suptitle(
+        f"Bland-Altman por sesión — {dev_name}  vs  {ref_name}  ·  {sport_lbl}\n"
+        f"Líneas horizontales = bias de cada sesión  ·  "
+        f"Líneas negras = LoA global (±{1.96 * global_sd:.1f} ppm)",
+        color="#111827", fontsize=12, fontweight="bold",
+    )
+    fig.tight_layout()
+    return _fig_to_base64(fig)
+
+
+def build_sport_chart_data(session_data: list) -> dict:
+    """
+    Returns raw points per session for Chart.js frontend charts.
+    No matplotlib — data only.
+
+    session_data: list of {label, ref: list[float], dev: list[float]}
+    Returns:
+        sessions: list of {label, points: [{x,y}], bias, mae}
+        global_stats: {bias, loa_u, loa_l, pearson_r, slope, intercept}
+    """
+    sessions_out: list[dict] = []
+    all_ref: list[float] = []
+    all_dev: list[float] = []
+    rng = np.random.default_rng(42)
+
+    for s in session_data:
+        ref_arr = np.array(s["ref"], dtype=float)
+        dev_arr = np.array(s["dev"], dtype=float)
+        if len(ref_arr) < 3:
+            continue
+
+        diffs  = dev_arr - ref_arr
+        bias_s = float(diffs.mean())
+        mae_s  = float(np.abs(diffs).mean())
+
+        n = len(ref_arr)
+        if n > 500:
+            sel   = rng.choice(n, 500, replace=False)
+            r_sub = ref_arr[sel]
+            d_sub = dev_arr[sel]
+        else:
+            r_sub = ref_arr
+            d_sub = dev_arr
+
+        sessions_out.append({
+            "label":  s["label"],
+            "points": [{"x": float(r), "y": float(d)} for r, d in zip(r_sub, d_sub)],
+            "bias":   round(bias_s, 2),
+            "mae":    round(mae_s, 2),
+        })
+        all_ref.extend(ref_arr.tolist())
+        all_dev.extend(dev_arr.tolist())
+
+    if not all_ref:
+        return {"sessions": [], "global_stats": None}
+
+    all_ref_arr = np.array(all_ref)
+    all_dev_arr = np.array(all_dev)
+    diffs_all   = all_dev_arr - all_ref_arr
+    global_bias = float(diffs_all.mean())
+    global_sd   = float(diffs_all.std(ddof=1))
+    loa_u       = global_bias + 1.96 * global_sd
+    loa_l       = global_bias - 1.96 * global_sd
+
+    try:
+        lr        = stats.linregress(all_ref_arr, all_dev_arr)
+        slope     = round(float(lr.slope), 4)
+        intercept = round(float(lr.intercept), 4)
+        pearson_r = round(float(lr.rvalue), 4)
+    except Exception:
+        slope = 1.0; intercept = 0.0; pearson_r = None
+
+    return {
+        "sessions": sessions_out,
+        "global_stats": {
+            "bias":      round(global_bias, 3),
+            "loa_u":     round(loa_u, 3),
+            "loa_l":     round(loa_l, 3),
+            "pearson_r": pearson_r,
+            "slope":     slope,
+            "intercept": intercept,
+        },
+    }

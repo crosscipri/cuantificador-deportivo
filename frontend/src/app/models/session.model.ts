@@ -43,7 +43,26 @@ export interface SparkData {
   reference: number[];
 }
 
+export interface BalancedBySession {
+  pearson_fisher:             number | null;
+  valid_correlation_sessions: number;
+  mae:                        number | null;
+  mae_between_session_sd:     number | null;
+  mae_min:                    number | null;
+  mae_max:                    number | null;
+  mape:                       number | null;
+  rmse:                       number | null;
+  bias:                       number | null;
+  ccc:                        number | null;
+  icc:                        number | null;
+  lag_mean_seconds:           number | null;
+  within_3_bpm:               number | null;
+  within_5_bpm:               number | null;
+  within_10_bpm:              number | null;
+}
+
 export interface OverviewEntry {
+  // Flat aliases (backward compat — derived from balanced_by_session)
   name:           string;
   reference_name: string;
   r_global:       number;
@@ -53,6 +72,14 @@ export interface OverviewEntry {
   bias_global:    number;
   session_count:  number;
   total_weight:   number;
+  // New nested structure
+  device_id:              string;
+  device_name:            string;
+  sport_type:             string;
+  total_samples:          number;
+  balanced_by_session:    BalancedBySession;
+  weighted_by_samples:    Record<string, number> | null;
+  difficulty_weighted_score: Record<string, number | string> | null;
 }
 
 export interface TrainingTypeSummary {
@@ -262,6 +289,34 @@ export interface AggregateResult {
   n_sessions: number;
   total_samples: number;
   chart: string; // base64 PNG
+}
+
+export interface SportSessionPoints {
+  label:  string;
+  points: { x: number; y: number }[];
+  bias:   number;
+  mae:    number;
+}
+
+export interface SportGlobalStats {
+  bias:      number;
+  loa_u:     number;
+  loa_l:     number;
+  pearson_r: number | null;
+  slope:     number;
+  intercept: number;
+}
+
+export interface SportAggregateCharts {
+  device_name:         string;
+  reference_name:      string;
+  sport_type:          string;
+  session_count:       number;
+  sessions_with_data:  number;
+  sessions:            SportSessionPoints[];
+  global_stats:        SportGlobalStats | null;
+  balanced_by_session: BalancedBySession | null;
+  per_session:         any[];
 }
 
 export type MetricQuality = 'good' | 'warn' | 'orange' | 'bad';

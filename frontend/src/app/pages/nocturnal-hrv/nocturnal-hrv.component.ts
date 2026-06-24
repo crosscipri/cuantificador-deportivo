@@ -5,7 +5,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiService } from '../../services/api.service';
-import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated } from '../../models/hrv-analysis.model';
+import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated, NocturnalHrvGlobalAiAnalysis } from '../../models/hrv-analysis.model';
 import { MatButtonModule }  from '@angular/material/button';
 import { MatIconModule }    from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -120,14 +120,18 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   aiError        = '';
 
   // ── Global aggregated charts ───────────────────────────────────────────────
-  globalData:     NocturnalHrvAggregated | null = null;
-  loadingGlobal   = false;
+  globalData:       NocturnalHrvAggregated | null = null;
+  loadingGlobal     = false;
+  globalAiAnalysis: NocturnalHrvGlobalAiAnalysis | null = null;
+  loadingGlobalAi   = false;
+  generatingGlobalAi = false;
+  globalAiError     = '';
   gcRmssdData: any = { datasets: [] };
   gcBlandData: any = { datasets: [] };
   gcHrData:    any = { datasets: [] };
-  readonly gcRmssdOptions = this.makeCorrelationOpts('RMSSD Polar H10 (ms)', 'RMSSD Fitbit (ms)');
-  readonly gcBlandOptions = this.makeBaOpts();
-  readonly gcHrOptions    = this.makeCorrelationOpts('FC Polar H10 (bpm)', 'FC Fitbit (bpm)');
+  readonly gcRmssdOptions = this.makeCorrelationOpts('RMSSD Polar H10 (ms)', 'RMSSD Fitbit (ms)', false);
+  readonly gcBlandOptions = this.makeBaOpts(false);
+  readonly gcHrOptions    = this.makeCorrelationOpts('FC Polar H10 (bpm)', 'FC Fitbit (bpm)', false);
   readonly gcPlugins       = [baLabelsPlugin];
 
   // ── Settings ───────────────────────────────────────────────────────────────
@@ -274,6 +278,30 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       next:  data => { this.globalData = data; this.loadingGlobal = false; this.buildGlobalCharts(); this.cdRef.markForCheck(); },
       error: ()   => { this.loadingGlobal = false; this.cdRef.markForCheck(); },
     });
+    this.loadGlobalAiAnalysis();
+  }
+
+  loadGlobalAiAnalysis(): void {
+    this.loadingGlobalAi = true;
+    this.api.getGlobalHrvAiAnalysis(this.deviceId).subscribe({
+      next:  ai => { this.globalAiAnalysis = ai; this.loadingGlobalAi = false; this.cdRef.markForCheck(); },
+      error: ()  => { this.loadingGlobalAi = false; this.cdRef.markForCheck(); },
+    });
+  }
+
+  generateGlobalAiAnalysis(): void {
+    if (!this.deviceId || this.generatingGlobalAi) return;
+    this.generatingGlobalAi = true;
+    this.globalAiError = '';
+    this.globalAiAnalysis = null;
+    this.api.generateGlobalHrvAiAnalysis(this.deviceId).subscribe({
+      next:  ai  => { this.globalAiAnalysis = ai; this.generatingGlobalAi = false; this.cdRef.markForCheck(); },
+      error: err => {
+        this.globalAiError = err?.error?.detail ?? 'Error al generar el análisis IA';
+        this.generatingGlobalAi = false;
+        this.cdRef.markForCheck();
+      },
+    });
   }
 
   private buildGlobalCharts(): void {
@@ -294,7 +322,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       data:  s.points,
       backgroundColor: this.SESSION_COLORS[i % this.SESSION_COLORS.length],
       borderColor: 'transparent',
-      pointRadius: 5, pointHoverRadius: 7,
+      pointRadius: 3, pointHoverRadius: 5,
     }));
 
     const allX = g.rmssd.by_session.flatMap(s => s.points.map(p => p.x));
@@ -344,7 +372,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       data:  s.points.map(p => ({ x: (p.x + p.y) / 2, y: p.y - p.x })),
       backgroundColor: this.SESSION_COLORS[i % this.SESSION_COLORS.length],
       borderColor: 'transparent',
-      pointRadius: 5, pointHoverRadius: 7,
+      pointRadius: 3, pointHoverRadius: 5,
     }));
 
     this.gcBlandData = {
@@ -373,7 +401,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       data:  s.points,
       backgroundColor: this.SESSION_COLORS[i % this.SESSION_COLORS.length],
       borderColor: 'transparent',
-      pointRadius: 5, pointHoverRadius: 7,
+      pointRadius: 3, pointHoverRadius: 5,
     }));
 
     const allX = g.hr.by_session.flatMap(s => s.points.map(p => p.x));
@@ -1178,20 +1206,17 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     };
   }
 
-  private makeCorrelationOpts(xLabel: string, yLabel: string): any {
+  private makeCorrelationOpts(xLabel: string, yLabel: string, showLegend = true): any {
     return {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
       plugins: {
-        legend: {
-          position: 'top', align: 'end',
-          labels: {
-            color: '#9ca3af', font: { size: 12 }, boxWidth: 20, boxHeight: 2, padding: 16,
-          },
-        },
+        legend: showLegend
+          ? { position: 'top', align: 'end',
+              labels: { color: '#9ca3af', font: { size: 12 }, boxWidth: 20, boxHeight: 2, padding: 16 } }
+          : { display: false },
         tooltip: {
-          filter: (item: any) => item.datasetIndex === 0,
           callbacks: {
             label: (item: any) =>
               `Polar: ${this.fmt(item.parsed.x)}   Fitbit: ${this.fmt(item.parsed.y)}`,
@@ -1213,21 +1238,18 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     };
   }
 
-  private makeBaOpts(): any {
+  private makeBaOpts(showLegend = true): any {
     return {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
       plugins: {
-        legend: {
-          position: 'top', align: 'end',
-          labels: {
-            filter: (item: any) => item.datasetIndex === 0,
-            color: '#9ca3af', font: { size: 12 },
-          },
-        },
+        legend: showLegend
+          ? { position: 'top', align: 'end',
+              labels: { filter: (item: any) => item.datasetIndex === 0,
+                        color: '#9ca3af', font: { size: 12 } } }
+          : { display: false },
         tooltip: {
-          filter: (item: any) => item.datasetIndex === 0,
           callbacks: {
             label: (item: any) =>
               `Media: ${this.fmt(item.parsed.x)} ms   Dif: ${this.fmtSign(item.parsed.y)} ms`,

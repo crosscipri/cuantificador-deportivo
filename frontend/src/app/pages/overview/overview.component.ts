@@ -223,8 +223,8 @@ export class OverviewComponent implements OnInit {
   qualityMAEClass(v: number): string { return qualityMAE(v); }
   qualityRClass(v: number): string { return qualityR(v); }
   qualityCCCClass(v: number): string { return qualityCCC(v); }
-  lagLabel(s: number): string {
-    if (s === 0) return '0 s';
+  lagLabel(s: number | null | undefined): string {
+    if (s == null || isNaN(s) || s === 0) return '0 s';
     return (s > 0 ? '+' : '') + s.toFixed(1) + ' s';
   }
 

@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry } from '../models/session.model';
+import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry, SportAggregateCharts } from '../models/session.model';
 import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail, UrbanAiAnalysis, GpsTrackModeScore, GpsUrbanModeScore, GpsStoredScores, GpsOverviewEntry } from '../models/gps-analysis.model';
-import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated } from '../models/hrv-analysis.model';
+import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated, NocturnalHrvGlobalAiAnalysis } from '../models/hrv-analysis.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -97,6 +97,14 @@ export class ApiService {
   getOverviewData(sportType: SportType = 'running'): Observable<OverviewEntry[]> {
     const params = new HttpParams().set('sport_type', sportType);
     return this.http.get<OverviewEntry[]>(`${this.base}/overview/data`, { params });
+  }
+
+  // ── Sport aggregate charts (per device + sport) ──────────────────────────
+
+  getSportAggregateCharts(deviceId: string, sportType: string): Observable<SportAggregateCharts> {
+    return this.http.get<SportAggregateCharts>(
+      `${this.base}/devices/${deviceId}/sport-aggregate/${sportType}`
+    );
   }
 
   // ── Aggregate ─────────────────────────────────────────────────────────────
@@ -230,6 +238,14 @@ export class ApiService {
 
   getAggregatedHrvData(deviceId: string): Observable<NocturnalHrvAggregated> {
     return this.http.get<NocturnalHrvAggregated>(`${this.base}/devices/${deviceId}/nocturnal-hrv/aggregated`);
+  }
+
+  getGlobalHrvAiAnalysis(deviceId: string): Observable<NocturnalHrvGlobalAiAnalysis> {
+    return this.http.get<NocturnalHrvGlobalAiAnalysis>(`${this.base}/devices/${deviceId}/nocturnal-hrv/ai-analysis`);
+  }
+
+  generateGlobalHrvAiAnalysis(deviceId: string): Observable<NocturnalHrvGlobalAiAnalysis> {
+    return this.http.post<NocturnalHrvGlobalAiAnalysis>(`${this.base}/devices/${deviceId}/nocturnal-hrv/ai-analysis`, {});
   }
 
   listNocturnalHrvSessions(deviceId: string): Observable<NocturnalHrvSummary[]> {

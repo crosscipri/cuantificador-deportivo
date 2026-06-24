@@ -157,6 +157,100 @@
       <div class="chart-card chart-placeholder" style="visibility:hidden"></div>
     </div>
 
+    <!-- ── Global AI analysis ───────────────────────────────────────── -->
+    <div class="hrv-ai-section" style="margin-top:24px; border-top:1px solid var(--line); padding-top:20px">
+
+      <div class="hrv-ai-header">
+        <div class="hrv-ai-title-group">
+          <span class="hrv-ai-eyebrow">Análisis IA global</span>
+          <h2 class="hrv-ai-title">Interpretación del conjunto de sesiones</h2>
+        </div>
+        <div class="hrv-ai-actions">
+          <span class="hrv-ai-meta" *ngIf="globalAiAnalysis && !generatingGlobalAi">
+            {{ globalAiAnalysis.model }} · {{ globalAiAnalysis.generated_at | date:'dd/MM/yyyy HH:mm' }}
+            · {{ globalAiAnalysis.n_sessions }} sesiones
+          </span>
+          <button class="ec-btn sm" (click)="generateGlobalAiAnalysis()"
+                  [disabled]="generatingGlobalAi || loadingGlobalAi">
+            <span *ngIf="!generatingGlobalAi">{{ globalAiAnalysis ? '↻ Re-generar' : 'Generar informe IA global' }}</span>
+            <span *ngIf="generatingGlobalAi" class="spinner-xs"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="hrv-ai-state" *ngIf="loadingGlobalAi"><div class="spinner"></div><p>Cargando informe IA…</p></div>
+      <div class="hrv-ai-state" *ngIf="generatingGlobalAi"><div class="spinner"></div><p>Generando análisis con Claude…</p></div>
+      <div class="hrv-ai-state hrv-ai-state-error" *ngIf="globalAiError && !generatingGlobalAi"><p>⚠ {{ globalAiError }}</p></div>
+      <div class="hrv-ai-state" *ngIf="!loadingGlobalAi && !generatingGlobalAi && !globalAiError && !globalAiAnalysis">
+        <p class="hrv-ai-empty">Pulsa "Generar informe IA global" para analizar el conjunto de sesiones.</p>
+      </div>
+
+      <ng-container *ngIf="globalAiAnalysis && !generatingGlobalAi">
+
+        <div class="hrv-ai-card hrv-ai-card-summary">
+          <div class="hrv-ai-card-label">Resumen ejecutivo</div>
+          <p class="hrv-ai-body">{{ globalAiAnalysis.report.resumen_ejecutivo }}</p>
+          <div class="hrv-ai-badges">
+            <span class="hrv-ai-badge" [ngClass]="'cal-' + globalAiAnalysis.report.calificacion_hrv">HRV: {{ globalAiAnalysis.report.calificacion_hrv | titlecase }}</span>
+            <span class="hrv-ai-badge" [ngClass]="'cal-' + globalAiAnalysis.report.calificacion_fc">FC: {{ globalAiAnalysis.report.calificacion_fc | titlecase }}</span>
+            <span class="hrv-ai-badge cal-verdict">{{ globalAiAnalysis.report.veredicto_final.etiqueta }}</span>
+          </div>
+        </div>
+
+        <div class="hrv-ai-two-col">
+          <div class="hrv-ai-card">
+            <div class="hrv-ai-card-label">Análisis RMSSD global</div>
+            <div class="hrv-ai-field-list">
+              <div class="hrv-ai-field"><span class="hrv-ai-field-key">Correlación</span><span class="hrv-ai-field-val">{{ globalAiAnalysis.report.analisis_rmssd_global.correlacion }}</span></div>
+              <div class="hrv-ai-field"><span class="hrv-ai-field-key">Error absoluto</span><span class="hrv-ai-field-val">{{ globalAiAnalysis.report.analisis_rmssd_global.error_absoluto }}</span></div>
+              <div class="hrv-ai-field"><span class="hrv-ai-field-key">Sesgo sistemático</span><span class="hrv-ai-field-val">{{ globalAiAnalysis.report.analisis_rmssd_global.sesgo_sistematico }}</span></div>
+              <div class="hrv-ai-field"><span class="hrv-ai-field-key">LoA globales</span><span class="hrv-ai-field-val">{{ globalAiAnalysis.report.analisis_rmssd_global.limites_acuerdo_global }}</span></div>
+            </div>
+          </div>
+          <div class="hrv-ai-card">
+            <div class="hrv-ai-card-label">Análisis FC global</div>
+            <div class="hrv-ai-field-list">
+              <div class="hrv-ai-field"><span class="hrv-ai-field-key">Error absoluto</span><span class="hrv-ai-field-val">{{ globalAiAnalysis.report.analisis_fc_global.error_absoluto }}</span></div>
+              <div class="hrv-ai-field"><span class="hrv-ai-field-key">Correlación</span><span class="hrv-ai-field-val">{{ globalAiAnalysis.report.analisis_fc_global.correlacion }}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hrv-ai-two-col">
+          <div class="hrv-ai-card">
+            <div class="hrv-ai-card-label">Consistencia entre sesiones</div>
+            <p class="hrv-ai-body">{{ globalAiAnalysis.report.consistencia_entre_sesiones }}</p>
+          </div>
+          <div class="hrv-ai-card">
+            <div class="hrv-ai-card-label">Causas técnicas</div>
+            <p class="hrv-ai-body">{{ globalAiAnalysis.report.causas_tecnicas }}</p>
+          </div>
+        </div>
+
+        <div class="hrv-ai-card">
+          <div class="hrv-ai-card-label">Utilidad práctica</div>
+          <div class="hrv-ai-util-grid">
+            <div class="hrv-ai-util-item"><div class="hrv-ai-util-key">Tendencias semanales</div><p class="hrv-ai-body">{{ globalAiAnalysis.report.utilidad_practica.tracking_tendencias }}</p></div>
+            <div class="hrv-ai-util-item"><div class="hrv-ai-util-key">Recovery Score</div><p class="hrv-ai-body">{{ globalAiAnalysis.report.utilidad_practica.recovery_score }}</p></div>
+            <div class="hrv-ai-util-item"><div class="hrv-ai-util-key">Detección sobreentrenamiento</div><p class="hrv-ai-body">{{ globalAiAnalysis.report.utilidad_practica.deteccion_sobreentrenamiento }}</p></div>
+          </div>
+        </div>
+
+        <div class="hrv-ai-two-col">
+          <div class="hrv-ai-card">
+            <div class="hrv-ai-card-label">Comparación con literatura</div>
+            <p class="hrv-ai-body">{{ globalAiAnalysis.report.comparacion_literatura }}</p>
+          </div>
+          <div class="hrv-ai-card hrv-ai-card-verdict">
+            <div class="hrv-ai-card-label">Veredicto final</div>
+            <div class="hrv-ai-verdict-label" [ngClass]="'cal-' + globalAiAnalysis.report.veredicto_final.calificacion">{{ globalAiAnalysis.report.veredicto_final.etiqueta }}</div>
+            <p class="hrv-ai-body hrv-ai-rec">{{ globalAiAnalysis.report.veredicto_final.recomendacion }}</p>
+          </div>
+        </div>
+
+      </ng-container>
+    </div>
+
   </div>
 
   <!-- ── Settings panel ─────────────────────────────────────────────── -->

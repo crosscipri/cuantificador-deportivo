@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
@@ -9,13 +9,14 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
 
 import { ApiService } from '../../services/api.service';
-import { Device, Session, AggregateResult,
+import { Device, Session, AggregateResult, SportAggregateCharts,
          SportType, SessionDifficulty,
          SPORT_TYPE_LABELS, DIFFICULTY_LABELS,
          TRAINING_TYPES_BY_SPORT, SPORT_HAS_DIFFICULTY, GYM_DIFFICULTY,
          WeightedScore, computeWeightedScore, scoreQuality,
          MetricQuality } from '../../models/session.model';
 import { GpsTrackModeScore, GpsUrbanModeScore, GpsStoredScores } from '../../models/gps-analysis.model';
+import { BaseChartDirective } from 'ng2-charts';
 import { ChartViewerComponent } from '../../shared/chart-viewer/chart-viewer.component';
 import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.component';
 
@@ -46,6 +47,10 @@ export interface SportTab {
   groups: SessionGroup[];
   score: WeightedScore | null;
   scoreQuality: MetricQuality | null;
+  sportAggregate: SportAggregateCharts | null;
+  loadingSportAggregate: boolean;
+  corrData: any;
+  baData: any;
 }
 
 interface CorrSportPoint { r: number; cx: number; cy: number; }
@@ -69,7 +74,7 @@ const SPORT_ICONS: Record<SportType, string> = {
   imports: [
     CommonModule, RouterModule, ReactiveFormsModule,
     MatInputModule, MatFormFieldModule, MatSnackBarModule, MatSelectModule,
-    ChartViewerComponent, MetricsTableComponent,
+    BaseChartDirective, ChartViewerComponent, MetricsTableComponent,
   ],
   templateUrl: './device-detail.component.html',
   styleUrls: ['./device-detail.component.scss'],
@@ -79,6 +84,59 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
   deviceId = '';
   sportTabs: SportTab[] = [];
   loading = true;
+
+  private readonly SESSION_COLORS = [
+    'rgba(99,102,241,0.65)', 'rgba(16,185,129,0.65)', 'rgba(245,158,11,0.65)',
+    'rgba(239,68,68,0.65)',  'rgba(139,92,246,0.65)', 'rgba(14,165,233,0.65)',
+    'rgba(249,115,22,0.65)', 'rgba(236,72,153,0.65)', 'rgba(20,184,166,0.65)',
+    'rgba(234,179,8,0.65)',  'rgba(168,85,247,0.65)', 'rgba(59,130,246,0.65)',
+  ];
+  private readonly SESSION_COLORS_SOLID = [
+    '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9',
+    '#f97316', '#ec4899', '#14b8a6', '#eab308', '#a855f7', '#3b82f6',
+  ];
+
+  /** Chart.js plugin: draws per-session bias ticks + numbers in the right margin */
+  readonly sportBaBiasPlugin: any = {
+    id: 'sportBaBias',
+    afterDraw(chart: any) {
+      const { ctx, chartArea, scales } = chart;
+      const biases: { bias: number; color: string }[] = (chart.data as any)._sessionBiases;
+      if (!biases?.length || !scales['y']) return;
+      const yScale = scales['y'];
+      const xTick  = chartArea.right;
+      const xText  = chartArea.right + 8;
+      ctx.save();
+      ctx.font = '600 10px "Inter Tight", system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+
+      // compute pixel position + de-overlap (push overlapping labels apart)
+      const pts = biases
+        .map(b => ({ ...b, yPx: yScale.getPixelForValue(b.bias) }))
+        .filter(b => b.yPx >= chartArea.top - 2 && b.yPx <= chartArea.bottom + 2);
+      pts.sort((a, b) => a.yPx - b.yPx);
+      const minGap = 14;
+      for (let i = 1; i < pts.length; i++) {
+        if (pts[i].yPx - pts[i - 1].yPx < minGap) {
+          pts[i].yPx = pts[i - 1].yPx + minGap;
+        }
+      }
+
+      pts.forEach(({ bias, color, yPx }) => {
+        const sign = bias >= 0 ? '+' : '';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(xTick, yPx);
+        ctx.lineTo(xTick + 5, yPx);
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.fillText(`${sign}${bias.toFixed(1)}`, xText, yPx);
+      });
+      ctx.restore();
+    },
+  };
 
   gpsTrackData: GpsStoredScores<GpsTrackModeScore> | null = null;
   gpsUrbanData: GpsStoredScores<GpsUrbanModeScore> | null = null;
@@ -116,6 +174,7 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
     private api: ApiService,
     private fb: FormBuilder,
     private snack: MatSnackBar,
+    private cdRef: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
@@ -199,14 +258,19 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
         };
       });
 
-      const score = computeWeightedScore(sportSessions);
+      const score    = computeWeightedScore(sportSessions);
+      const prevTab  = this.sportTabs.find(t => t.sportType === sport);
       return {
-        sportType:    sport,
-        label:        SPORT_TYPE_LABELS[sport],
-        icon:         SPORT_ICONS[sport],
+        sportType:             sport,
+        label:                 SPORT_TYPE_LABELS[sport],
+        icon:                  SPORT_ICONS[sport],
         groups,
         score,
-        scoreQuality: score ? scoreQuality(score) : null,
+        scoreQuality:          score ? scoreQuality(score) : null,
+        sportAggregate:        prevTab?.sportAggregate        ?? null,
+        loadingSportAggregate: prevTab?.loadingSportAggregate ?? false,
+        corrData:              prevTab?.corrData              ?? { datasets: [] },
+        baData:                prevTab?.baData                ?? { datasets: [] },
       };
     });
   }
@@ -324,6 +388,178 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
       },
     });
   }
+
+  // ── Sport-level aggregate charts ─────────────────────────────────────────
+
+  runSportAggregate(tab: SportTab): void {
+    tab.loadingSportAggregate = true;
+    tab.sportAggregate = null;
+    tab.corrData = { datasets: [] };
+    tab.baData   = { datasets: [] };
+    this.api.getSportAggregateCharts(this.deviceId, tab.sportType).subscribe({
+      next: result => {
+        tab.sportAggregate = result;
+        tab.loadingSportAggregate = false;
+        this._buildSportCharts(tab, result);
+        this.cdRef.markForCheck();
+      },
+      error: err => {
+        tab.loadingSportAggregate = false;
+        this.snack.open(
+          err.error?.detail || 'Error al generar el análisis por deporte',
+          'Cerrar', { duration: 5000 }
+        );
+      },
+    });
+  }
+
+  private _buildSportCharts(tab: SportTab, sa: SportAggregateCharts): void {
+    const sessions = sa.sessions;
+    const gs       = sa.global_stats;
+    if (!sessions.length) return;
+
+    // ── Correlation scatter ──────────────────────────────────────────
+    const allX = sessions.flatMap(s => s.points.map(p => p.x));
+    const allY = sessions.flatMap(s => s.points.map(p => p.y));
+    const allV = [...allX, ...allY];
+    const pad  = (Math.max(...allV) - Math.min(...allV)) * 0.04 + 2;
+    const vMin = Math.min(...allV) - pad;
+    const vMax = Math.max(...allV) + pad;
+
+    const corrScatter = sessions.map((s, i) => ({
+      type: 'scatter',
+      label: `${s.label}  MAE ${s.mae.toFixed(1)}`,
+      data:  s.points,
+      backgroundColor: this.SESSION_COLORS[i % this.SESSION_COLORS.length],
+      borderColor: 'transparent',
+      pointRadius: 1.5, pointHoverRadius: 4,
+    }));
+
+    const regLabel = gs
+      ? `Regresión  y = ${gs.slope.toFixed(3)}x ${gs.intercept >= 0 ? '+' : ''}${gs.intercept.toFixed(1)}`
+      : 'Regresión';
+
+    tab.corrData = {
+      datasets: [
+        ...corrScatter,
+        { type: 'line', label: 'Identidad (y = x)',
+          data: [{ x: vMin, y: vMin }, { x: vMax, y: vMax }],
+          borderColor: 'rgba(150,150,150,0.5)', borderWidth: 1.5,
+          borderDash: [4, 4], pointRadius: 0, fill: false },
+        ...(gs ? [{
+          type: 'line', label: regLabel,
+          data: [{ x: vMin, y: gs.slope * vMin + gs.intercept },
+                 { x: vMax, y: gs.slope * vMax + gs.intercept }],
+          borderColor: '#6366f1', borderWidth: 2,
+          borderDash: [5, 3], pointRadius: 0, fill: false,
+        }] : []),
+      ],
+    };
+
+    // ── Bland-Altman ────────────────────────────────────────────────
+    if (!gs) { tab.baData = { datasets: [] }; return; }
+
+    const baMeans = sessions.flatMap(s => s.points.map(p => (p.x + p.y) / 2));
+    const xPad    = (Math.max(...baMeans) - Math.min(...baMeans)) * 0.08 + 3;
+    const xMin    = Math.min(...baMeans) - xPad;
+    const xMax    = Math.max(...baMeans) + xPad;
+    const sign    = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(2);
+
+    // scatter per session
+    const baScatter = sessions.map((s, i) => ({
+      type: 'scatter',
+      label: `${s.label}  sesgo ${s.bias >= 0 ? '+' : ''}${s.bias.toFixed(1)}`,
+      data:  s.points.map(p => ({ x: (p.x + p.y) / 2, y: p.y - p.x })),
+      backgroundColor: this.SESSION_COLORS[i % this.SESSION_COLORS.length],
+      borderColor: 'transparent',
+      pointRadius: 1.5, pointHoverRadius: 4,
+    }));
+
+    // per-session biases stored as metadata for the plugin (not as chart datasets)
+    const sessionBiases = sessions.map((s, i) => ({
+      bias:  s.bias,
+      color: this.SESSION_COLORS_SOLID[i % this.SESSION_COLORS_SOLID.length],
+    }));
+
+    tab.baData = {
+      _sessionBiases: sessionBiases,
+      datasets: [
+        ...baScatter,
+        { type: 'line', label: `Sesgo global: ${sign(gs.bias)} ppm`,
+          data: [{ x: xMin, y: gs.bias }, { x: xMax, y: gs.bias }],
+          borderColor: '#6366f1', borderWidth: 2, borderDash: [5, 4],
+          pointRadius: 0, fill: false },
+        { type: 'line', label: `+LoA: ${sign(gs.loa_u)} ppm`,
+          data: [{ x: xMin, y: gs.loa_u }, { x: xMax, y: gs.loa_u }],
+          borderColor: '#ef4444', borderWidth: 1.5, borderDash: [2, 4],
+          pointRadius: 0, fill: false },
+        { type: 'line', label: `−LoA: ${sign(gs.loa_l)} ppm`,
+          data: [{ x: xMin, y: gs.loa_l }, { x: xMax, y: gs.loa_l }],
+          borderColor: '#3b82f6', borderWidth: 1.5, borderDash: [2, 4],
+          pointRadius: 0, fill: false },
+      ],
+    };
+  }
+
+  exportSportChart(sportType: string, chartType: 'corr' | 'ba'): void {
+    const canvas = document.getElementById(`sport-${chartType}-${sportType}`) as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const out = document.createElement('canvas');
+    out.width  = canvas.width;
+    out.height = canvas.height;
+    const ctx = out.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(canvas, 0, 0);
+    const a = document.createElement('a');
+    a.href     = out.toDataURL('image/png');
+    a.download = `${sportType}-${chartType === 'corr' ? 'correlacion' : 'bland-altman'}.png`;
+    a.click();
+  }
+
+  readonly sportCorrOptions: any = {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: {
+      legend: { position: 'top', align: 'end',
+                labels: { color: '#9ca3af', font: { size: 11 },
+                          boxWidth: 20, boxHeight: 2, padding: 14 } },
+      tooltip: { callbacks: {
+        label: (item: any) =>
+          `Ref: ${item.parsed.x.toFixed(0)} ppm   Dev: ${item.parsed.y.toFixed(0)} ppm`,
+      }},
+    },
+    scales: {
+      x: { title: { display: true, text: 'Referencia (ppm)', color: '#9ca3af', font: { size: 10 } },
+           ticks: { color: '#9ca3af', font: { size: 11 } },
+           grid: { color: 'rgba(229,232,239,0.7)' }, border: { display: false } },
+      y: { title: { display: true, text: 'Dispositivo (ppm)', color: '#9ca3af', font: { size: 10 } },
+           ticks: { color: '#9ca3af', font: { size: 11 } },
+           grid: { color: 'rgba(229,232,239,0.7)' }, border: { display: false } },
+    },
+  };
+
+  readonly sportBaOptions: any = {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    layout: { padding: { right: 52 } },   // room for the per-session bias numbers
+    plugins: {
+      legend: {
+        position: 'top', align: 'end',
+        labels: { color: '#9ca3af', font: { size: 11 }, boxWidth: 20, boxHeight: 2, padding: 14 },
+      },
+      tooltip: { callbacks: {
+        label: (item: any) =>
+          `Media: ${item.parsed.x.toFixed(0)} ppm   Dif: ${item.parsed.y >= 0 ? '+' : ''}${item.parsed.y.toFixed(1)} ppm`,
+      }},
+    },
+    scales: {
+      x: { title: { display: true, text: 'Media (Ref + Dev) / 2  (ppm)', color: '#9ca3af', font: { size: 10 } },
+           ticks: { color: '#9ca3af', font: { size: 11 } },
+           grid: { color: 'rgba(229,232,239,0.7)' }, border: { display: false } },
+      y: { title: { display: true, text: 'Diferencia  Dev − Ref  (ppm)', color: '#9ca3af', font: { size: 10 } },
+           ticks: { color: '#9ca3af', font: { size: 11 } },
+           grid: { color: 'rgba(229,232,239,0.7)' }, border: { display: false } },
+    },
+  };
 
   // ── GPS Scores ────────────────────────────────────────────────────────────
 

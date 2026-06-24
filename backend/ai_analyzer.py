@@ -1217,3 +1217,147 @@ async def generate_nocturnal_hrv_ai_analysis(
         "generated_at": datetime.utcnow().isoformat(),
         "model":        "claude-sonnet-4-6",
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NOCTURNAL HRV GLOBAL (MULTI-SESSION) ANALYSIS
+# ─────────────────────────────────────────────────────────────────────────────
+
+NOCTURNAL_HRV_GLOBAL_SYSTEM_PROMPT = """Eres un científico experto en fisiología del sueño y validación de wearables. Analizas la fiabilidad global de un dispositivo Fitbit para medir HRV (RMSSD) y FC nocturnas comparadas con Polar H10 (ECG de referencia) a lo largo de múltiples noches.
+
+Trabajas para "El Cuantificador". Tu análisis es riguroso, basado en datos, directo. Si el dispositivo no es fiable, lo dices sin rodeos.
+
+## Contexto
+
+Los datos son la agregación de N sesiones nocturnas grabadas simultáneamente con Polar H10 (referencia ECG) y Fitbit (PPG de muñeca). Cada sesión genera ventanas de 5 minutos. Los estadísticos presentados son los calculados sobre TODAS las ventanas de TODAS las sesiones combinadas.
+
+## Marco Científico
+
+- **Pearson r global**: si es consistente entre sesiones indica que Fitbit rastrea la dinámica nocturna de HRV de forma reproducible. r > 0.85 para uso orientativo; r > 0.92 para uso de seguimiento individual.
+- **MAE global RMSSD**: < 5 ms excelente; 5–10 ms aceptable; > 10 ms problemático para lecturas individuales.
+- **Sesgo global (Bland-Altman)**: si |bias| > 5 ms, el dispositivo sobreestima o subestima sistemáticamente — los valores absolutos no son intercambiables con ECG.
+- **LoA globales**: si la amplitud (LoA+ − LoA−) > 30 ms, la variabilidad individual noche a noche es demasiado grande para fiarse de lecturas puntuales.
+- **Consistencia entre sesiones**: si cada sesión tiene una r individual similar a la r global, el dispositivo es reproducible. Si varía mucho, el dispositivo es inconsistente entre noches.
+- **MAE FC global**: < 2 bpm excelente; 2–4 bpm aceptable; > 5 bpm relevante para métricas de recuperación.
+
+## Reglas de Honestidad
+
+- Si r < 0.80 con múltiples sesiones: el seguimiento de HRV por Fitbit no es reproducible entre noches.
+- Si MAE RMSSD global > 10 ms: los valores absolutos no pueden compararse con ECG. Decirlo explícitamente.
+- Si LoA amplitud > 40 ms: la variabilidad es clínicamente inaceptable para decisiones individuales.
+- Si sesgo > 10 ms en múltiples sesiones: el dispositivo tiene un sesgo sistemático estructural, no puntual.
+- Distinguir "útil para tendencias semanales" vs "fiable para lecturas nocturnas individuales".
+- No suavizar los fallos. Si el dispositivo falla de forma consistente, el veredicto multi-sesión lo confirma.
+
+## Formato de Respuesta
+
+Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto extra):
+
+{
+  "resumen_ejecutivo": "3-4 frases directas. Qué muestra el conjunto de N sesiones: r global, MAE global, si el sesgo es sistemático, veredicto de si Fitbit es fiable para HRV nocturna a largo plazo.",
+  "calificacion_hrv": "excelente|bueno|moderado|deficiente",
+  "calificacion_fc": "excelente|bueno|moderado|deficiente",
+  "analisis_rmssd_global": {
+    "correlacion": "Interpretación del r global. ¿Es suficiente para seguimiento individual?",
+    "error_absoluto": "MAE global en ms. ¿Qué significa para el deportista que consulta su HRV nocturna?",
+    "sesgo_sistematico": "Dirección y magnitud del sesgo. ¿Es consistente o variable entre sesiones?",
+    "limites_acuerdo_global": "Amplitud de LoA. ¿Qué implica para la variabilidad noche a noche?"
+  },
+  "analisis_fc_global": {
+    "error_absoluto": "MAE FC global y relevancia para recuperación y FC basal nocturna.",
+    "correlacion": "Pearson r FC a lo largo de las sesiones."
+  },
+  "consistencia_entre_sesiones": "¿Son los resultados reproducibles noche a noche? ¿Qué factores pueden explicar variabilidad inter-sesión?",
+  "causas_tecnicas": "Párrafo de 3-4 frases. Mecanismos estructurales del error PPG nocturno en Fitbit a lo largo del tiempo.",
+  "utilidad_practica": {
+    "tracking_tendencias": "Con N sesiones acumuladas, ¿es útil para ver tendencias semana a semana?",
+    "recovery_score": "¿Pueden fiarse los recovery scores a lo largo del tiempo?",
+    "deteccion_sobreentrenamiento": "¿Puede detectar bajadas consistentes de HRV que indiquen sobreentrenamiento?"
+  },
+  "comparacion_literatura": "Compara con estudios de validación de Fitbit para HRV nocturna (Menghini 2021, Stone 2021). ¿Los resultados están por encima o por debajo de la media?",
+  "veredicto_final": {
+    "calificacion": "bueno",
+    "etiqueta": "Etiqueta honesta de 4-6 palabras basada en los datos globales",
+    "recomendacion": "2 frases directas: cuándo usar Fitbit con confianza y cuándo no, basándose en N sesiones."
+  }
+}
+
+Responde en español. Cita métricas concretas. Sé riguroso."""
+
+
+def _build_nocturnal_hrv_global_prompt(
+    device_name: str,
+    n_sessions:  int,
+    rmssd_stats: dict | None,
+    hr_stats:    dict | None,
+    by_session:  list[dict],
+) -> str:
+    def _f(val, d=1):
+        return f"{val:.{d}f}" if val is not None else "N/D"
+
+    lines = [
+        f"## Dispositivo: {device_name}",
+        f"Sesiones analizadas: {n_sessions}",
+        "",
+    ]
+    if rmssd_stats:
+        amp = (rmssd_stats.get("upperLoa") or 0) - (rmssd_stats.get("lowerLoa") or 0)
+        lines += [
+            "### Estadísticos globales RMSSD — todas las sesiones combinadas",
+            f"- Ventanas totales: {rmssd_stats['n']}",
+            f"- RMSSD medio Polar H10: {_f(rmssd_stats['polarMean'])} ms",
+            f"- RMSSD medio Fitbit: {_f(rmssd_stats['fitbitMean'])} ms",
+            f"- MAE global: {_f(rmssd_stats['mae'])} ms",
+            f"- Pearson r global: {_f(rmssd_stats['pearsonR'], 4)}",
+            f"- Sesgo (Fitbit − Polar): {_f(rmssd_stats['bias'])} ms",
+            f"- SD diferencias: {_f(rmssd_stats['sd'])} ms",
+            f"- LoA superior: {_f(rmssd_stats['upperLoa'])} ms",
+            f"- LoA inferior: {_f(rmssd_stats['lowerLoa'])} ms",
+            f"- Amplitud LoA: {_f(amp)} ms",
+            "",
+        ]
+    if hr_stats:
+        lines += [
+            "### Estadísticos globales FC — todas las sesiones combinadas",
+            f"- Ventanas totales: {hr_stats['n']}",
+            f"- FC media Polar H10: {_f(hr_stats['polarMean'])} bpm",
+            f"- FC media Fitbit: {_f(hr_stats['fitbitMean'])} bpm",
+            f"- MAE global: {_f(hr_stats['mae'], 2)} bpm",
+            f"- Pearson r global: {_f(hr_stats['pearsonR'], 4)}",
+            "",
+        ]
+    if by_session:
+        lines.append("### Ventanas por sesión (RMSSD)")
+        for s in by_session:
+            lines.append(f"- {s['session_name']}: {len(s.get('points', []))} ventanas")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+async def generate_nocturnal_hrv_global_ai_analysis(
+    device_name: str,
+    n_sessions:  int,
+    rmssd_stats: dict | None,
+    hr_stats:    dict | None,
+    by_session:  list[dict],
+) -> dict:
+    """Call Claude to analyze global multi-session nocturnal HRV data."""
+    client = _anthropic_client()
+    prompt = _build_nocturnal_hrv_global_prompt(
+        device_name, n_sessions, rmssd_stats, hr_stats, by_session
+    )
+    response = await client.messages.create(
+        model="claude-sonnet-4-6",
+        system=_cached_system(NOCTURNAL_HRV_GLOBAL_SYSTEM_PROMPT),
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
+        max_tokens=4096,
+    )
+    report = _parse_json(response.content[0].text or "{}")
+    return {
+        "report":       report,
+        "generated_at": datetime.utcnow().isoformat(),
+        "model":        "claude-sonnet-4-6",
+        "n_sessions":   n_sessions,
+    }
