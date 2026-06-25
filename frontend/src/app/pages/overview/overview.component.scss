@@ -232,6 +232,19 @@
       color: var(--ink);
     }
   }
+
+  .viz-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--line);
+    margin: auto 4px;
+    flex-shrink: 0;
+  }
+
+  .viz-export-btn {
+    color: var(--ink-3);
+    &:hover { color: var(--accent, #6366f1); }
+  }
 }
 
 // ── Chart card ────────────────────────────────────────────────────
@@ -591,3 +604,67 @@ svg {
   }
 }
 
+
+// ── Device visibility filter ──────────────────────────────────────
+.device-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.device-filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-right: 4px;
+}
+
+.device-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: opacity 0.15s, border-color 0.15s, background 0.12s;
+  user-select: none;
+
+  &:hover { border-color: var(--ink-3); background: var(--bg-sunk); }
+
+  &.hidden {
+    opacity: 0.38;
+    border-style: dashed;
+    text-decoration: line-through;
+    color: var(--ink-3);
+  }
+}
+
+.device-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.device-pill-reset {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+
+  &:hover { background: var(--bg-sunk); color: var(--ink); }
+}

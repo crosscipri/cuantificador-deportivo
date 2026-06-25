@@ -64,6 +64,22 @@
 
 
     </div>
+    <!-- ── Device visibility filter ── -->
+    <div class="device-filter" *ngIf="items.length > 1">
+      <span class="device-filter-label">Dispositivos</span>
+      <button *ngFor="let item of items" class="device-pill"
+              [class.hidden]="isHidden(item.entry.device_id)"
+              (click)="toggleDevice(item.entry.device_id)"
+              [title]="isHidden(item.entry.device_id) ? 'Mostrar' : 'Ocultar'">
+        <span class="device-pill-dot" [style.background]="item.color"></span>
+        {{ item.entry.name }}
+      </button>
+      <button class="device-pill-reset" *ngIf="hiddenDeviceIds.size > 0"
+              (click)="hiddenDeviceIds.clear()">
+        Mostrar todos
+      </button>
+    </div>
+
     <div class="viz-switcher">
       <button [class.active]="viz === 'lollipop'" (click)="viz = 'lollipop'" title="Lollipop">
         <mat-icon class="viz-icon">show_chart</mat-icon>
@@ -77,19 +93,23 @@
       <button [class.active]="viz === 'table'" (click)="viz = 'table'" title="Tabla">
         <mat-icon class="viz-icon">table_chart</mat-icon>
       </button>
+      <span class="viz-sep"></span>
+      <button class="viz-export-btn" (click)="exportOverviewChart()" title="Descargar PNG">
+        <mat-icon class="viz-icon">download</mat-icon>
+      </button>
     </div>
 
     <div class="chart-card">
 
       <!-- ── Lollipop ── -->
       <div class="svg-wrap" *ngIf="viz === 'lollipop'">
-        <svg [attr.viewBox]="'0 0 ' + SW + ' ' + svgHeight" [attr.height]="svgHeight" width="100%"
+        <svg [attr.viewBox]="'0 0 ' + SW + ' ' + svgHeightVisible" [attr.height]="svgHeightVisible" width="100%"
           xmlns="http://www.w3.org/2000/svg">
 
           <!-- Reference lines -->
           <g class="ref-lines">
             <ng-container *ngFor="let ref of refLines">
-              <line [attr.x1]="ML + ref.x" [attr.y1]="MT" [attr.x2]="ML + ref.x" [attr.y2]="svgHeight - MB"
+              <line [attr.x1]="ML + ref.x" [attr.y1]="MT" [attr.x2]="ML + ref.x" [attr.y2]="svgHeightVisible - MB"
                 class="ref-line" />
               <text [attr.x]="ML + ref.x" [attr.y]="MT - 8" class="ref-label" text-anchor="middle">{{ ref.label
                 }}</text>
@@ -97,25 +117,25 @@
           </g>
 
           <!-- X axis -->
-          <line [attr.x1]="ML" [attr.y1]="svgHeight - MB" [attr.x2]="ML + chartW" [attr.y2]="svgHeight - MB"
+          <line [attr.x1]="ML" [attr.y1]="svgHeightVisible - MB" [attr.x2]="ML + chartW" [attr.y2]="svgHeightVisible - MB"
             class="axis-line" />
 
           <!-- X ticks -->
           <g class="x-ticks">
             <ng-container *ngFor="let tick of xTicks">
-              <line [attr.x1]="ML + xTickPx(tick)" [attr.y1]="svgHeight - MB" [attr.x2]="ML + xTickPx(tick)"
-                [attr.y2]="svgHeight - MB + 5" class="tick-line" />
-              <text [attr.x]="ML + xTickPx(tick)" [attr.y]="svgHeight - MB + 17" class="tick-label"
+              <line [attr.x1]="ML + xTickPx(tick)" [attr.y1]="svgHeightVisible - MB" [attr.x2]="ML + xTickPx(tick)"
+                [attr.y2]="svgHeightVisible - MB + 5" class="tick-line" />
+              <text [attr.x]="ML + xTickPx(tick)" [attr.y]="svgHeightVisible - MB + 17" class="tick-label"
                 text-anchor="middle">{{ tick | number:'1.2-2' }}</text>
             </ng-container>
           </g>
 
           <!-- X axis label -->
-          <text [attr.x]="ML + chartW / 2" [attr.y]="svgHeight - 8" class="axis-label" text-anchor="middle">CCC de Lin · ponderado por dificultad de sesión</text>
+          <text [attr.x]="ML + chartW / 2" [attr.y]="svgHeightVisible - 8" class="axis-label" text-anchor="middle">CCC de Lin · ponderado por dificultad de sesión</text>
 
           <!-- Lollipops -->
           <g class="lollipops">
-            <g *ngFor="let item of items" class="lollipop-row">
+            <g *ngFor="let item of visibleItems" class="lollipop-row">
 
               <!-- Hit area -->
               <rect [attr.x]="ML + item.x0" [attr.y]="item.cy - 18" [attr.width]="item.cx - item.x0 + 80" height="36"

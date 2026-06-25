@@ -94,6 +94,30 @@ export class OverviewComponent implements OnInit {
   // ── Viz switcher ─────────────────────────────────────────────────
   viz: VizMode = 'lollipop';
 
+  // ── Device visibility filter ─────────────────────────────────────
+  hiddenDeviceIds = new Set<string>();
+
+  toggleDevice(id: string): void {
+    if (this.hiddenDeviceIds.has(id)) {
+      this.hiddenDeviceIds.delete(id);
+    } else {
+      this.hiddenDeviceIds.add(id);
+    }
+  }
+
+  isHidden(id: string): boolean { return this.hiddenDeviceIds.has(id); }
+
+  /** Items filtered by visibility, with Y positions recomputed (no gaps). */
+  get visibleItems(): LollipopItem[] {
+    const filtered = this.items.filter(it => !this.hiddenDeviceIds.has(it.entry.device_id));
+    return filtered.map((item, i) => ({ ...item, cy: MT + i * RH + RH / 2 }));
+  }
+
+  get svgHeightVisible(): number {
+    const n = this.items.filter(it => !this.hiddenDeviceIds.has(it.entry.device_id)).length;
+    return n * RH + MT + MB;
+  }
+
   // ── GPS lollipop ─────────────────────────────────────────────────
   gpsItems:     GpsLollipopItem[] = [];
   gpsSvgHeight  = 0;
@@ -114,6 +138,7 @@ export class OverviewComponent implements OnInit {
     this.loading = true;
     this.error   = '';
     this.entries = [];
+    this.hiddenDeviceIds.clear();
 
     this.api.getOverviewData(this.selectedSport).subscribe({
       next:  data  => { this.entries = data; this._build(data); this.loading = false; },
@@ -202,9 +227,226 @@ export class OverviewComponent implements OnInit {
 
   xTickPx(r: number): number { return this._xPx(r); }
 
-  /** Sorted best-first (for bars + table views) */
+  // ── Export ───────────────────────────────────────────────────────
+
+  exportOverviewChart(): void {
+    const visible = this.visibleItems;
+    if (!visible.length) return;
+
+    // Colors hardcoded to avoid unresolvable CSS variables in canvas
+    const colorFn = (ccc: number): string => {
+      if (ccc >= 0.95) return '#10b981';
+      if (ccc >= 0.90) return '#d97706';
+      if (ccc >= 0.80) return '#f97316';
+      return '#ef4444';
+    };
+
+    const SPORT_LBL: Record<string, string> = { running: 'Running', cycling: 'Ciclismo', gym: 'Gimnasio' };
+    const sportLbl = SPORT_LBL[this.selectedSport] ?? this.selectedSport;
+    const ref      = this.refLabel;
+    const date     = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    // Layout constants (match SVG design)
+    const LML  = ML;   // left margin = 220
+    const LMR  = MR;   // right margin = 90
+    const LMT  = MT;   // top margin = 30
+    const LMB  = MB;   // bottom margin = 44
+    const LRH  = RH;   // row height = 56
+    const LCW  = this.chartW;   // = 770
+    const LSW  = SW;             // = 1080
+    const n    = visible.length;
+    const LSH  = n * LRH + LMT + LMB;  // chart SVG height
+
+    const pH  = 80;   // header logical px
+    const pF  = 60;   // footer logical px
+    const TH  = LSH + pH + pF;  // total logical height
+
+    // Match the high-resolution PNGs exported by nocturnal HRV and Chart.js views.
+    const dpr = 4;
+    const cv  = document.createElement('canvas');
+    cv.width  = LSW * dpr;
+    cv.height = TH  * dpr;
+    const c   = cv.getContext('2d')!;
+    c.scale(dpr, dpr);
+
+    // ── Background ───────────────────────────────────────────────
+    c.fillStyle = '#ffffff';
+    c.fillRect(0, 0, LSW, TH);
+
+    // ── Accent bar ───────────────────────────────────────────────
+    c.fillStyle = '#6366f1';
+    c.fillRect(0, 0, 4, pH);
+
+    // ── Title ────────────────────────────────────────────────────
+    c.fillStyle = '#111827';
+    c.font = '700 17px "Inter Tight", system-ui, sans-serif';
+    c.textAlign = 'left';
+    c.textBaseline = 'top';
+    c.fillText(`Ranking de wearables · ${sportLbl}`, 16, 14);
+
+    c.fillStyle = '#6b7280';
+    c.font = '12px "Inter Tight", system-ui, sans-serif';
+    c.fillText(`${n} dispositivo${n !== 1 ? 's' : ''}  ·  referencia: ${ref}  ·  CCC de Lin`, 16, 36);
+
+    c.fillStyle = '#9ca3af';
+    c.font = '10px "Inter Tight", system-ui, sans-serif';
+    c.fillText('Eje X: CCC de Lin ponderado por dificultad de sesión  ·  ordenado de peor a mejor', 16, 56);
+
+    c.textAlign = 'right';
+    c.fillStyle = '#9ca3af';
+    c.font = '10px "Inter Tight", system-ui, sans-serif';
+    c.fillText(date, LSW - 16, 14);
+
+    // ── Header divider ────────────────────────────────────────────
+    c.strokeStyle = '#e5e7eb';
+    c.lineWidth = 1;
+    c.setLineDash([]);
+    c.beginPath(); c.moveTo(0, pH - 1); c.lineTo(LSW, pH - 1); c.stroke();
+
+    // ── Chart area ────────────────────────────────────────────────
+    c.save();
+    c.translate(0, pH);
+
+    // Reference lines
+    for (const rl of this.refLines) {
+      const x = LML + rl.x;
+      c.strokeStyle = '#e5e7eb';
+      c.lineWidth = 1;
+      c.setLineDash([3, 4]);
+      c.beginPath(); c.moveTo(x, LMT); c.lineTo(x, LSH - LMB); c.stroke();
+      c.setLineDash([]);
+      c.fillStyle = '#9ca3af';
+      c.font = '11px "Inter Tight", system-ui, sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'alphabetic';
+      c.fillText(rl.label, x, LMT - 8);
+    }
+
+    // X axis
+    c.strokeStyle = '#d1d5db';
+    c.lineWidth = 1;
+    c.beginPath(); c.moveTo(LML, LSH - LMB); c.lineTo(LML + LCW, LSH - LMB); c.stroke();
+
+    // X axis label
+    c.fillStyle = '#9ca3af';
+    c.font = '10px "Inter Tight", system-ui, sans-serif';
+    c.textAlign = 'center';
+    c.fillText('CCC de Lin · ponderado por dificultad de sesión', LML + LCW / 2, LSH - 8);
+
+    // X ticks
+    for (const tick of this.xTicks) {
+      const x = LML + (tick - this.xMin) / (this.xMax - this.xMin) * LCW;
+      c.strokeStyle = '#d1d5db';
+      c.lineWidth = 1;
+      c.beginPath(); c.moveTo(x, LSH - LMB); c.lineTo(x, LSH - LMB + 5); c.stroke();
+      c.fillStyle = '#9ca3af';
+      c.font = '11px "Inter Tight", system-ui, sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'top';
+      c.fillText(tick.toFixed(2), x, LSH - LMB + 8);
+    }
+
+    // Lollipops
+    for (const item of visible) {
+      const col = colorFn(item.entry.ccc_global);
+      const dotX = LML + item.cx;
+      const dotY = item.cy;
+
+      // Track line (light grey)
+      c.strokeStyle = '#f3f4f6';
+      c.lineWidth = 1;
+      c.setLineDash([]);
+      c.beginPath(); c.moveTo(LML, dotY); c.lineTo(LML + LCW, dotY); c.stroke();
+
+      // Stem
+      c.strokeStyle = col;
+      c.lineWidth = 2;
+      c.beginPath(); c.moveTo(LML, dotY); c.lineTo(dotX, dotY); c.stroke();
+
+      // Dot
+      c.fillStyle = col;
+      c.beginPath(); c.arc(dotX, dotY, 6, 0, Math.PI * 2); c.fill();
+
+      // CCC value
+      c.fillStyle = col;
+      c.font = '600 12px "Inter Tight", system-ui, sans-serif';
+      c.textAlign = 'left';
+      c.textBaseline = 'middle';
+      c.fillText(item.entry.ccc_global.toFixed(3), dotX + 14, dotY);
+
+      // Device name
+      c.fillStyle = '#111827';
+      c.font = '13px "Inter Tight", system-ui, sans-serif';
+      c.textAlign = 'right';
+      c.textBaseline = 'alphabetic';
+      c.fillText(item.entry.name, LML - 14, dotY + 4);
+
+      // Session count & lag (smaller, grey)
+      c.fillStyle = '#9ca3af';
+      c.font = '10px "Inter Tight", system-ui, sans-serif';
+      const sub: string[] = [`${item.entry.session_count} ses.`];
+      if (item.entry.lag_mean) sub.push(`lag ${this.lagLabel(item.entry.lag_mean)}`);
+      c.fillText(sub.join(' · '), LML - 14, dotY + 17);
+    }
+
+    c.restore();
+
+    // ── Footer divider ────────────────────────────────────────────
+    c.strokeStyle = '#e5e7eb';
+    c.lineWidth = 1;
+    c.beginPath(); c.moveTo(0, pH + LSH + 1); c.lineTo(LSW, pH + LSH + 1); c.stroke();
+
+    // ── Footer stats ──────────────────────────────────────────────
+    const sorted  = [...visible].sort((a, b) => b.entry.ccc_global - a.entry.ccc_global);
+    const best    = sorted[0];
+    const worst   = sorted[sorted.length - 1];
+    const avgCCC  = visible.reduce((s, it) => s + it.entry.ccc_global, 0) / visible.length;
+
+    type Stat = { label: string; value: string; color?: string };
+    const stats: Stat[] = [
+      { label: 'Mejor dispositivo', value: best.entry.name,                   color: colorFn(best.entry.ccc_global) },
+      { label: 'CCC mejor',         value: best.entry.ccc_global.toFixed(3),  color: colorFn(best.entry.ccc_global) },
+      { label: 'CCC promedio',      value: avgCCC.toFixed(3),                 color: colorFn(avgCCC) },
+      { label: 'MAE mejor',         value: `${best.entry.mae_global?.toFixed(1) ?? '—'}%` },
+      { label: 'Dispositivos',      value: `${visible.length}` },
+    ];
+
+    const fTop  = pH + LSH;
+    const fCy   = fTop + pF / 2;
+    const slotW = LSW / stats.length;
+
+    stats.forEach((st, i) => {
+      const cx = i * slotW + slotW / 2;
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillStyle = '#9ca3af';
+      c.font = '9px "Inter Tight", system-ui, sans-serif';
+      c.fillText(st.label.toUpperCase(), cx, fCy - 12);
+      c.fillStyle = st.color ?? '#111827';
+      c.font = '600 13px "Inter Tight", system-ui, sans-serif';
+      c.fillText(st.value, cx, fCy + 8);
+      if (i > 0) {
+        c.strokeStyle = '#e5e7eb';
+        c.lineWidth = 1;
+        c.beginPath();
+        c.moveTo(i * slotW, fTop + 12);
+        c.lineTo(i * slotW, fTop + pF - 12);
+        c.stroke();
+      }
+    });
+
+    // ── Download ──────────────────────────────────────────────────
+    const a = document.createElement('a');
+    a.href     = cv.toDataURL('image/png');
+    a.download = `ranking-${this.selectedSport}-${date.replace(/ /g, '-')}.png`;
+    a.click();
+  }
+
+  /** Sorted best-first, visibility filtered (for bars + table + radar views) */
   get itemsBestFirst(): LollipopItem[] {
-    return [...this.items].reverse();
+    return [...this.items]
+      .filter(it => !this.hiddenDeviceIds.has(it.entry.device_id))
+      .reverse();
   }
 
   /** Bar width as % (0–100) for the bars view */
@@ -236,9 +478,12 @@ export class OverviewComponent implements OnInit {
     'oklch(65% 0.16 45)',
   ];
 
-  /** Top-3 devices for the radar chart (best CCC first) */
+  /** Top-3 visible devices for the radar chart (best CCC first) */
   get radarTop3(): OverviewEntry[] {
-    return [...this.entries].sort((a, b) => b.ccc_global - a.ccc_global).slice(0, 3);
+    return [...this.entries]
+      .filter(e => !this.hiddenDeviceIds.has(e.device_id))
+      .sort((a, b) => b.ccc_global - a.ccc_global)
+      .slice(0, 3);
   }
 
   /** Normalise a metric to [0,1] for radar plotting */

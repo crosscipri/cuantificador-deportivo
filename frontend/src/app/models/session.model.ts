@@ -230,8 +230,8 @@ export interface AiAnalysis {
     };
   };
   annotated_charts: {
-    temporal:   string;
-    validation: string;
+    temporal:    string;
+    validation?: string;
   };
   generated_at: string;
   model:        string;

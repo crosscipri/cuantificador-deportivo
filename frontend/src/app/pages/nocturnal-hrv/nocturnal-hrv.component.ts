@@ -10,6 +10,7 @@ import { MatButtonModule }  from '@angular/material/button';
 import { MatIconModule }    from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { BaseChartDirective } from 'ng2-charts';
+import { downloadCanvasPng, withHighResolutionChartExport } from '../../shared/chart-export';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -1319,29 +1320,8 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   exportChart(ref: BaseChartDirective | undefined, name: string): void {
     const chart = ref?.chart;
     if (!chart) return;
-    const canvas  = chart.canvas;
-    const origDpr = (chart.options.devicePixelRatio ?? window.devicePixelRatio ?? 1) as number;
-
-    // Re-render at 4× CSS pixels so text/lines are natively sharp (not upscaled)
-    chart.options.devicePixelRatio = 4;
-    chart.resize();
-
-    const out = document.createElement('canvas');
-    out.width  = canvas.width;
-    out.height = canvas.height;
-    const ctx  = out.getContext('2d')!;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, out.width, out.height);
-    ctx.drawImage(canvas, 0, 0);
-
-    const a = document.createElement('a');
-    a.href = out.toDataURL('image/png');
-    a.download = `hrv-nocturno-${name}.png`;
-    a.click();
-
-    // Restore screen render quality
-    chart.options.devicePixelRatio = origDpr;
-    chart.resize();
+    withHighResolutionChartExport(chart, canvas =>
+      downloadCanvasPng(canvas, `hrv-nocturno-${name}.png`));
   }
 
   exportPNG(): void {

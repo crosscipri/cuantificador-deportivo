@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, QueryList, ViewChildren } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
@@ -19,6 +19,7 @@ import { GpsTrackModeScore, GpsUrbanModeScore, GpsStoredScores } from '../../mod
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartViewerComponent } from '../../shared/chart-viewer/chart-viewer.component';
 import { MetricsTableComponent } from '../../shared/metrics-table/metrics-table.component';
+import { downloadCanvasPng, withHighResolutionChartExport } from '../../shared/chart-export';
 
 interface GpsScoreRow {
   name: string; color: string;
@@ -80,6 +81,8 @@ const SPORT_ICONS: Record<SportType, string> = {
   styleUrls: ['./device-detail.component.scss'],
 })
 export class DeviceDetailComponent implements OnInit, OnDestroy {
+  @ViewChildren(BaseChartDirective) sportCharts!: QueryList<BaseChartDirective>;
+
   device: Device | null = null;
   deviceId = '';
   sportTabs: SportTab[] = [];
@@ -502,19 +505,11 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
   }
 
   exportSportChart(sportType: string, chartType: 'corr' | 'ba'): void {
-    const canvas = document.getElementById(`sport-${chartType}-${sportType}`) as HTMLCanvasElement | null;
-    if (!canvas) return;
-    const out = document.createElement('canvas');
-    out.width  = canvas.width;
-    out.height = canvas.height;
-    const ctx = out.getContext('2d')!;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, out.width, out.height);
-    ctx.drawImage(canvas, 0, 0);
-    const a = document.createElement('a');
-    a.href     = out.toDataURL('image/png');
-    a.download = `${sportType}-${chartType === 'corr' ? 'correlacion' : 'bland-altman'}.png`;
-    a.click();
+    const chart = this.sportCharts.find(item =>
+      item.chart?.canvas.id === `sport-${chartType}-${sportType}`)?.chart;
+    if (!chart) return;
+    const filename = `${sportType}-${chartType === 'corr' ? 'correlacion' : 'bland-altman'}.png`;
+    withHighResolutionChartExport(chart, canvas => downloadCanvasPng(canvas, filename));
   }
 
   readonly sportCorrOptions: any = {

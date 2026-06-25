@@ -7,6 +7,7 @@ import { BaseChartDirective } from 'ng2-charts';
 import type { ChartConfiguration, ChartOptions } from 'chart.js';
 import { FcData } from '../../models/session.model';
 import { DrawingCanvasComponent, DrawTool } from '../drawing-canvas/drawing-canvas.component';
+import { downloadCanvasPng, withHighResolutionChartExport } from '../chart-export';
 
 function secToMmss(sec: number): string {
   const h = Math.floor(sec / 3600);
@@ -193,15 +194,19 @@ export class FcTemporalChartComponent implements OnChanges {
   onEscape(): void { if (this.fullscreen) this.toggleFullscreen(); }
 
   download(): void {
-    const chartCanvas = this.chartRef?.chart?.canvas;
-    if (!chartCanvas) return;
-    const dataUrl = this.drawCanvas
-      ? this.drawCanvas.composite(chartCanvas)
-      : chartCanvas.toDataURL('image/png');
-    const a = document.createElement('a');
-    a.href     = dataUrl;
-    a.download = `${this.devName}-vs-${this.refName}-fc-temporal.png`;
-    a.click();
+    const chart = this.chartRef?.chart;
+    if (!chart) return;
+    const filename = `${this.devName}-vs-${this.refName}-fc-temporal.png`;
+    withHighResolutionChartExport(chart, canvas => {
+      if (this.drawCanvas) {
+        const a = document.createElement('a');
+        a.href = this.drawCanvas.composite(canvas);
+        a.download = filename;
+        a.click();
+      } else {
+        downloadCanvasPng(canvas, filename);
+      }
+    });
   }
 
   setColor(e: Event): void { this.drawColor = (e.target as HTMLInputElement).value; }

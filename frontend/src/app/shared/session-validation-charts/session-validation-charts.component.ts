@@ -8,6 +8,7 @@ import { BaseChartDirective } from 'ng2-charts';
 import type { ChartOptions } from 'chart.js';
 import { Session, FcData, Metrics, Zone } from '../../models/session.model';
 import { DrawingCanvasComponent, DrawTool } from '../drawing-canvas/drawing-canvas.component';
+import { downloadCanvasPng, withHighResolutionChartExport } from '../chart-export';
 
 // ─── Zone helpers ────────────────────────────────────────────────────────────
 const ZONE_RANGES: [number, number][] = [
@@ -101,15 +102,20 @@ export class SessionValidationChartsComponent implements OnChanges {
   download(): void {
     const chartList  = this.charts.toArray();
     const drawList   = this.drawCanvases.toArray();
-    const chartCanvas = chartList[this.activeTab]?.chart?.canvas;
-    if (!chartCanvas) return;
-
+    const chart = chartList[this.activeTab]?.chart;
+    if (!chart) return;
     const dc = drawList[this.activeTab];
-    const dataUrl = dc ? dc.composite(chartCanvas) : chartCanvas.toDataURL('image/png');
-
     const name = `${this.session?.device_name ?? 'session'}-${TAB_FILENAMES[this.activeTab]}.png`;
-    const a = document.createElement('a');
-    a.href = dataUrl; a.download = name; a.click();
+    withHighResolutionChartExport(chart, canvas => {
+      if (dc) {
+        const a = document.createElement('a');
+        a.href = dc.composite(canvas);
+        a.download = name;
+        a.click();
+      } else {
+        downloadCanvasPng(canvas, name);
+      }
+    });
   }
 
   // ── Chart builders ────────────────────────────────────────────────────────
