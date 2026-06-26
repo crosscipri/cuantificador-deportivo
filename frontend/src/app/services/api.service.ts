@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry, SportAggregateCharts } from '../models/session.model';
 import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail, UrbanAiAnalysis, GpsTrackModeScore, GpsUrbanModeScore, GpsStoredScores, GpsOverviewEntry } from '../models/gps-analysis.model';
-import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated, NocturnalHrvGlobalAiAnalysis } from '../models/hrv-analysis.model';
+import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated, NocturnalHrvGlobalAiAnalysis, HrvOverviewEntry } from '../models/hrv-analysis.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -219,6 +219,10 @@ export class ApiService {
 
   getOverviewGpsScores(): Observable<GpsOverviewEntry[]> {
     return this.http.get<GpsOverviewEntry[]>(`${this.base}/overview/gps-scores`);
+  }
+
+  getOverviewHrvScores(): Observable<HrvOverviewEntry[]> {
+    return this.http.get<HrvOverviewEntry[]>(`${this.base}/overview/hrv-scores`);
   }
 
   // ── GPS Scores ────────────────────────────────────────────────────────────

@@ -730,6 +730,59 @@ async def get_overview_gps_scores() -> list[dict]:
     return result
 
 
+@app.get("/api/overview/hrv-scores")
+async def get_overview_hrv_scores() -> list[dict]:
+    """VFC (RMSSD) and FC-reposo (HR) Pearson-r scores per device, derived from nocturnal HRV sessions."""
+    result = []
+    async for dev in db().devices.find({}, {"name": 1}):
+        dev_id = dev["_id"]
+        sessions = await db().nocturnal_hrv_sessions.find(
+            {"device_id": dev_id}, {"windows": 1}
+        ).to_list(None)
+        if not sessions:
+            continue
+
+        rmssd_pts: list[tuple[float, float]] = []
+        hr_pts:    list[tuple[float, float]] = []
+        for s in sessions:
+            for w in (s.get("windows") or []):
+                rp, rf = w.get("rmssdPolar"), w.get("rmssdFitbit")
+                hp, hf = w.get("hrPolar"),    w.get("hrFitbit")
+                if rp is not None and rf is not None:
+                    rmssd_pts.append((float(rp), float(rf)))
+                if hp is not None and hf is not None:
+                    hr_pts.append((float(hp), float(hf)))
+
+        def _pearson(pts: list[tuple[float, float]]) -> float | None:
+            n = len(pts)
+            if n < 3:
+                return None
+            xs = [p[0] for p in pts]
+            ys = [p[1] for p in pts]
+            mx, my = sum(xs) / n, sum(ys) / n
+            cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+            sx  = math.sqrt(sum((x - mx) ** 2 for x in xs))
+            sy  = math.sqrt(sum((y - my) ** 2 for y in ys))
+            return round(cov / (sx * sy), 4) if sx * sy > 0 else None
+
+        r_rmssd = _pearson(rmssd_pts)
+        r_hr    = _pearson(hr_pts)
+
+        if r_rmssd is None and r_hr is None:
+            continue
+
+        result.append({
+            "device_id":  str(dev_id),
+            "name":       dev["name"],
+            "hrv_score":  round(r_rmssd * 100, 1) if r_rmssd is not None else None,
+            "hr_score":   round(r_hr    * 100, 1) if r_hr    is not None else None,
+            "n_sessions": len(sessions),
+        })
+
+    result.sort(key=lambda x: (x.get("hrv_score") or 0))
+    return result
+
+
 @app.get("/api/overview/data")
 async def get_overview_data(sport_type: str = "running") -> list[dict]:
     """

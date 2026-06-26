@@ -130,6 +130,14 @@ export interface NocturnalHrvAiAnalysis {
   model: string;
 }
 
+export interface HrvOverviewEntry {
+  device_id:  string;
+  name:       string;
+  hrv_score:  number | null;  // pearsonR_rmssd × 100  (0–100)
+  hr_score:   number | null;  // pearsonR_hr    × 100  (0–100)
+  n_sessions: number;
+}
+
 export interface NocturnalHrvDetail extends NocturnalHrvSummary {
   windows: Array<{
     tStart: string;

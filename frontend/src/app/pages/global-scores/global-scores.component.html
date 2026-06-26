@@ -1,0 +1,267 @@
+<div class="center-spinner" *ngIf="loading">
+  <div class="spinner"></div>
+</div>
+
+<div class="scores-page" *ngIf="!loading">
+
+  <!-- ── Breadcrumb ── -->
+  <div class="breadcrumb">
+    <a routerLink="/devices">Dispositivos</a>
+    <span class="bc-sep">›</span>
+    <a [routerLink]="['/devices', deviceId]">{{ device?.name }}</a>
+    <span class="bc-sep">›</span>
+    <span class="bc-current">Puntuaciones Globales</span>
+  </div>
+
+  <!-- ── Header ── -->
+  <div class="page-header">
+    <div>
+      <div class="eyebrow" style="margin-bottom:8px">Evaluación integral · {{ device?.name }}</div>
+      <h1 class="h1-display">Puntuaciones Globales</h1>
+      <p class="page-sub">Notas 0–100 · escala idéntica a los umbrales de correlación: ≥95 Excelente · ≥90 Bueno · ≥80 Moderado · &lt;80 Deficiente</p>
+    </div>
+    <button class="ec-btn" (click)="load()">Actualizar</button>
+  </div>
+
+  <div class="error-state" *ngIf="error">{{ error }}</div>
+
+  <!-- ── Score cards ── -->
+  <ng-container *ngIf="currentScores">
+
+    <!-- Nota global -->
+    <div class="global-note-row">
+      <div class="global-note" [ngClass]="scoreClass(currentScores.totalScore)">
+        <div class="global-note__label">Nota Global</div>
+        <div class="global-note__val">{{ formatScore(currentScores.totalScore) }}</div>
+        <div class="global-note__sub">{{ scoreLabel(currentScores.totalScore) }}</div>
+      </div>
+      <div class="global-note-desc">
+        <div class="formula-block">
+          <span class="formula-label">Cálculo</span>
+          <code>Nota global = media(FC, GPS, VFC, FC&nbsp;reposo) — solo dimensiones con datos</code>
+        </div>
+        <p class="dim">Se incluye FC Global cuando hay sesiones de al menos un deporte; GPS cuando existen pruebas GPS; VFC y FC reposo cuando hay sesiones HRV nocturnas.</p>
+      </div>
+    </div>
+
+    <!-- 4 score cards -->
+    <div class="score-grid">
+
+      <!-- FC Global -->
+      <div class="score-card" [ngClass]="scoreClass(currentScores.fcScore)">
+        <div class="sc-icon">❤️</div>
+        <div class="sc-label">FC Global</div>
+        <div class="sc-val">{{ formatScore(currentScores.fcScore) }}</div>
+        <div class="sc-qual">{{ scoreLabel(currentScores.fcScore) }}</div>
+        <div class="sc-formula">
+          <code>Nota = avg(CCC<sub>running</sub>, CCC<sub>ciclismo</sub>, CCC<sub>gym</sub>) × 100</code>
+          <span>CCC de Lin ponderado por dificultad (z2 × 1 · tempo × 1.5 · series × 2.5)</span>
+        </div>
+      </div>
+
+      <!-- GPS -->
+      <div class="score-card" [ngClass]="gpsScoreClass(currentScores.gpsScore)">
+        <div class="sc-icon">📍</div>
+        <div class="sc-label">GPS Global</div>
+        <div class="sc-val">{{ formatScore(currentScores.gpsScore) }}</div>
+        <div class="sc-qual">{{ gpsScoreLabel(currentScores.gpsScore) }}</div>
+        <div class="sc-formula">
+          <code>Nota = urbanScore × 0.55 + trackScore × 0.35 + consistencyScore × 0.10</code>
+          <span>Mejor modo coincidente en pista y urbano · escala: ≥85 Excelente · ≥70 Bueno · ≥50 Moderado · &lt;50 Deficiente</span>
+        </div>
+      </div>
+
+      <!-- VFC -->
+      <div class="score-card" [ngClass]="scoreClass(currentScores.hrvScore)">
+        <div class="sc-icon">🌙</div>
+        <div class="sc-label">VFC Nocturna</div>
+        <div class="sc-val">{{ formatScore(currentScores.hrvScore) }}</div>
+        <div class="sc-qual">{{ scoreLabel(currentScores.hrvScore) }}</div>
+        <div class="sc-formula">
+          <code>Nota = r<sub>Pearson</sub>(RMSSD<sub>ref</sub>, RMSSD<sub>disp</sub>) × 100</code>
+          <span>Pearson r agregado sobre ventanas de 5 min de todas las sesiones nocturnas (n ≥ 3 ventanas)</span>
+        </div>
+      </div>
+
+      <!-- FC Reposo -->
+      <div class="score-card" [ngClass]="scoreClass(currentScores.hrScore)">
+        <div class="sc-icon">💤</div>
+        <div class="sc-label">FC en Reposo</div>
+        <div class="sc-val">{{ formatScore(currentScores.hrScore) }}</div>
+        <div class="sc-qual">{{ scoreLabel(currentScores.hrScore) }}</div>
+        <div class="sc-formula">
+          <code>Nota = r<sub>Pearson</sub>(FC<sub>ref nocturna</sub>, FC<sub>disp nocturna</sub>) × 100</code>
+          <span>FC media por ventana de 5 min durante el sueño · mismas sesiones que VFC</span>
+        </div>
+      </div>
+
+    </div>
+  </ng-container>
+
+  <!-- ── Comparison chart ── -->
+  <ng-container *ngIf="allScores.length > 0">
+
+    <div class="section-header">
+      <h2 class="section-title">Comparativa con otros dispositivos</h2>
+      <p class="section-sub">
+        Cada fila agrupa las 4 puntuaciones del dispositivo · líneas de referencia en 80, 90 y 95 (umbrales de correlación) ·
+        <span style="color:#6366f1">■ FC</span>&nbsp;
+        <span style="color:#10b981">■ GPS</span>&nbsp;
+        <span style="color:#f59e0b">■ VFC</span>&nbsp;
+        <span style="color:#0ea5e9">■ FC reposo</span>
+      </p>
+    </div>
+
+    <div class="chart-wrap">
+      <svg class="comp-chart"
+           [attr.viewBox]="'0 0 ' + SW + ' ' + svgChartHeight"
+           [attr.height]="svgChartHeight">
+
+        <!-- Reference lines -->
+        <g *ngFor="let t of [80, 90, 95]">
+          <line
+            [attr.x1]="ML + xTickPx(t)" [attr.y1]="MT - 10"
+            [attr.x2]="ML + xTickPx(t)" [attr.y2]="svgChartHeight - MB"
+            stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3 4" />
+          <text [attr.x]="ML + xTickPx(t)" [attr.y]="MT - 13"
+                text-anchor="middle" class="tick-lbl">{{ t }}</text>
+        </g>
+
+        <!-- X axis -->
+        <line [attr.x1]="ML" [attr.y1]="svgChartHeight - MB"
+              [attr.x2]="ML + CW" [attr.y2]="svgChartHeight - MB"
+              stroke="#d1d5db" stroke-width="1" />
+
+        <!-- X ticks -->
+        <g *ngFor="let t of xTicks">
+          <line [attr.x1]="ML + xTickPx(t)" [attr.y1]="svgChartHeight - MB"
+                [attr.x2]="ML + xTickPx(t)" [attr.y2]="svgChartHeight - MB + 5"
+                stroke="#d1d5db" stroke-width="1" />
+          <text [attr.x]="ML + xTickPx(t)" [attr.y]="svgChartHeight - MB + 16"
+                text-anchor="middle" class="tick-lbl">{{ t }}</text>
+        </g>
+
+        <!-- Device rows -->
+        <g *ngFor="let row of allScores; let i = index"
+           [attr.transform]="'translate(0,' + deviceY(i) + ')'">
+
+          <!-- Row track -->
+          <line [attr.x1]="ML" y1="12" [attr.x2]="ML + CW" y2="12"
+                stroke="#f3f4f6" stroke-width="1" />
+
+          <!-- Device name -->
+          <text [attr.x]="ML - 10" y="16"
+                text-anchor="end"
+                [class.name-current]="row.isCurrent"
+                class="device-name">{{ row.name }}</text>
+
+          <!-- Current device highlight -->
+          <rect *ngIf="row.isCurrent"
+                [attr.x]="ML - 8" y="-2"
+                [attr.width]="CW + 8" [attr.height]="GH - 2"
+                fill="rgba(99,102,241,0.05)" rx="3" />
+
+          <!-- 4 metric bars -->
+          <g *ngFor="let bar of metricBars(row)">
+            <!-- Empty track -->
+            <rect [attr.x]="ML" [attr.y]="bar.y"
+                  [attr.width]="CW" height="8"
+                  fill="#f9fafb" rx="2" />
+            <!-- Filled bar -->
+            <rect *ngIf="bar.score != null"
+                  [attr.x]="ML" [attr.y]="bar.y"
+                  [attr.width]="barX(bar.score)" height="8"
+                  [attr.fill]="bar.color"
+                  [style.opacity]="row.isCurrent ? '1' : '0.55'"
+                  rx="2" />
+            <!-- Score label -->
+            <text *ngIf="bar.score != null"
+                  [attr.x]="ML + barX(bar.score) + 6" [attr.y]="bar.y + 7"
+                  [attr.fill]="bar.color" class="bar-val">{{ bar.score | number:'1.0-1' }}</text>
+            <text *ngIf="bar.score == null"
+                  [attr.x]="ML + 6" [attr.y]="bar.y + 7"
+                  fill="#d1d5db" class="bar-val">—</text>
+          </g>
+
+        </g>
+      </svg>
+    </div>
+
+    <!-- ── Data table ── -->
+    <div class="score-table-wrap">
+      <table class="score-table">
+        <thead>
+          <tr>
+            <th class="t-name">Dispositivo</th>
+            <th class="t-score" title="avg(CCC_running, CCC_ciclismo, CCC_gym) × 100">FC Global</th>
+            <th class="t-score" title="urbanScore×0.55 + trackScore×0.35 + consistencyScore×0.10">GPS</th>
+            <th class="t-score" title="r_Pearson(RMSSD_ref, RMSSD_disp) × 100">VFC</th>
+            <th class="t-score" title="r_Pearson(FC_nocturna_ref, FC_nocturna_disp) × 100">FC Reposo</th>
+            <th class="t-score" title="media de las dimensiones disponibles">Nota Global</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of allScores" [class.row-current]="row.isCurrent">
+            <td class="t-name">
+              <span class="device-dot" *ngIf="row.isCurrent"></span>
+              {{ row.name }}
+            </td>
+            <td class="t-score">
+              <span class="score-chip" [ngClass]="scoreClass(row.fcScore)">{{ formatScore(row.fcScore) }}</span>
+            </td>
+            <td class="t-score">
+              <span class="score-chip" [ngClass]="gpsScoreClass(row.gpsScore)">{{ formatScore(row.gpsScore) }}</span>
+            </td>
+            <td class="t-score">
+              <span class="score-chip" [ngClass]="scoreClass(row.hrvScore)">{{ formatScore(row.hrvScore) }}</span>
+            </td>
+            <td class="t-score">
+              <span class="score-chip" [ngClass]="scoreClass(row.hrScore)">{{ formatScore(row.hrScore) }}</span>
+            </td>
+            <td class="t-score">
+              <span class="score-chip total" [ngClass]="scoreClass(row.totalScore)">{{ formatScore(row.totalScore) }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Formula legend ── -->
+    <div class="formula-legend">
+      <div class="fl-title">Fórmulas de cálculo</div>
+      <dl class="fl-list">
+        <div class="fl-item">
+          <dt>FC Global</dt>
+          <dd><code>avg(CCC<sub>running</sub>, CCC<sub>ciclismo</sub>, CCC<sub>gym</sub>) × 100</code> — solo deportes con sesiones · CCC de Lin ponderado por dificultad (z2×1 · tempo×1.5 · series×2.5)</dd>
+        </div>
+        <div class="fl-item">
+          <dt>GPS</dt>
+          <dd><code>urbanScore × 0.55 + trackScore × 0.35 + consistencyScore × 0.10</code> — mejor modo coincidente en pista y urbano · escala propia: ≥85 Excelente · ≥70 Bueno · ≥50 Moderado · &lt;50 Deficiente</dd>
+        </div>
+        <div class="fl-item">
+          <dt>VFC Nocturna</dt>
+          <dd><code>r<sub>Pearson</sub>(RMSSD<sub>ref</sub>, RMSSD<sub>disp</sub>) × 100</code> — Pearson r calculado sobre todas las ventanas de 5 min de las sesiones nocturnas (mínimo 3 ventanas)</dd>
+        </div>
+        <div class="fl-item">
+          <dt>FC en Reposo</dt>
+          <dd><code>r<sub>Pearson</sub>(FC<sub>nocturna ref</sub>, FC<sub>nocturna disp</sub>) × 100</code> — mismas ventanas de sueño que VFC</dd>
+        </div>
+        <div class="fl-item">
+          <dt>Nota Global</dt>
+          <dd><code>media aritmética de las dimensiones disponibles</code> — solo se incluyen las que tienen datos</dd>
+        </div>
+        <div class="fl-item">
+          <dt>Escala de colores</dt>
+          <dd>≥ 95 Excelente &nbsp;·&nbsp; ≥ 90 Bueno &nbsp;·&nbsp; ≥ 80 Moderado &nbsp;·&nbsp; &lt; 80 Deficiente &nbsp;— umbrales equivalentes a los de correlación (r / CCC)</dd>
+        </div>
+      </dl>
+    </div>
+
+  </ng-container>
+
+  <div class="empty-state" *ngIf="!loading && allScores.length === 0 && !error">
+    <p>No hay datos de puntuaciones disponibles.</p>
+    <a class="ec-btn primary" [routerLink]="['/devices', deviceId]">Volver al dispositivo</a>
+  </div>
+
+</div>

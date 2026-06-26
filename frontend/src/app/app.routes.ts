@@ -48,6 +48,11 @@ export const routes: Routes = [
       import('./pages/device-ai-verdict/device-ai-verdict.component').then(m => m.DeviceAiVerdictComponent),
   },
   {
+    path: 'devices/:deviceId/global-scores',
+    loadComponent: () =>
+      import('./pages/global-scores/global-scores.component').then(m => m.GlobalScoresComponent),
+  },
+  {
     path: 'overview',
     loadComponent: () =>
       import('./pages/overview/overview.component').then(m => m.OverviewComponent),
