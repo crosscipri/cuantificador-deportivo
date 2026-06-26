@@ -199,33 +199,42 @@ export class SessionValidationChartsComponent implements OnChanges {
     return {
       responsive: true, maintainAspectRatio: false, animation: false,
       plugins: {
-        legend: { position: 'bottom',
-          labels: { color: '#374151', font: { size: 11 }, boxWidth: 12, padding: 10 } },
-        tooltip: { backgroundColor: '#ffffff', borderColor: '#e2e5ec', borderWidth: 1,
-          titleColor: '#111827', bodyColor: '#374151' },
+        legend: {
+          position: 'top', align: 'end',
+          labels: { color: '#9ca3af', font: { size: 12 }, boxWidth: 24, boxHeight: 3, padding: 20 },
+        },
+        tooltip: {},
       },
       scales: {
-        x: { ticks: { color: '#6b7280', font: { size: 11 } }, grid: { color: '#e5e8ef' } },
-        y: { ticks: { color: '#6b7280', font: { size: 11 } }, grid: { color: '#e5e8ef' } },
+        x: {
+          ticks: { color: '#9ca3af', font: { size: 11 }, padding: 8 },
+          grid: { color: 'rgba(229,232,239,0.7)' },
+          border: { display: false },
+        },
+        y: {
+          ticks: { color: '#9ca3af', font: { size: 11 }, padding: 8 },
+          grid: { color: 'rgba(229,232,239,0.7)' },
+          border: { display: false },
+        },
       },
     };
   }
 
   private _buildCorrOptions(): ChartOptions<'scatter'> {
     const opts = this._baseScatterOptions();
-    opts.scales!['x']!.title = { display: true, text: 'FC Referencia (ppm)', color: '#6b7280' };
-    opts.scales!['y']!.title = { display: true, text: 'FC Dispositivo (ppm)', color: '#6b7280' };
+    opts.scales!['x']!.title = { display: true, text: 'FC Referencia (ppm)', color: '#9ca3af', font: { size: 10 } };
+    opts.scales!['y']!.title = { display: true, text: 'FC Dispositivo (ppm)', color: '#9ca3af', font: { size: 10 } };
     opts.plugins!.title = { display: true, text: 'Correlación',
-      color: '#111827', font: { size: 13, weight: 'bold' }, padding: { bottom: 8 } };
+      color: '#374151', font: { size: 13, weight: 'bold' }, padding: { bottom: 8 } };
     return opts;
   }
 
   private _buildBAOptions(): ChartOptions<'scatter'> {
     const opts = this._baseScatterOptions();
-    opts.scales!['x']!.title = { display: true, text: 'Media de los dos sensores (ppm)', color: '#6b7280' };
-    opts.scales!['y']!.title = { display: true, text: 'Diferencia: dispositivo − referencia (ppm)', color: '#6b7280' };
+    opts.scales!['x']!.title = { display: true, text: 'Media de los dos sensores (ppm)', color: '#9ca3af', font: { size: 10 } };
+    opts.scales!['y']!.title = { display: true, text: 'Diferencia: dispositivo − referencia (ppm)', color: '#9ca3af', font: { size: 10 } };
     opts.plugins!.title = { display: true, text: 'Bland-Altman',
-      color: '#111827', font: { size: 13, weight: 'bold' }, padding: { bottom: 8 } };
+      color: '#374151', font: { size: 13, weight: 'bold' }, padding: { bottom: 8 } };
     return opts;
   }
 
@@ -233,21 +242,32 @@ export class SessionValidationChartsComponent implements OnChanges {
     return {
       responsive: true, maintainAspectRatio: false, animation: false,
       plugins: {
-        legend: { position: 'top',
-          labels: { color: '#374151', font: { size: 11 }, boxWidth: 14 } },
+        legend: {
+          position: 'top', align: 'end',
+          labels: { color: '#9ca3af', font: { size: 12 }, boxWidth: 24, boxHeight: 3, padding: 20 },
+        },
         title: { display: true, text: 'Error por zona',
-          color: '#111827', font: { size: 13, weight: 'bold' }, padding: { bottom: 8 } },
-        tooltip: { backgroundColor: '#ffffff', borderColor: '#e2e5ec', borderWidth: 1,
-          titleColor: '#111827', bodyColor: '#374151' },
+          color: '#374151', font: { size: 13, weight: 'bold' }, padding: { bottom: 8 } },
+        tooltip: {},
       },
       scales: {
-        x: { ticks: { color: '#374151', font: { size: 11 } }, grid: { color: '#e5e8ef' } },
+        x: {
+          ticks: { color: '#9ca3af', font: { size: 11 }, padding: 8 },
+          grid: { color: 'rgba(229,232,239,0.7)' },
+          border: { display: false },
+        },
         y: { type: 'linear', position: 'left',
-          ticks: { color: '#6b7280', font: { size: 11 } }, grid: { color: '#e5e8ef' },
-          title: { display: true, text: 'MAE (ppm)', color: '#6b7280' } },
+          ticks: { color: '#9ca3af', font: { size: 11 }, padding: 8 },
+          grid: { color: 'rgba(229,232,239,0.7)' },
+          border: { display: false },
+          title: { display: true, text: 'MAE (ppm)', color: '#9ca3af', font: { size: 10 } },
+        },
         y1: { type: 'linear', position: 'right',
-          ticks: { color: '#6b7280', font: { size: 11 } }, grid: { drawOnChartArea: false },
-          title: { display: true, text: 'MAPE (%)', color: '#6b7280' } },
+          ticks: { color: '#9ca3af', font: { size: 11 }, padding: 8 },
+          grid: { drawOnChartArea: false },
+          border: { display: false },
+          title: { display: true, text: 'MAPE (%)', color: '#9ca3af', font: { size: 10 } },
+        },
       },
     };
   }

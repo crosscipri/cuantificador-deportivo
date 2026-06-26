@@ -112,7 +112,7 @@ export class FcTemporalChartComponent implements OnChanges {
         position: 'top',
         align: 'end',
         labels: {
-          color: '#6b7280',
+          color: '#9ca3af',
           font: { size: 12 },
           boxWidth: 24,
           boxHeight: 3,
@@ -129,6 +129,7 @@ export class FcTemporalChartComponent implements OnChanges {
           maxTicksLimit: 10,
           color: '#9ca3af',
           font: { size: 11 },
+          padding: 8,
         },
         grid: { color: 'rgba(229,232,239,0.7)' },
         border: { display: false },

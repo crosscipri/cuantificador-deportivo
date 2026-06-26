@@ -120,19 +120,28 @@ export class ChartViewerComponent {
 
   // ── Download ─────────────────────────────────────────────────────────────
   download(): void {
-    if (this.drawCanvas) {
-      const img = new Image();
-      img.onload = () => {
-        const dataUrl = this.drawCanvas!.composite(img);
+    const img = new Image();
+    img.onload = () => {
+      const out = document.createElement('canvas');
+      out.width  = img.naturalWidth;
+      out.height = img.naturalHeight;
+      const ctx = out.getContext('2d')!;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, out.width, out.height);
+      ctx.drawImage(img, 0, 0);
+      if (this.drawCanvas) {
+        const overlay = new Image();
+        overlay.onload = () => {
+          ctx.drawImage(overlay, 0, 0, out.width, out.height);
+          const a = document.createElement('a');
+          a.href = out.toDataURL('image/png'); a.download = this.filename; a.click();
+        };
+        overlay.src = this.drawCanvas.composite(img);
+      } else {
         const a = document.createElement('a');
-        a.href = dataUrl; a.download = this.filename; a.click();
-      };
-      img.src = this.imgSrc;
-    } else {
-      const a    = document.createElement('a');
-      a.href     = this.imgSrc;
-      a.download = this.filename;
-      a.click();
-    }
+        a.href = out.toDataURL('image/png'); a.download = this.filename; a.click();
+      }
+    };
+    img.src = this.imgSrc;
   }
 }
