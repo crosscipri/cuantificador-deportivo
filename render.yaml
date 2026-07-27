@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: cuantificador-deportivo
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: DB_NAME
+        value: hr_analyzer
+      - key: APP_USERNAME
+        value: cuantificador
+      - key: APP_PASSWORD
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false

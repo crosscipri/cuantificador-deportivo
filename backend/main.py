@@ -5,25 +5,30 @@ Hierarchy: Device → Training Type → Sessions
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import logging
 import math
 import os
+import secrets
 import traceback
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Optional
 
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, log_level, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 log = logging.getLogger("main")
 
 from bson import Binary, ObjectId
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from analyzer import (analyze_session, generate_aggregate_analysis,
@@ -39,13 +44,62 @@ load_dotenv()
 
 app = FastAPI(title="HR Analyzer API", version="2.0.0")
 
+APP_USERNAME = os.getenv("APP_USERNAME", "cuantificador")
+APP_PASSWORD = os.getenv("APP_PASSWORD", "")
+
+cors_origins = [
+    "http://localhost:4200",
+    "http://127.0.0.1:4200",
+]
+cors_origins.extend(
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],
+    allow_origins=list(dict.fromkeys(cors_origins)),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _valid_basic_auth(authorization: str) -> bool:
+    scheme, _, encoded_credentials = authorization.partition(" ")
+    if scheme.lower() != "basic" or not encoded_credentials:
+        return False
+
+    try:
+        decoded_credentials = base64.b64decode(
+            encoded_credentials, validate=True
+        ).decode("utf-8")
+    except (binascii.Error, ValueError, UnicodeDecodeError):
+        return False
+
+    username, separator, password = decoded_credentials.partition(":")
+    return bool(separator) and secrets.compare_digest(
+        username, APP_USERNAME
+    ) and secrets.compare_digest(password, APP_PASSWORD)
+
+
+@app.middleware("http")
+async def optional_basic_auth(request: Request, call_next):
+    """Protect personal data online when APP_PASSWORD is configured."""
+    if (
+        not APP_PASSWORD
+        or request.url.path == "/api/health"
+        or _valid_basic_auth(request.headers.get("Authorization", ""))
+    ):
+        return await call_next(request)
+
+    return Response(
+        content="Autenticación requerida",
+        status_code=401,
+        media_type="text/plain",
+        headers={"WWW-Authenticate": 'Basic realm="Cuantificador Deportivo"'},
+    )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MongoDB lifecycle
@@ -79,6 +133,13 @@ async def shutdown() -> None:
 
 def db():
     return app.state.db
+
+
+@app.get("/api/health")
+async def health() -> dict:
+    """Deployment health check, including the database connection."""
+    await db().command("ping")
+    return {"status": "ok", "database": DB_NAME}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1762,3 +1823,38 @@ async def create_nocturnal_hrv_ai_analysis(session_id: str) -> dict:
         {"$set": {"ai_analysis": result}},
     )
     return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Angular production frontend
+# ─────────────────────────────────────────────────────────────────────────────
+
+FRONTEND_DIST = Path(
+    os.getenv(
+        "FRONTEND_DIST",
+        str(Path(__file__).resolve().parent.parent / "frontend-dist"),
+    )
+).resolve()
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_frontend(full_path: str):
+    """Serve built Angular assets and fall back to index.html for client routes."""
+    if full_path == "api" or full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Ruta API no encontrada")
+
+    requested_file = (FRONTEND_DIST / full_path).resolve()
+    if requested_file != FRONTEND_DIST and FRONTEND_DIST not in requested_file.parents:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    if requested_file.is_file():
+        return FileResponse(requested_file)
+
+    index_file = FRONTEND_DIST / "index.html"
+    if index_file.is_file():
+        return FileResponse(index_file)
+
+    raise HTTPException(
+        status_code=404,
+        detail="Frontend no compilado; usa Angular dev server o define FRONTEND_DIST",
+    )
