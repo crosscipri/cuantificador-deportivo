@@ -15,8 +15,8 @@
       <div class="eyebrow" style="margin-bottom:8px">Análisis nocturno · VFC</div>
       <h1 class="h1-display">HRV Nocturno</h1>
       <p class="page-sub">
-        Carga los ficheros de exportación de Polar H10 y Fitbit para comparar RMSSD, FC
-        y analizar la precisión del sensor óptico durante el sueño.
+        Carga los ficheros de exportación de Polar H10 y de tu reloj óptico (Fitbit o Huawei)
+        para comparar RMSSD, FC y analizar la precisión del sensor óptico durante el sueño.
       </p>
     </div>
     <div class="header-actions" *ngIf="hasData">
@@ -341,6 +341,9 @@
             <ng-container *ngSwitchCase="'fitbitHrv'">
               <span class="qb-item">{{ files[key].validWindows }} ventanas</span>
             </ng-container>
+            <ng-container *ngSwitchCase="'huaweiCombined'">
+              <span class="qb-item">{{ files[key].validWindows }} VFC</span>
+            </ng-container>
             <ng-container *ngSwitchDefault>
               <span class="qb-item good">Cargado</span>
             </ng-container>
@@ -363,7 +366,7 @@
       <line x1="12" y1="17" x2="12.01" y2="17"/>
     </svg>
     <span>
-      <strong>Sin solapamiento temporal.</strong> Los rangos horarios de Polar y Fitbit no se cruzan.
+      <strong>Sin solapamiento temporal.</strong> Los rangos horarios de Polar y {{ secondaryLabel }} no se cruzan.
       Verifica que ambos dispositivos graben la misma noche y que las zonas horarias coincidan.
     </span>
   </div>
@@ -379,9 +382,9 @@
       <div class="stat-sub">± {{ fmt(summary.polarRmssdSd) }} ms (DE)</div>
     </div>
 
-    <!-- RMSSD Fitbit -->
+    <!-- RMSSD secondary device -->
     <div class="stat-card" *ngIf="summary.fitbitRmssdMean != null">
-      <div class="stat-eyebrow">RMSSD Fitbit</div>
+      <div class="stat-eyebrow">RMSSD {{ secondaryLabel }}</div>
       <div class="stat-value num">{{ fmt(summary.fitbitRmssdMean) }}</div>
       <div class="stat-unit">ms</div>
       <div class="stat-sub">± {{ fmt(summary.fitbitRmssdSd) }} ms (DE)</div>
@@ -400,7 +403,7 @@
       <div class="stat-eyebrow">Correlación (r)</div>
       <div class="stat-value num">{{ fmt(summary.pearsonR, 3) }}</div>
       <div class="stat-unit">Pearson</div>
-      <div class="stat-sub">RMSSD Polar vs Fitbit</div>
+      <div class="stat-sub">RMSSD Polar vs {{ secondaryLabel }}</div>
     </div>
 
     <!-- MAE RMSSD -->
@@ -429,9 +432,9 @@
       <div class="stat-sub">Mín: {{ fmt(summary.polarHRMin, 0) }} bpm</div>
     </div>
 
-    <!-- Fitbit HR -->
+    <!-- Secondary device HR -->
     <div class="stat-card" *ngIf="summary.fitbitHRMean != null">
-      <div class="stat-eyebrow">FC media Fitbit</div>
+      <div class="stat-eyebrow">FC media {{ secondaryLabel }}</div>
       <div class="stat-value num">{{ fmt(summary.fitbitHRMean, 0) }}</div>
       <div class="stat-unit">bpm</div>
       <div class="stat-sub">Mín: {{ fmt(summary.fitbitHRMin, 0) }} bpm</div>
@@ -455,7 +458,7 @@
     </svg>
     <h3>Carga al menos un fichero para empezar</h3>
     <p>Con solo Polar RR verás la evolución de RMSSD y FC nocturna.<br>
-       Carga también los datos de Fitbit para la comparación completa.</p>
+       Carga también los datos de tu reloj óptico (Fitbit o Huawei) para la comparación completa.</p>
   </div>
 
   <!-- ── Charts area ─────────────────────────────────────────────────── -->
@@ -543,7 +546,7 @@
       <ng-template #noChart3>
         <div class="chart-card chart-placeholder">
           <div class="chart-title" style="margin-bottom:8px">Error RMSSD a lo largo de la noche</div>
-          <p class="placeholder-hint">Necesita datos de Polar RR y Fitbit HRV</p>
+          <p class="placeholder-hint">Necesita datos de Polar RR y {{ secondaryLabel }} HRV</p>
         </div>
       </ng-template>
 
@@ -568,7 +571,7 @@
       <ng-template #noChart4>
         <div class="chart-card chart-placeholder">
           <div class="chart-title" style="margin-bottom:8px">Bland-Altman · RMSSD</div>
-          <p class="placeholder-hint">Necesita al menos 3 ventanas de Polar RR y Fitbit HRV solapadas</p>
+          <p class="placeholder-hint">Necesita al menos 3 ventanas de Polar RR y {{ secondaryLabel }} HRV solapadas</p>
         </div>
       </ng-template>
 
@@ -580,7 +583,7 @@
       <!-- Chart 5 — RMSSD correlation -->
       <div class="chart-card" *ngIf="hasChart5; else noChart5">
         <div class="chart-header">
-          <div class="chart-title">Correlación RMSSD · Polar vs Fitbit</div>
+          <div class="chart-title">Correlación RMSSD · Polar vs {{ secondaryLabel }}</div>
           <div class="chart-header-right">
             <div class="chart-sub" *ngIf="summary?.pearsonR != null">
               r = {{ fmt(summary!.pearsonR, 3) }}
@@ -596,15 +599,15 @@
       </div>
       <ng-template #noChart5>
         <div class="chart-card chart-placeholder">
-          <div class="chart-title" style="margin-bottom:8px">Correlación RMSSD · Polar vs Fitbit</div>
-          <p class="placeholder-hint">Necesita datos de Polar RR y Fitbit HRV</p>
+          <div class="chart-title" style="margin-bottom:8px">Correlación RMSSD · Polar vs {{ secondaryLabel }}</div>
+          <p class="placeholder-hint">Necesita datos de Polar RR y {{ secondaryLabel }} HRV</p>
         </div>
       </ng-template>
 
       <!-- Chart 6 — HR correlation -->
       <div class="chart-card" *ngIf="hasChart6; else noChart6">
         <div class="chart-header">
-          <div class="chart-title">Correlación FC · Polar vs Fitbit</div>
+          <div class="chart-title">Correlación FC · Polar vs {{ secondaryLabel }}</div>
           <div class="chart-header-right">
             <div class="chart-sub" *ngIf="summary?.pearsonRHR != null">
               r = {{ fmt(summary!.pearsonRHR, 3) }}
@@ -620,8 +623,8 @@
       </div>
       <ng-template #noChart6>
         <div class="chart-card chart-placeholder">
-          <div class="chart-title" style="margin-bottom:8px">Correlación FC · Polar vs Fitbit</div>
-          <p class="placeholder-hint">Necesita datos de Polar HR y Fitbit HR</p>
+          <div class="chart-title" style="margin-bottom:8px">Correlación FC · Polar vs {{ secondaryLabel }}</div>
+          <p class="placeholder-hint">Necesita datos de Polar HR y {{ secondaryLabel }} HR</p>
         </div>
       </ng-template>
 

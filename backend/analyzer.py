@@ -469,8 +469,8 @@ def generate_validation_chart(
     diff_vals = y_vals - x_vals
     mean_vals = (x_vals + y_vals) / 2.0
 
-    x_lo   = min(x_vals.min(), y_vals.min()) - 2
-    x_hi   = max(x_vals.max(), y_vals.max()) + 2
+    x_lo   = min(np.nanmin(x_vals), np.nanmin(y_vals)) - 2
+    x_hi   = max(np.nanmax(x_vals), np.nanmax(y_vals)) + 2
     x_line = np.linspace(x_lo, x_hi, 300)
 
     fig = plt.figure(figsize=(17, 6), facecolor="#ffffff")
@@ -519,6 +519,7 @@ def generate_validation_chart(
                  f"p {p_str}",
                  transform=ax_corr.transAxes, fontsize=8.5, color="#111827", va="top",
                  bbox=dict(boxstyle="round,pad=0.4", facecolor="#f3f4f6", edgecolor="#d1d5db"))
+    _log.debug("generate_validation_chart set_xlim corr: x_lo=%s x_hi=%s", x_lo, x_hi)
     ax_corr.set_xlim(x_lo, x_hi)
     ax_corr.set_ylim(x_lo, x_hi)
     ax_corr.set_xlabel(f"{ref_name}  (ppm)", color="#374151", fontsize=10)
@@ -548,7 +549,8 @@ def generate_validation_chart(
     ax_ba.fill_between([mean_vals.min() - 2, mean_vals.max() + 2],
                        metrics["loa_l"], metrics["loa_u"],
                        alpha=0.07, color="#d97706")
-    ax_ba.set_xlim(mean_vals.min() - 2, mean_vals.max() + 2)
+    _log.debug("generate_validation_chart set_xlim ba: min=%s max=%s", np.nanmin(mean_vals), np.nanmax(mean_vals))
+    ax_ba.set_xlim(np.nanmin(mean_vals) - 2, np.nanmax(mean_vals) + 2)
     ax_ba.set_xlabel("Media de los dos dispositivos (ppm)", color="#374151", fontsize=9)
     ax_ba.set_ylabel("Diferencia: dispositivo − referencia (ppm)", color="#374151", fontsize=9)
     ax_ba.set_title("Bland-Altman", color="#111827", fontsize=11, pad=8)
@@ -1132,6 +1134,7 @@ def generate_overview_chart(
     ax.set_yticks(y_pos)
     ax.set_yticklabels(names, color="#111827", fontsize=10)
     ax.set_xlabel(cfg["label"], color="#374151", fontsize=10)
+    _log.debug("generate_overview_chart set_xlim: x_min=%s x_max=%s n_devs=%s", x_min, x_max, n_devs)
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(-1, n_devs)
     ax.tick_params(axis="x", colors="#6b7280")
@@ -1221,6 +1224,7 @@ def generate_sport_correlation_chart(
         except Exception:
             pass
 
+    _log.debug("generate_sport_correlation set_xlim: lo=%s hi=%s", lo, hi)
     ax.set_xlim(lo, hi)
     ax.set_ylim(lo, hi)
     ax.set_xlabel(f"{ref_name}  (ppm)", color="#374151", fontsize=11)
@@ -1327,6 +1331,7 @@ def generate_sport_bland_altman_chart(
         mid = (ss["x_lo"] + ss["x_hi"]) / 2
         ax.plot(mid, ss["bias"], "o", color=ss["color"], ms=7, zorder=6)
 
+    _log.debug("generate_sport_bland_altman set_xlim: x_lo_g=%s x_hi_g=%s loa_l=%s loa_u=%s", x_lo_g, x_hi_g, loa_l, loa_u)
     ax.set_xlim(x_lo_g, x_hi_g)
     y_pad = max(abs(loa_u), abs(loa_l)) * 0.25 + 2
     ax.set_ylim(loa_l - y_pad, loa_u + y_pad)
@@ -1369,6 +1374,16 @@ def build_sport_chart_data(session_data: list) -> dict:
     for s in session_data:
         ref_arr = np.array(s["ref"], dtype=float)
         dev_arr = np.array(s["dev"], dtype=float)
+        if len(ref_arr) != len(dev_arr):
+            n_common = min(len(ref_arr), len(dev_arr))
+            ref_arr, dev_arr = ref_arr[:n_common], dev_arr[:n_common]
+
+        # A single NaN/Inf reading (sensor dropout) would otherwise poison
+        # this session's bias/mae and — once concatenated below — the
+        # global stats for every session, silently blanking every chart.
+        valid = np.isfinite(ref_arr) & np.isfinite(dev_arr)
+        ref_arr, dev_arr = ref_arr[valid], dev_arr[valid]
+
         if len(ref_arr) < 3:
             continue
 

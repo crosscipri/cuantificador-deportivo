@@ -7,6 +7,8 @@ export interface NocturnalHrvSummary {
   polar_hr_filename?: string;
   fitbit_hrv_filename?: string;
   fitbit_hr_filename?: string;
+  huawei_filename?: string;
+  secondary_source?: 'fitbit' | 'huawei';
   summary?: {
     polarRmssdMean: number | null;
     polarRmssdSd: number | null;

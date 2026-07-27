@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated, NocturnalHrvGlobalAiAnalysis } from '../../models/hrv-analysis.model';
+import { Device } from '../../models/session.model';
 import { MatButtonModule }  from '@angular/material/button';
 import { MatIconModule }    from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -64,7 +65,7 @@ interface FileCard {
   rejectedPct:  number;
 }
 
-type FileKey = 'polarRR' | 'polarHR' | 'fitbitHrv' | 'fitbitHR';
+type FileKey = 'polarRR' | 'polarHR' | 'fitbitHrv' | 'fitbitHR' | 'huaweiCombined';
 
 // ─── Bland-Altman label plugin ────────────────────────────────────────────────
 
@@ -130,9 +131,9 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   gcRmssdData: any = { datasets: [] };
   gcBlandData: any = { datasets: [] };
   gcHrData:    any = { datasets: [] };
-  readonly gcRmssdOptions = this.makeCorrelationOpts('RMSSD Polar H10 (ms)', 'RMSSD Fitbit (ms)', false);
-  readonly gcBlandOptions = this.makeBaOpts(false);
-  readonly gcHrOptions    = this.makeCorrelationOpts('FC Polar H10 (bpm)', 'FC Fitbit (bpm)', false);
+  gcRmssdOptions = this.makeCorrelationOpts('RMSSD Polar H10 (ms)', `RMSSD ${this.secondaryLabel} (ms)`, false);
+  gcBlandOptions = this.makeBaOpts(false);
+  gcHrOptions    = this.makeCorrelationOpts('FC Polar H10 (bpm)', `FC ${this.secondaryLabel} (bpm)`, false);
   readonly gcPlugins       = [baLabelsPlugin];
 
   // ── Settings ───────────────────────────────────────────────────────────────
@@ -143,14 +144,22 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   // ── Raw File objects (for upload) ─────────────────────────────────────────
   private rawFileObjects: Partial<Record<FileKey, File>> = {};
 
+  // ── Which wearable actually provided the secondary (non-Polar) data ───────
+  device: Device | null = null;
+  secondarySource: 'fitbit' | 'huawei' = 'fitbit';
+  get secondaryLabel(): string {
+    return this.device?.name || (this.secondarySource === 'huawei' ? 'Huawei' : 'Fitbit');
+  }
+
   // ── File cards (ordered for template iteration) ────────────────────────────
-  readonly fileKeys: FileKey[] = ['polarRR', 'polarHR', 'fitbitHrv', 'fitbitHR'];
+  readonly fileKeys: FileKey[] = ['polarRR', 'polarHR', 'fitbitHrv', 'fitbitHR', 'huaweiCombined'];
 
   files: Record<FileKey, FileCard> = {
-    polarRR:   { label: 'Polar H10 — RR',   sublabel: '.txt · timestamp;RR[ms]',           accept: '.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
-    polarHR:   { label: 'Polar H10 — HR',   sublabel: '.txt · timestamp;HR;HRV;Breathing', accept: '.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
-    fitbitHrv: { label: 'Fitbit HRV',       sublabel: '.csv · timestamp,rmssd,...',         accept: '.csv', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
-    fitbitHR:  { label: 'Fitbit HR',        sublabel: '.csv · timestamp,bpm,source',        accept: '.csv', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    polarRR:        { label: 'Polar H10 — RR',    sublabel: '.txt · timestamp;RR[ms]',           accept: '.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    polarHR:        { label: 'Polar H10 — HR',    sublabel: '.txt · timestamp;HR;HRV;Breathing', accept: '.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    fitbitHrv:      { label: 'Fitbit HRV',        sublabel: '.csv · timestamp,rmssd,...',         accept: '.csv', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    fitbitHR:       { label: 'Fitbit HR',         sublabel: '.csv · timestamp,bpm,source',        accept: '.csv', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    huaweiCombined: { label: 'Huawei VFC+FC',     sublabel: '.txt · fc_reposo_vfc_*.txt',         accept: '.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
   };
 
   // ── Parsed raw data ────────────────────────────────────────────────────────
@@ -175,10 +184,10 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
 
   readonly chart1Options = this.makeTimeOpts('RMSSD (ms)');
   readonly chart2Options = this.makeTimeOpts('FC (bpm)');
-  readonly chart3Options = this.makeErrorOpts();
-  readonly chart4Options = this.makeBaOpts();
-  readonly chart5Options = this.makeCorrelationOpts('RMSSD Polar H10 (ms)', 'RMSSD Fitbit (ms)');
-  readonly chart6Options = this.makeCorrelationOpts('FC Polar (bpm)', 'FC Fitbit (bpm)');
+  chart3Options = this.makeErrorOpts();
+  chart4Options = this.makeBaOpts();
+  chart5Options = this.makeCorrelationOpts('RMSSD Polar H10 (ms)', `RMSSD ${this.secondaryLabel} (ms)`);
+  chart6Options = this.makeCorrelationOpts('FC Polar (bpm)', `FC ${this.secondaryLabel} (bpm)`);
   readonly chart4Plugins = [baLabelsPlugin];
 
   // ── Zoom ───────────────────────────────────────────────────────────────────
@@ -203,7 +212,23 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.deviceId = this.route.snapshot.paramMap.get('deviceId') ?? '';
-    if (this.deviceId) this.loadSavedSessions();
+    if (this.deviceId) {
+      this.loadSavedSessions();
+      this.api.getDevice(this.deviceId).subscribe({
+        next: d => {
+          this.device = d;
+          this.refreshDeviceAxisLabels();
+          // Charts built before the device name arrived need an explicit
+          // redraw — mutating .scales.*.title.text doesn't change the bound
+          // options object's identity, so ng2-charts won't pick it up on its own.
+          for (const ref of [this.c3Ref, this.c4Ref, this.c5Ref, this.c6Ref,
+                              this.gcRmssdRef, this.gcBlandRef, this.gcHrRef]) {
+            ref?.chart?.update();
+          }
+          this.cdRef.markForCheck();
+        },
+      });
+    }
   }
 
   ngOnDestroy(): void {}
@@ -247,6 +272,8 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
         if (session.polar_hr_filename)   { this.files.polarHR.name   = session.polar_hr_filename;   this.files.polarHR.loaded   = true; }
         if (session.fitbit_hrv_filename) { this.files.fitbitHrv.name = session.fitbit_hrv_filename; this.files.fitbitHrv.loaded = true; }
         if (session.fitbit_hr_filename)  { this.files.fitbitHR.name  = session.fitbit_hr_filename;  this.files.fitbitHR.loaded  = true; }
+        if (session.huawei_filename)     { this.files.huaweiCombined.name = session.huawei_filename; this.files.huaweiCombined.loaded = true; }
+        this.secondarySource = session.secondary_source === 'huawei' ? 'huawei' : 'fitbit';
 
         this.rawRR = []; this.cleanRR = []; this.rawHR = [];
         this.fitbitHrvRows = []; this.fitbitHrRows = [];
@@ -473,10 +500,12 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     this.savingSession = true;
 
     const fd = new FormData();
-    if (this.rawFileObjects.polarRR)   fd.append('polar_rr_file',   this.rawFileObjects.polarRR);
-    if (this.rawFileObjects.polarHR)   fd.append('polar_hr_file',   this.rawFileObjects.polarHR);
-    if (this.rawFileObjects.fitbitHrv) fd.append('fitbit_hrv_file', this.rawFileObjects.fitbitHrv);
-    if (this.rawFileObjects.fitbitHR)  fd.append('fitbit_hr_file',  this.rawFileObjects.fitbitHR);
+    if (this.rawFileObjects.polarRR)        fd.append('polar_rr_file',   this.rawFileObjects.polarRR);
+    if (this.rawFileObjects.polarHR)        fd.append('polar_hr_file',   this.rawFileObjects.polarHR);
+    if (this.rawFileObjects.fitbitHrv)      fd.append('fitbit_hrv_file', this.rawFileObjects.fitbitHrv);
+    if (this.rawFileObjects.fitbitHR)       fd.append('fitbit_hr_file',  this.rawFileObjects.fitbitHR);
+    if (this.rawFileObjects.huaweiCombined) fd.append('huawei_file',     this.rawFileObjects.huaweiCombined);
+    fd.append('secondary_source', this.secondarySource);
 
     fd.append('session_name', this.sessionName.trim() ||
       `HRV Nocturno ${new Date().toLocaleDateString('es-ES')}`);
@@ -509,6 +538,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       this.files[key].validWindows = 0;
       this.files[key].rejectedPct = 0;
     }
+    this.secondarySource = 'fitbit';
   }
 
   // ── File handling ──────────────────────────────────────────────────────────
@@ -574,10 +604,11 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
 
   private parseFile(text: string, key: FileKey): void {
     switch (key) {
-      case 'polarRR':   this.parsePolarRR(text);   break;
-      case 'polarHR':   this.parsePolarHR(text);   break;
-      case 'fitbitHrv': this.parseFitbitHrv(text); break;
-      case 'fitbitHR':  this.parseFitbitHR(text);  break;
+      case 'polarRR':        this.parsePolarRR(text);        break;
+      case 'polarHR':        this.parsePolarHR(text);        break;
+      case 'fitbitHrv':      this.parseFitbitHrv(text);      break;
+      case 'fitbitHR':       this.parseFitbitHR(text);       break;
+      case 'huaweiCombined': this.parseHuaweiCombined(text); break;
     }
   }
 
@@ -652,6 +683,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     if (!rows.length) throw new Error('Sin datos HRV de Fitbit');
     this.fitbitHrvRows = rows;
     this.files.fitbitHrv.validWindows = rows.length;
+    this.secondarySource = 'fitbit';
   }
 
   private parseFitbitHR(text: string): void {
@@ -669,6 +701,55 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     }
     if (!rows.length) throw new Error('Sin datos HR de Fitbit');
     this.fitbitHrRows = rows;
+    this.secondarySource = 'fitbit';
+  }
+
+  private parseHuaweiCombined(text: string): void {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.some(l => l.startsWith('== VFC') || l.startsWith('Noche del'))) {
+      throw new Error('Formato no reconocido. Se esperaba fc_reposo_vfc_*.txt de Huawei');
+    }
+
+    type Section = 'none' | 'vfc' | 'fc';
+    let section: Section = 'none';
+    const hrvRows: FitbitHrvRow[] = [];
+    const hrRows:  FitbitHRRow[]  = [];
+
+    for (const line of lines) {
+      if (line.startsWith('== VFC') || line.includes('HEART_RATE_VARIABILITY')) {
+        section = 'vfc'; continue;
+      }
+      if (line.includes('DYNAMIC_HEART_RATE') || line.includes('FC durante la noche')) {
+        section = 'fc'; continue;
+      }
+      if (line.startsWith('==') || line.startsWith('min=') || line.startsWith('Noche del')) {
+        if (line.startsWith('==')) section = 'none';
+        continue;
+      }
+      if (section === 'none') continue;
+
+      const tabIdx = line.indexOf('\t');
+      if (tabIdx === -1) continue;
+      const ts  = this.parseTs(line.slice(0, tabIdx));
+      if (isNaN(ts.getTime())) continue;
+      const val = parseFloat(line.slice(tabIdx + 1));
+      if (!isFinite(val)) continue;
+
+      if (section === 'vfc') {
+        hrvRows.push({ ts, rmssd: val });
+      } else {
+        hrRows.push({ ts, bpm: val });
+      }
+    }
+
+    if (!hrvRows.length && !hrRows.length) {
+      throw new Error('Sin datos VFC ni FC en el fichero Huawei');
+    }
+
+    this.fitbitHrvRows = hrvRows;
+    this.fitbitHrRows  = hrRows;
+    this.files.huaweiCombined.validWindows = hrvRows.length;
+    this.secondarySource = 'huawei';
   }
 
   // ── Processing pipeline ────────────────────────────────────────────────────
@@ -851,6 +932,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   // ── Chart builders ─────────────────────────────────────────────────────────
 
   private buildCharts(): void {
+    this.refreshDeviceAxisLabels();
     this.buildChart1();
     this.buildChart2();
     this.buildChart3();
@@ -858,6 +940,20 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     this.buildChart5();
     this.buildChart6();
     setTimeout(() => this.resetZoom(), 20);
+  }
+
+  private refreshDeviceAxisLabels(): void {
+    const label = this.secondaryLabel;
+    this.chart3Options.scales.y.title.text = `Error (${label} − Polar) ms`;
+    this.chart4Options.scales.x.title.text = `Media Polar + ${label} RMSSD (ms)`;
+    this.chart4Options.scales.y.title.text = `Diferencia ${label} − Polar (ms)`;
+    this.chart5Options.scales.y.title.text = `RMSSD ${label} (ms)`;
+    this.chart6Options.scales.y.title.text = `FC ${label} (bpm)`;
+
+    this.gcRmssdOptions.scales.y.title.text = `RMSSD ${label} (ms)`;
+    this.gcBlandOptions.scales.x.title.text = `Media Polar + ${label} RMSSD (ms)`;
+    this.gcBlandOptions.scales.y.title.text = `Diferencia ${label} − Polar (ms)`;
+    this.gcHrOptions.scales.y.title.text    = `FC ${label} (bpm)`;
   }
 
   private buildChart1(): void {
@@ -874,7 +970,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       tension: 0.35, spanGaps: false, fill: false,
     });
     if (hasF) ds.push({
-      label: 'Fitbit',
+      label: this.secondaryLabel,
       data: fPts,
       borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.08)',
       borderWidth: 2, pointRadius: 3, pointHoverRadius: 6,
@@ -941,7 +1037,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       tension, spanGaps: false, fill: false,
     });
     if (hasF) ds.push({
-      label: 'Fitbit óptico',
+      label: `${this.secondaryLabel} óptico`,
       data: fPts,
       borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.08)',
       borderWidth: 1.5, pointRadius, pointHoverRadius: 5,
@@ -980,7 +1076,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
         },
         // Main error line
         {
-          label: 'Error RMSSD (Fitbit − Polar)',
+          label: `Error RMSSD (${this.secondaryLabel} − Polar)`,
           data: allPts,
           borderColor: '#374151', backgroundColor: 'transparent',
           fill: false, borderWidth: 2,
@@ -1220,7 +1316,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
         tooltip: {
           callbacks: {
             label: (item: any) =>
-              `Polar: ${this.fmt(item.parsed.x)}   Fitbit: ${this.fmt(item.parsed.y)}`,
+              `Polar: ${this.fmt(item.parsed.x)}   ${this.secondaryLabel}: ${this.fmt(item.parsed.y)}`,
           },
         },
       },

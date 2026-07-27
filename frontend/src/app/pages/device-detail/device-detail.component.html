@@ -351,7 +351,7 @@
                 <div class="chart-title">Bland-Altman por sesión · {{ tab.label }}</div>
                 <div class="chart-header-right">
                   <div class="chart-sub" *ngIf="sa.global_stats as gs">
-                    Sesgo global {{ gs.bias >= 0 ? '+' : '' }}{{ gs.bias | number:'1.2-2' }} ppm
+                    Sesgo global {{ gs.bias != null && gs.bias >= 0 ? '+' : '' }}{{ gs.bias | number:'1.2-2' }} ppm
                     &nbsp;·&nbsp;
                     LoA [{{ gs.loa_l | number:'1.1-1' }}, {{ gs.loa_u | number:'1.1-1' }}]
                   </div>

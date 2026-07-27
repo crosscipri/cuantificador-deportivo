@@ -15,6 +15,7 @@ import json
 import re
 from datetime import datetime
 
+import logging
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -22,6 +23,8 @@ import numpy as np
 from scipy import stats
 
 import anthropic
+
+_log = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SYSTEM PROMPTS
@@ -583,6 +586,7 @@ def generate_annotated_temporal_chart(
     ax_main.grid(True, color="#e5e8ef", linewidth=0.7, alpha=0.8)
     ax_main.set_axisbelow(True)
     ax_main.xaxis.set_major_formatter(plt.FuncFormatter(_sec_to_mmss))
+    _log.debug("ai_analyzer set_xlim main: time_arr[0]=%s time_arr[-1]=%s", time_arr[0], time_arr[-1])
     ax_main.set_xlim(time_arr[0], time_arr[-1])
 
     mae_txt = (f"MAE={metrics['mae']:.1f} bpm  ·  CCC={metrics['ccc']:.3f}"
@@ -610,6 +614,7 @@ def generate_annotated_temporal_chart(
     ax_diff.set_ylabel("|Δ FC|", color="#374151", fontsize=9)
     ax_diff.set_xlabel("Tiempo", color="#374151", fontsize=10)
     ax_diff.xaxis.set_major_formatter(plt.FuncFormatter(_sec_to_mmss))
+    _log.debug("ai_analyzer set_xlim diff: time_arr[0]=%s time_arr[-1]=%s", time_arr[0], time_arr[-1])
     ax_diff.set_xlim(time_arr[0], time_arr[-1])
     ax_diff.tick_params(colors="#6b7280", labelsize=8)
     ax_diff.grid(True, color="#e5e8ef", linewidth=0.6, alpha=0.8)

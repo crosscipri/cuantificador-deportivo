@@ -429,17 +429,26 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
     const vMin = Math.min(...allV) - pad;
     const vMax = Math.max(...allV) + pad;
 
+    const num = (v: number | null | undefined, dec = 1): string => v != null && Number.isFinite(v) ? v.toFixed(dec) : '—';
+
     const corrScatter = sessions.map((s, i) => ({
       type: 'scatter',
-      label: `${s.label}  MAE ${s.mae.toFixed(1)}`,
+      label: `${s.label}  MAE ${num(s.mae)}`,
       data:  s.points,
       backgroundColor: this.SESSION_COLORS[i % this.SESSION_COLORS.length],
       borderColor: 'transparent',
       pointRadius: 1.5, pointHoverRadius: 4,
     }));
 
-    const regLabel = gs
-      ? `Regresión  y = ${gs.slope.toFixed(3)}x ${gs.intercept >= 0 ? '+' : ''}${gs.intercept.toFixed(1)}`
+    // Global regression/BA lines need every field finite — a single bad
+    // session upstream can otherwise poison one field and, left unguarded,
+    // throw mid-build and leave both charts blank even though the raw
+    // per-session scatter data (built above) is perfectly fine.
+    const slope     = gs?.slope;
+    const intercept = gs?.intercept;
+    const hasReg = slope != null && Number.isFinite(slope) && intercept != null && Number.isFinite(intercept);
+    const regLabel = hasReg
+      ? `Regresión  y = ${slope.toFixed(3)}x ${intercept >= 0 ? '+' : ''}${intercept.toFixed(1)}`
       : 'Regresión';
 
     tab.corrData = {
@@ -449,10 +458,10 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
           data: [{ x: vMin, y: vMin }, { x: vMax, y: vMax }],
           borderColor: 'rgba(150,150,150,0.5)', borderWidth: 1.5,
           borderDash: [4, 4], pointRadius: 0, fill: false },
-        ...(gs ? [{
+        ...(hasReg ? [{
           type: 'line', label: regLabel,
-          data: [{ x: vMin, y: gs.slope * vMin + gs.intercept },
-                 { x: vMax, y: gs.slope * vMax + gs.intercept }],
+          data: [{ x: vMin, y: slope * vMin + intercept },
+                 { x: vMax, y: slope * vMax + intercept }],
           borderColor: '#6366f1', borderWidth: 2,
           borderDash: [5, 3], pointRadius: 0, fill: false,
         }] : []),
@@ -460,8 +469,6 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
     };
 
     // ── Bland-Altman ────────────────────────────────────────────────
-    if (!gs) { tab.baData = { datasets: [] }; return; }
-
     const baMeans = sessions.flatMap(s => s.points.map(p => (p.x + p.y) / 2));
     const xPad    = (Math.max(...baMeans) - Math.min(...baMeans)) * 0.08 + 3;
     const xMin    = Math.min(...baMeans) - xPad;
@@ -471,7 +478,7 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
     // scatter per session
     const baScatter = sessions.map((s, i) => ({
       type: 'scatter',
-      label: `${s.label}  sesgo ${s.bias >= 0 ? '+' : ''}${s.bias.toFixed(1)}`,
+      label: `${s.label}  sesgo ${s.bias != null && s.bias >= 0 ? '+' : ''}${num(s.bias)}`,
       data:  s.points.map(p => ({ x: (p.x + p.y) / 2, y: p.y - p.x })),
       backgroundColor: this.SESSION_COLORS[i % this.SESSION_COLORS.length],
       borderColor: 'transparent',
@@ -484,23 +491,29 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
       color: this.SESSION_COLORS_SOLID[i % this.SESSION_COLORS_SOLID.length],
     }));
 
+    const baLines: any[] = [];
+    if (gs != null && Number.isFinite(gs.bias)) {
+      baLines.push({ type: 'line', label: `Sesgo global: ${sign(gs.bias!)} ppm`,
+        data: [{ x: xMin, y: gs.bias }, { x: xMax, y: gs.bias }],
+        borderColor: '#6366f1', borderWidth: 2, borderDash: [5, 4],
+        pointRadius: 0, fill: false });
+    }
+    if (gs != null && Number.isFinite(gs.loa_u)) {
+      baLines.push({ type: 'line', label: `+LoA: ${sign(gs.loa_u!)} ppm`,
+        data: [{ x: xMin, y: gs.loa_u }, { x: xMax, y: gs.loa_u }],
+        borderColor: '#ef4444', borderWidth: 1.5, borderDash: [2, 4],
+        pointRadius: 0, fill: false });
+    }
+    if (gs != null && Number.isFinite(gs.loa_l)) {
+      baLines.push({ type: 'line', label: `−LoA: ${sign(gs.loa_l!)} ppm`,
+        data: [{ x: xMin, y: gs.loa_l }, { x: xMax, y: gs.loa_l }],
+        borderColor: '#3b82f6', borderWidth: 1.5, borderDash: [2, 4],
+        pointRadius: 0, fill: false });
+    }
+
     tab.baData = {
       _sessionBiases: sessionBiases,
-      datasets: [
-        ...baScatter,
-        { type: 'line', label: `Sesgo global: ${sign(gs.bias)} ppm`,
-          data: [{ x: xMin, y: gs.bias }, { x: xMax, y: gs.bias }],
-          borderColor: '#6366f1', borderWidth: 2, borderDash: [5, 4],
-          pointRadius: 0, fill: false },
-        { type: 'line', label: `+LoA: ${sign(gs.loa_u)} ppm`,
-          data: [{ x: xMin, y: gs.loa_u }, { x: xMax, y: gs.loa_u }],
-          borderColor: '#ef4444', borderWidth: 1.5, borderDash: [2, 4],
-          pointRadius: 0, fill: false },
-        { type: 'line', label: `−LoA: ${sign(gs.loa_l)} ppm`,
-          data: [{ x: xMin, y: gs.loa_l }, { x: xMax, y: gs.loa_l }],
-          borderColor: '#3b82f6', borderWidth: 1.5, borderDash: [2, 4],
-          pointRadius: 0, fill: false },
-      ],
+      datasets: [...baScatter, ...baLines],
     };
   }
 

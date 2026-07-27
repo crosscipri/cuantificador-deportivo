@@ -294,17 +294,17 @@ export interface AggregateResult {
 export interface SportSessionPoints {
   label:  string;
   points: { x: number; y: number }[];
-  bias:   number;
-  mae:    number;
+  bias:   number | null;
+  mae:    number | null;
 }
 
 export interface SportGlobalStats {
-  bias:      number;
-  loa_u:     number;
-  loa_l:     number;
+  bias:      number | null;
+  loa_u:     number | null;
+  loa_l:     number | null;
   pearson_r: number | null;
-  slope:     number;
-  intercept: number;
+  slope:     number | null;
+  intercept: number | null;
 }
 
 export interface SportAggregateCharts {

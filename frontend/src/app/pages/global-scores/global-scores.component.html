@@ -55,7 +55,7 @@
         <div class="sc-qual">{{ scoreLabel(currentScores.fcScore) }}</div>
         <div class="sc-formula">
           <code>Nota = avg(CCC<sub>running</sub>, CCC<sub>ciclismo</sub>, CCC<sub>gym</sub>) × 100</code>
-          <span>CCC de Lin ponderado por dificultad (z2 × 1 · tempo × 1.5 · series × 2.5)</span>
+          <span>CCC de Lin · media aritmética por sesión sin ponderar por dificultad · solo deportes con sesiones</span>
         </div>
       </div>
 
@@ -78,8 +78,8 @@
         <div class="sc-val">{{ formatScore(currentScores.hrvScore) }}</div>
         <div class="sc-qual">{{ scoreLabel(currentScores.hrvScore) }}</div>
         <div class="sc-formula">
-          <code>Nota = r<sub>Pearson</sub>(RMSSD<sub>ref</sub>, RMSSD<sub>disp</sub>) × 100</code>
-          <span>Pearson r agregado sobre ventanas de 5 min de todas las sesiones nocturnas (n ≥ 3 ventanas)</span>
+          <code>Nota = Fisher-Z-avg(r<sub>RMSSD</sub> por sesión) × 100</code>
+          <span>r<sub>Pearson</sub>(RMSSD<sub>ref</sub>, RMSSD<sub>disp</sub>) por sesión · media con Fisher Z-transform · igual que FC deportiva</span>
         </div>
       </div>
 
@@ -90,8 +90,8 @@
         <div class="sc-val">{{ formatScore(currentScores.hrScore) }}</div>
         <div class="sc-qual">{{ scoreLabel(currentScores.hrScore) }}</div>
         <div class="sc-formula">
-          <code>Nota = r<sub>Pearson</sub>(FC<sub>ref nocturna</sub>, FC<sub>disp nocturna</sub>) × 100</code>
-          <span>FC media por ventana de 5 min durante el sueño · mismas sesiones que VFC</span>
+          <code>Nota = Fisher-Z-avg(r<sub>HR nocturna</sub> por sesión) × 100</code>
+          <span>r<sub>Pearson</sub>(FC<sub>ref</sub>, FC<sub>disp</sub>) por sesión (ventanas 5 min) · media con Fisher Z-transform · evita artefacto de mezcla inter-sesión</span>
         </div>
       </div>
 
@@ -232,7 +232,7 @@
       <dl class="fl-list">
         <div class="fl-item">
           <dt>FC Global</dt>
-          <dd><code>avg(CCC<sub>running</sub>, CCC<sub>ciclismo</sub>, CCC<sub>gym</sub>) × 100</code> — solo deportes con sesiones · CCC de Lin ponderado por dificultad (z2×1 · tempo×1.5 · series×2.5)</dd>
+          <dd><code>avg(CCC<sub>running</sub>, CCC<sub>ciclismo</sub>, CCC<sub>gym</sub>) × 100</code> — CCC de Lin · media aritmética simple por sesión, sin ponderar por dificultad · solo deportes con datos</dd>
         </div>
         <div class="fl-item">
           <dt>GPS</dt>
@@ -240,11 +240,11 @@
         </div>
         <div class="fl-item">
           <dt>VFC Nocturna</dt>
-          <dd><code>r<sub>Pearson</sub>(RMSSD<sub>ref</sub>, RMSSD<sub>disp</sub>) × 100</code> — Pearson r calculado sobre todas las ventanas de 5 min de las sesiones nocturnas (mínimo 3 ventanas)</dd>
+          <dd><code>Fisher-Z-avg(r<sub>RMSSD</sub> por sesión) × 100</code> — Pearson r por sesión (RMSSD 5 min) → media con Fisher Z-transform → back-transform. Evita el artefacto de mezcla inter-sesión en que el nivel medio de RMSSD varía entre noches.</dd>
         </div>
         <div class="fl-item">
           <dt>FC en Reposo</dt>
-          <dd><code>r<sub>Pearson</sub>(FC<sub>nocturna ref</sub>, FC<sub>nocturna disp</sub>) × 100</code> — mismas ventanas de sueño que VFC</dd>
+          <dd><code>Fisher-Z-avg(r<sub>HR nocturna</sub> por sesión) × 100</code> — misma metodología que VFC. La FC en reposo varía sólo ~20 bpm entre noches; mezclar sesiones degrada Pearson r artificialmente.</dd>
         </div>
         <div class="fl-item">
           <dt>Nota Global</dt>

@@ -6,10 +6,18 @@ Hierarchy: Device → Training Type → Sessions
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
+import traceback
 from datetime import datetime
 from typing import Any, Optional
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+log = logging.getLogger("main")
 
 from bson import Binary, ObjectId
 from dotenv import load_dotenv
@@ -314,6 +322,7 @@ async def create_session(
             reference_filename=reference_file.filename or "",
         )
     except Exception as exc:
+        log.error("Unhandled exception", exc_info=True)
         raise HTTPException(status_code=422, detail=str(exc))
 
     # Build a 20-point sparkline for list views (no need to fetch full fc_data)
@@ -470,6 +479,7 @@ async def reanalyze_session(session_id: str) -> dict:
             reference_filename=doc.get("reference_file_name", ""),
         )
     except Exception as exc:
+        log.error("Unhandled exception", exc_info=True)
         raise HTTPException(status_code=422, detail=str(exc))
 
     await db().sessions.update_one({"_id": _oid(session_id)}, {"$set": result})
@@ -669,6 +679,7 @@ async def get_overview_chart(
     try:
         chart = generate_overview_chart(devices_data, criterion=criterion)
     except Exception as exc:
+        log.error("Unhandled exception", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
 
     return {
@@ -732,51 +743,95 @@ async def get_overview_gps_scores() -> list[dict]:
 
 @app.get("/api/overview/hrv-scores")
 async def get_overview_hrv_scores() -> list[dict]:
-    """VFC (RMSSD) and FC-reposo (HR) Pearson-r scores per device, derived from nocturnal HRV sessions."""
+    """
+    VFC (RMSSD) and FC-reposo (HR) scores per device.
+
+    Aggregation method: Fisher Z-transform on per-session Pearson r values, then
+    back-transform — identical to how FC sports correlations are aggregated.
+    This avoids the pooling-artefact: concatenating windows across sessions with
+    different mean HR levels artificially deflates Pearson r because between-session
+    level shifts dominate the pooled variance.
+
+    Primary source: summary.pearsonR / summary.pearsonRHR stored per session.
+    Fallback (sessions without summary fields): compute Pearson r from raw windows.
+    """
+    def _fisher_z_mean(r_vals: list[float]) -> float | None:
+        """Fisher Z-transform average of a list of Pearson r values."""
+        zs = []
+        for r in r_vals:
+            r_c = max(min(float(r), 0.9999), -0.9999)
+            zs.append(0.5 * math.log((1 + r_c) / (1 - r_c)))
+        if not zs:
+            return None
+        z_mean = sum(zs) / len(zs)
+        return round((math.exp(2 * z_mean) - 1) / (math.exp(2 * z_mean) + 1), 4)
+
+    def _pearson_from_pts(pts: list[tuple[float, float]]) -> float | None:
+        """Fallback: Pearson r from raw (x, y) pairs."""
+        n = len(pts)
+        if n < 3:
+            return None
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        mx, my = sum(xs) / n, sum(ys) / n
+        cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+        sx  = math.sqrt(sum((x - mx) ** 2 for x in xs))
+        sy  = math.sqrt(sum((y - my) ** 2 for y in ys))
+        return round(cov / (sx * sy), 4) if sx * sy > 0 else None
+
     result = []
     async for dev in db().devices.find({}, {"name": 1}):
         dev_id = dev["_id"]
         sessions = await db().nocturnal_hrv_sessions.find(
-            {"device_id": dev_id}, {"windows": 1}
+            {"device_id": dev_id}, {"summary": 1, "windows": 1}
         ).to_list(None)
         if not sessions:
             continue
 
-        rmssd_pts: list[tuple[float, float]] = []
-        hr_pts:    list[tuple[float, float]] = []
+        rmssd_rs: list[float] = []
+        hr_rs:    list[float] = []
+        # Fallback pools for sessions without summary
+        rmssd_fallback: list[tuple[float, float]] = []
+        hr_fallback:    list[tuple[float, float]] = []
+
         for s in sessions:
-            for w in (s.get("windows") or []):
-                rp, rf = w.get("rmssdPolar"), w.get("rmssdFitbit")
-                hp, hf = w.get("hrPolar"),    w.get("hrFitbit")
-                if rp is not None and rf is not None:
-                    rmssd_pts.append((float(rp), float(rf)))
-                if hp is not None and hf is not None:
-                    hr_pts.append((float(hp), float(hf)))
+            summ = s.get("summary") or {}
 
-        def _pearson(pts: list[tuple[float, float]]) -> float | None:
-            n = len(pts)
-            if n < 3:
-                return None
-            xs = [p[0] for p in pts]
-            ys = [p[1] for p in pts]
-            mx, my = sum(xs) / n, sum(ys) / n
-            cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
-            sx  = math.sqrt(sum((x - mx) ** 2 for x in xs))
-            sy  = math.sqrt(sum((y - my) ** 2 for y in ys))
-            return round(cov / (sx * sy), 4) if sx * sy > 0 else None
+            # ── Primary: use per-session r from stored summary ────────────
+            r_rmssd_sess = summ.get("pearsonR")
+            r_hr_sess    = summ.get("pearsonRHR")
 
-        r_rmssd = _pearson(rmssd_pts)
-        r_hr    = _pearson(hr_pts)
+            if r_rmssd_sess is not None and isinstance(r_rmssd_sess, (int, float)):
+                rmssd_rs.append(float(r_rmssd_sess))
+            if r_hr_sess is not None and isinstance(r_hr_sess, (int, float)):
+                hr_rs.append(float(r_hr_sess))
 
-        if r_rmssd is None and r_hr is None:
+            # ── Fallback: collect raw window points for sessions without summary ──
+            if r_rmssd_sess is None or r_hr_sess is None:
+                for w in (s.get("windows") or []):
+                    rp, rf = w.get("rmssdPolar"), w.get("rmssdFitbit")
+                    hp, hf = w.get("hrPolar"),    w.get("hrFitbit")
+                    if r_rmssd_sess is None and rp is not None and rf is not None:
+                        rmssd_fallback.append((float(rp), float(rf)))
+                    if r_hr_sess is None and hp is not None and hf is not None:
+                        hr_fallback.append((float(hp), float(hf)))
+
+        # If Fisher-Z list is empty, try fallback pool
+        r_rmssd_agg = _fisher_z_mean(rmssd_rs) if rmssd_rs else _pearson_from_pts(rmssd_fallback)
+        r_hr_agg    = _fisher_z_mean(hr_rs)    if hr_rs    else _pearson_from_pts(hr_fallback)
+
+        if r_rmssd_agg is None and r_hr_agg is None:
             continue
 
         result.append({
             "device_id":  str(dev_id),
             "name":       dev["name"],
-            "hrv_score":  round(r_rmssd * 100, 1) if r_rmssd is not None else None,
-            "hr_score":   round(r_hr    * 100, 1) if r_hr    is not None else None,
+            "hrv_score":  round(r_rmssd_agg * 100, 1) if r_rmssd_agg is not None else None,
+            "hr_score":   round(r_hr_agg    * 100, 1) if r_hr_agg    is not None else None,
             "n_sessions": len(sessions),
+            # Diagnostic fields (not used by frontend, useful for debugging)
+            "_n_rmssd_sessions": len(rmssd_rs),
+            "_n_hr_sessions":    len(hr_rs),
         })
 
     result.sort(key=lambda x: (x.get("hrv_score") or 0))
@@ -1040,6 +1095,7 @@ async def create_aggregate(body: dict) -> dict:
     try:
         sport_agg = generate_sport_aggregate(session_results)
     except Exception as exc:
+        log.error("Unhandled exception", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
 
     difficulty_weighted = _weighted_global_score(session_results)
@@ -1162,6 +1218,7 @@ async def create_gps_test_ai_analysis(test_id: str, body: dict) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
+        log.error("Unhandled exception", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generando análisis IA: {exc}")
 
     await db().gps_tests.update_one(
@@ -1252,6 +1309,7 @@ async def create_urban_test_ai_analysis(test_id: str, body: dict) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
+        log.error("Unhandled exception", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generando análisis IA: {exc}")
 
     await db().urban_tests.update_one(
@@ -1310,6 +1368,7 @@ async def create_session_ai_analysis(session_id: str, body: dict = None) -> dict
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
+        log.error("Unhandled exception", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error al llamar a Claude: {exc}")
 
     if not is_interval:
@@ -1393,6 +1452,7 @@ async def create_device_ai_verdict(device_id: str) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
+        log.error("Unhandled exception", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error al llamar a GPT: {exc}")
 
     await db().devices.update_one(
@@ -1416,6 +1476,7 @@ def _ser_nocturnal_hrv(doc: dict, *, include_windows: bool = True) -> dict:
     doc.pop("polar_hr_bytes", None)
     doc.pop("fitbit_hrv_bytes", None)
     doc.pop("fitbit_hr_bytes", None)
+    doc.pop("huawei_bytes", None)
     if not include_windows:
         doc.pop("windows", None)
     return doc
@@ -1562,6 +1623,7 @@ async def create_nocturnal_hrv_global_ai(device_id: str) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
+        log.error("Unhandled exception", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generando análisis IA: {exc}")
 
     await db().devices.update_one(
@@ -1574,14 +1636,16 @@ async def create_nocturnal_hrv_global_ai(device_id: str) -> dict:
 @app.post("/api/devices/{device_id}/nocturnal-hrv", status_code=201)
 async def create_nocturnal_hrv_session(
     device_id:       str,
-    polar_rr_file:   Optional[UploadFile] = File(default=None),
-    polar_hr_file:   Optional[UploadFile] = File(default=None),
-    fitbit_hrv_file: Optional[UploadFile] = File(default=None),
-    fitbit_hr_file:  Optional[UploadFile] = File(default=None),
-    session_name:    str = Form(default=""),
-    windows_json:    str = Form(default="[]"),
-    summary_json:    str = Form(default="{}"),
-    settings_json:   str = Form(default="{}"),
+    polar_rr_file:    Optional[UploadFile] = File(default=None),
+    polar_hr_file:    Optional[UploadFile] = File(default=None),
+    fitbit_hrv_file:  Optional[UploadFile] = File(default=None),
+    fitbit_hr_file:   Optional[UploadFile] = File(default=None),
+    huawei_file:      Optional[UploadFile] = File(default=None),
+    secondary_source: str = Form(default="fitbit"),
+    session_name:     str = Form(default=""),
+    windows_json:     str = Form(default="[]"),
+    summary_json:     str = Form(default="{}"),
+    settings_json:    str = Form(default="{}"),
 ) -> dict:
     if not await db().devices.find_one({"_id": _oid(device_id)}):
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
@@ -1593,12 +1657,13 @@ async def create_nocturnal_hrv_session(
         raise HTTPException(status_code=422, detail="JSON inválido en los metadatos")
 
     doc: dict[str, Any] = {
-        "device_id":    ObjectId(device_id),
-        "session_name": session_name.strip() or f"HRV Nocturno {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-        "windows":      windows,
-        "summary":      summary,
-        "settings":     settings,
-        "created_at":   datetime.utcnow(),
+        "device_id":        ObjectId(device_id),
+        "session_name":     session_name.strip() or f"HRV Nocturno {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        "windows":          windows,
+        "summary":          summary,
+        "settings":         settings,
+        "secondary_source": secondary_source if secondary_source in ("fitbit", "huawei") else "fitbit",
+        "created_at":       datetime.utcnow(),
     }
 
     for f, bkey, nkey in [
@@ -1606,6 +1671,7 @@ async def create_nocturnal_hrv_session(
         (polar_hr_file,   "polar_hr_bytes",   "polar_hr_filename"),
         (fitbit_hrv_file, "fitbit_hrv_bytes", "fitbit_hrv_filename"),
         (fitbit_hr_file,  "fitbit_hr_bytes",  "fitbit_hr_filename"),
+        (huawei_file,     "huawei_bytes",     "huawei_filename"),
     ]:
         if f and f.filename:
             doc[bkey] = Binary(await f.read())
@@ -1621,6 +1687,7 @@ async def list_nocturnal_hrv_sessions(device_id: str) -> list[dict]:
     projection = {
         "polar_rr_bytes": 0, "polar_hr_bytes": 0,
         "fitbit_hrv_bytes": 0, "fitbit_hr_bytes": 0,
+        "huawei_bytes": 0,
         "windows": 0,
     }
     return [
@@ -1636,6 +1703,7 @@ async def get_nocturnal_hrv_session(session_id: str) -> dict:
     projection = {
         "polar_rr_bytes": 0, "polar_hr_bytes": 0,
         "fitbit_hrv_bytes": 0, "fitbit_hr_bytes": 0,
+        "huawei_bytes": 0,
     }
     doc = await db().nocturnal_hrv_sessions.find_one({"_id": _oid(session_id)}, projection)
     if not doc:
@@ -1686,6 +1754,7 @@ async def create_nocturnal_hrv_ai_analysis(session_id: str) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
+        log.error("Unhandled exception", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generando análisis IA: {exc}")
 
     await db().nocturnal_hrv_sessions.update_one(
