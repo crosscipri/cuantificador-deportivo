@@ -17,6 +17,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+import certifi
+
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=getattr(logging, log_level, logging.INFO),
@@ -111,7 +113,10 @@ DB_NAME   = os.getenv("DB_NAME",   "hr_analyzer")
 
 @app.on_event("startup")
 async def startup() -> None:
-    app.state.mongo = AsyncIOMotorClient(MONGO_URL)
+    mongo_options = {}
+    if MONGO_URL.startswith("mongodb+srv://"):
+        mongo_options["tlsCAFile"] = certifi.where()
+    app.state.mongo = AsyncIOMotorClient(MONGO_URL, **mongo_options)
     app.state.db    = app.state.mongo[DB_NAME]
     await app.state.db.devices.create_index([("created_at", -1)])
     await app.state.db.sessions.create_index("device_id")
