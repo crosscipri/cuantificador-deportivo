@@ -166,7 +166,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   files: Record<FileKey, FileCard> = {
     polarRR:   { label: 'Referencia — RR',       sublabel: '.txt · timestamp;RR[ms]',           accept: '.txt',      loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
     polarHR:   { label: 'Referencia — FC',       sublabel: '.txt · timestamp;HR;HRV;Breathing', accept: '.txt',      loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
-    fitbitHrv: { label: 'Dispositivo — HRV',     sublabel: '.csv/.txt · timestamp,rmssd',       accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    fitbitHrv: { label: 'Dispositivo — RMSSD',   sublabel: '.csv/.txt · timestamp,rmssd_ms',    accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
     fitbitHR:  { label: 'Dispositivo — FC',      sublabel: '.csv/.txt · timestamp,bpm',         accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
   };
 
@@ -864,7 +864,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     const sep  = this.detectDelimiter(lines[0]);
     const cols = this.parseHeaderColumns(lines[0], sep);
     const tsIdx = this.findColumn(cols, ['timestamp', 'time', 'datetime', 'date', 'fecha', 'hora'], 0);
-    const valueIdx = this.findColumn(cols, ['rmssd', 'hrv', 'vfc', 'valor', 'value'], 1);
+    const valueIdx = this.findColumn(cols, ['rmssd_ms', 'rmssd', 'hrv', 'vfc', 'valor', 'value'], 1);
     const rows: DeviceHrvRow[] = [];
     for (let i = cols.length ? 1 : 0; i < lines.length; i++) {
       const p     = lines[i].split(sep);
