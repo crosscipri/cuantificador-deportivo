@@ -109,6 +109,70 @@
   }
 }
 
+// ── HRV overview comparison ───────────────────────────────────────
+.hrv-overview-section {
+  margin: 0 0 22px;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+
+  h2 {
+    margin: 3px 0 0;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 21px;
+    font-weight: 400;
+    letter-spacing: -0.012em;
+  }
+}
+
+.section-count {
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-3);
+  font-size: 11px;
+  padding: 3px 9px;
+}
+
+.section-header.compact {
+  margin-top: 22px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.hrv-ranking-card {
+  margin-bottom: 20px;
+}
+
+.chart-download-btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-3);
+  border-radius: var(--r-xs);
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+
+  &:hover {
+    background: var(--bg-sunk);
+    color: var(--ink);
+    border-color: var(--line-2);
+  }
+}
+
 // ── Stats row ─────────────────────────────────────────────────────
 .stats-row {
   display: flex;

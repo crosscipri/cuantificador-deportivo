@@ -145,6 +145,18 @@ export class GlobalScoresComponent implements OnInit {
     this.currentScores = rows.find(r => r.isCurrent) ?? null;
   }
 
+  get hrvComparisonRows(): DeviceScoreRow[] {
+    return this.allScores.filter(row => row.hrvScore != null);
+  }
+
+  get restHrComparisonRows(): DeviceScoreRow[] {
+    return this.allScores.filter(row => row.hrScore != null);
+  }
+
+  compactBarWidth(score: number | null): number {
+    return Math.max(0, Math.min(100, score ?? 0));
+  }
+
   // ── Score badge helpers ───────────────────────────────────────────────────
 
   /** Thresholds for FC / VFC / FC reposo (match r/CCC correlation scale × 100) */

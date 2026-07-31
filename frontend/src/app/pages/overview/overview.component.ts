@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { ApiService } from '../../services/api.service';
 import { OverviewEntry, SportType, SPORT_TYPE_LABELS } from '../../models/session.model';
 import { GpsOverviewEntry } from '../../models/gps-analysis.model';
+import { HrvOverviewEntry } from '../../models/hrv-analysis.model';
 
 // ── Colour thresholds ─────────────────────────────────────────────
 export function colorForR(r: number): string {
@@ -52,6 +53,15 @@ export interface GpsLollipopItem {
   cy:      number;
   x0:      number;
   labelX:  number;
+}
+
+export interface HrvLollipopItem {
+  entry: HrvOverviewEntry;
+  score: number | null;
+  color: string;
+  cx: number;
+  cy: number;
+  labelX: number;
 }
 
 export type VizMode = 'lollipop' | 'bars' | 'radar' | 'table';
@@ -123,6 +133,14 @@ export class OverviewComponent implements OnInit {
   gpsSvgHeight  = 0;
   gpsChartW     = SW - ML - MR;
 
+  // ── HRV global comparison ───────────────────────────────────────
+  hrvScores: HrvOverviewEntry[] = [];
+  hrvItems: HrvLollipopItem[] = [];
+  restHrItems: HrvLollipopItem[] = [];
+  hrvSvgHeight = 0;
+  restHrSvgHeight = 0;
+  hrvChartW = SW - ML - MR;
+
 
   // Expose layout to template
   readonly ML = ML;
@@ -132,7 +150,13 @@ export class OverviewComponent implements OnInit {
 
   constructor(private api: ApiService) {}
 
-  ngOnInit(): void { this.load(); this.loadGps(); }
+  ngOnInit(): void { this.load(); this.loadGps(); this.loadHrv(); }
+
+  refreshAll(): void {
+    this.load();
+    this.loadGps();
+    this.loadHrv();
+  }
 
   load(): void {
     this.loading = true;
@@ -153,6 +177,19 @@ export class OverviewComponent implements OnInit {
     });
   }
 
+  loadHrv(): void {
+    this.api.getOverviewHrvScores().subscribe({
+      next:  data => this._buildHrv(data),
+      error: ()   => {
+        this.hrvScores = [];
+        this.hrvItems = [];
+        this.restHrItems = [];
+        this.hrvSvgHeight = 0;
+        this.restHrSvgHeight = 0;
+      },
+    });
+  }
+
   // ── Private ───────────────────────────────────────────────────────
   private _buildGps(entries: GpsOverviewEntry[]): void {
     if (!entries.length) { this.gpsItems = []; return; }
@@ -164,6 +201,63 @@ export class OverviewComponent implements OnInit {
       return { entry, color: this._gpsColor(entry.global_score), cx, cy, x0, labelX: cx + 14 };
     });
   }
+
+  private _buildHrv(entries: HrvOverviewEntry[]): void {
+    this.hrvScores = entries;
+    this.hrvItems = this._buildHrvMetric(entries, 'hrv_score');
+    this.restHrItems = this._buildHrvMetric(entries, 'hr_score');
+    this.hrvSvgHeight = this.hrvItems.length * RH + MT + MB;
+    this.restHrSvgHeight = this.restHrItems.length * RH + MT + MB;
+  }
+
+  private _buildHrvMetric(entries: HrvOverviewEntry[], metric: 'hrv_score' | 'hr_score'): HrvLollipopItem[] {
+    return [...entries]
+      .filter(entry => entry[metric] != null)
+      .sort((a, b) => (a[metric] ?? -1) - (b[metric] ?? -1))
+      .map((entry, i) => {
+        const score = entry[metric];
+        const cx = this.hrvTickPx(score ?? 0);
+        return {
+          entry,
+          score,
+          color: this.scoreColor(score),
+          cx,
+          cy: MT + i * RH + RH / 2,
+          labelX: cx + 14,
+        };
+      });
+  }
+
+  scoreLabel(v: number | null): string {
+    return v != null ? v.toFixed(1) : '—';
+  }
+
+  scoreQuality(v: number | null): string {
+    if (v == null) return 'empty';
+    if (v >= 95) return 'good';
+    if (v >= 90) return 'warn';
+    if (v >= 80) return 'orange';
+    return 'bad';
+  }
+
+  scoreColor(v: number | null): string {
+    if (v == null) return 'var(--ink-4)';
+    if (v >= 95) return 'var(--good)';
+    if (v >= 90) return 'var(--warn)';
+    if (v >= 80) return 'var(--orange)';
+    return 'var(--bad)';
+  }
+
+  hrvTickPx(v: number): number {
+    return Math.max(0, Math.min(100, v)) / 100 * this.hrvChartW;
+  }
+
+  readonly hrvTicks = [0, 20, 40, 60, 80, 90, 95, 100];
+  readonly hrvRefLines = [
+    { v: 80, label: '80' },
+    { v: 90, label: '90' },
+    { v: 95, label: '95' },
+  ];
 
   private _gpsColor(v: number): string {
     if (v >= 85) return 'var(--good)';
@@ -228,6 +322,179 @@ export class OverviewComponent implements OnInit {
   xTickPx(r: number): number { return this._xPx(r); }
 
   // ── Export ───────────────────────────────────────────────────────
+
+  exportHrvChart(metric: 'hrv' | 'restHr'): void {
+    const items = metric === 'hrv' ? this.hrvItems : this.restHrItems;
+    if (!items.length) return;
+
+    const isHrv = metric === 'hrv';
+    const title = isHrv ? 'Ranking HRV global' : 'Ranking FC reposo global';
+    const metricLabel = isHrv ? 'Puntuación VFC nocturna' : 'Puntuación FC reposo';
+    const filename = isHrv ? 'ranking-hrv-global' : 'ranking-fc-reposo-global';
+    const date = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    const LML = ML;
+    const LMT = MT;
+    const LMB = MB;
+    const LRH = RH;
+    const LCW = this.hrvChartW;
+    const LSW = SW;
+    const n = items.length;
+    const LSH = n * LRH + LMT + LMB;
+    const pH = 80;
+    const pF = 60;
+    const TH = LSH + pH + pF;
+    const dpr = 4;
+
+    const cv = document.createElement('canvas');
+    cv.width = LSW * dpr;
+    cv.height = TH * dpr;
+    const c = cv.getContext('2d')!;
+    c.scale(dpr, dpr);
+
+    c.fillStyle = '#ffffff';
+    c.fillRect(0, 0, LSW, TH);
+
+    c.fillStyle = '#6366f1';
+    c.fillRect(0, 0, 4, pH);
+
+    c.fillStyle = '#111827';
+    c.font = '700 17px "Inter Tight", system-ui, sans-serif';
+    c.textAlign = 'left';
+    c.textBaseline = 'top';
+    c.fillText(title, 16, 14);
+
+    c.fillStyle = '#6b7280';
+    c.font = '12px "Inter Tight", system-ui, sans-serif';
+    c.fillText(`${n} dispositivo${n !== 1 ? 's' : ''}  ·  ${metricLabel} guardada  ·  0-100`, 16, 36);
+
+    c.fillStyle = '#9ca3af';
+    c.font = '10px "Inter Tight", system-ui, sans-serif';
+    c.fillText('Eje X: puntuación global  ·  ordenado de peor a mejor', 16, 56);
+
+    c.textAlign = 'right';
+    c.fillStyle = '#9ca3af';
+    c.font = '10px "Inter Tight", system-ui, sans-serif';
+    c.fillText(date, LSW - 16, 14);
+
+    c.strokeStyle = '#e5e7eb';
+    c.lineWidth = 1;
+    c.setLineDash([]);
+    c.beginPath(); c.moveTo(0, pH - 1); c.lineTo(LSW, pH - 1); c.stroke();
+
+    c.save();
+    c.translate(0, pH);
+
+    for (const ref of this.hrvRefLines) {
+      const x = LML + this._scoreXPx(ref.v);
+      c.strokeStyle = '#e5e7eb';
+      c.lineWidth = 1;
+      c.setLineDash([3, 4]);
+      c.beginPath(); c.moveTo(x, LMT); c.lineTo(x, LSH - LMB); c.stroke();
+      c.setLineDash([]);
+      c.fillStyle = '#9ca3af';
+      c.font = '11px "Inter Tight", system-ui, sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'alphabetic';
+      c.fillText(ref.label, x, LMT - 8);
+    }
+
+    c.strokeStyle = '#d1d5db';
+    c.lineWidth = 1;
+    c.beginPath(); c.moveTo(LML, LSH - LMB); c.lineTo(LML + LCW, LSH - LMB); c.stroke();
+
+    c.fillStyle = '#9ca3af';
+    c.font = '10px "Inter Tight", system-ui, sans-serif';
+    c.textAlign = 'center';
+    c.fillText(`${metricLabel} global · 0-100`, LML + LCW / 2, LSH - 8);
+
+    for (const tick of this.hrvTicks) {
+      const x = LML + this._scoreXPx(tick);
+      c.strokeStyle = '#d1d5db';
+      c.lineWidth = 1;
+      c.beginPath(); c.moveTo(x, LSH - LMB); c.lineTo(x, LSH - LMB + 5); c.stroke();
+      c.fillStyle = '#9ca3af';
+      c.font = '11px "Inter Tight", system-ui, sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'top';
+      c.fillText(String(tick), x, LSH - LMB + 8);
+    }
+
+    for (const item of items) {
+      const col = this.scoreHexColor(item.score);
+      const dotX = LML + this._scoreXPx(item.score ?? 0);
+      const dotY = item.cy;
+
+      c.strokeStyle = '#f3f4f6';
+      c.lineWidth = 1;
+      c.setLineDash([]);
+      c.beginPath(); c.moveTo(LML, dotY); c.lineTo(LML + LCW, dotY); c.stroke();
+
+      c.strokeStyle = col;
+      c.lineWidth = 2;
+      c.beginPath(); c.moveTo(LML, dotY); c.lineTo(dotX, dotY); c.stroke();
+
+      c.fillStyle = col;
+      c.beginPath(); c.arc(dotX, dotY, 6, 0, Math.PI * 2); c.fill();
+
+      c.fillStyle = col;
+      c.font = '600 12px "Inter Tight", system-ui, sans-serif';
+      c.textAlign = 'left';
+      c.textBaseline = 'middle';
+      c.fillText(this.scoreLabel(item.score), dotX + 14, dotY);
+
+      c.fillStyle = '#111827';
+      c.font = '13px "Inter Tight", system-ui, sans-serif';
+      c.textAlign = 'right';
+      c.textBaseline = 'alphabetic';
+      c.fillText(item.entry.name, LML - 14, dotY + 4);
+
+      c.fillStyle = '#9ca3af';
+      c.font = '10px "Inter Tight", system-ui, sans-serif';
+      c.fillText(`${item.entry.n_sessions} sesión${item.entry.n_sessions !== 1 ? 'es' : ''}`, LML - 14, dotY + 17);
+    }
+
+    c.restore();
+
+    c.strokeStyle = '#e5e7eb';
+    c.lineWidth = 1;
+    c.beginPath(); c.moveTo(0, pH + LSH + 1); c.lineTo(LSW, pH + LSH + 1); c.stroke();
+
+    const sorted = [...items].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+    const best = sorted[0];
+    const avg = items.reduce((s, item) => s + (item.score ?? 0), 0) / items.length;
+    const fTop = pH + LSH;
+    const fCy = fTop + pF / 2;
+    const stats = [
+      { label: 'Mejor dispositivo', value: best.entry.name, color: this.scoreHexColor(best.score) },
+      { label: 'Puntuación mejor', value: this.scoreLabel(best.score), color: this.scoreHexColor(best.score) },
+      { label: 'Promedio', value: avg.toFixed(1), color: this.scoreHexColor(avg) },
+      { label: 'Dispositivos', value: `${items.length}` },
+    ];
+    const slotW = LSW / stats.length;
+
+    stats.forEach((st, i) => {
+      const cx = i * slotW + slotW / 2;
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillStyle = '#9ca3af';
+      c.font = '9px "Inter Tight", system-ui, sans-serif';
+      c.fillText(st.label.toUpperCase(), cx, fCy - 12);
+      c.fillStyle = st.color ?? '#111827';
+      c.font = '600 13px "Inter Tight", system-ui, sans-serif';
+      c.fillText(st.value, cx, fCy + 8);
+      if (i > 0) {
+        c.strokeStyle = '#e5e7eb';
+        c.lineWidth = 1;
+        c.beginPath();
+        c.moveTo(i * slotW, fTop + 12);
+        c.lineTo(i * slotW, fTop + pF - 12);
+        c.stroke();
+      }
+    });
+
+    this.downloadCanvas(cv, `${filename}-${date.replace(/ /g, '-')}.png`);
+  }
 
   exportOverviewChart(): void {
     const visible = this.visibleItems;
@@ -439,6 +706,25 @@ export class OverviewComponent implements OnInit {
     const a = document.createElement('a');
     a.href     = cv.toDataURL('image/png');
     a.download = `ranking-${this.selectedSport}-${date.replace(/ /g, '-')}.png`;
+    a.click();
+  }
+
+  private _scoreXPx(v: number): number {
+    return Math.max(0, Math.min(100, v)) / 100 * this.hrvChartW;
+  }
+
+  scoreHexColor(v: number | null): string {
+    if (v == null) return '#9ca3af';
+    if (v >= 95) return '#10b981';
+    if (v >= 90) return '#d97706';
+    if (v >= 80) return '#f97316';
+    return '#ef4444';
+  }
+
+  private downloadCanvas(canvas: HTMLCanvasElement, filename: string): void {
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = filename;
     a.click();
   }
 

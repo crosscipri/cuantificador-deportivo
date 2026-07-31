@@ -98,6 +98,72 @@
     </div>
   </ng-container>
 
+  <!-- ── HRV / Resting HR global charts ── -->
+  <div class="section-header" *ngIf="hrvComparisonRows.length || restHrComparisonRows.length">
+    <h2 class="section-title">Comparativa HRV nocturna</h2>
+    <p class="section-sub">Datos calculados desde las sesiones HRV nocturnas guardadas por dispositivo.</p>
+  </div>
+
+  <div class="hrv-global-grid" *ngIf="hrvComparisonRows.length || restHrComparisonRows.length">
+
+    <div class="hrv-global-card" *ngIf="hrvComparisonRows.length; else noHrvComparison">
+      <div class="hrv-global-card-head">
+        <div>
+          <div class="hrv-global-eyebrow">VFC Nocturna</div>
+          <h3>Comparativa global HRV</h3>
+        </div>
+        <span class="hrv-global-count">{{ hrvComparisonRows.length }} dispositivos</span>
+      </div>
+
+      <div class="compact-bars">
+        <div class="compact-row" *ngFor="let row of hrvComparisonRows" [class.current]="row.isCurrent">
+          <div class="compact-name">{{ row.name }}</div>
+          <div class="compact-track">
+            <div class="compact-fill hrv" [style.width.%]="compactBarWidth(row.hrvScore)"></div>
+          </div>
+          <div class="compact-score">{{ formatScore(row.hrvScore) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #noHrvComparison>
+      <div class="hrv-global-card empty">
+        <div class="hrv-global-eyebrow">VFC Nocturna</div>
+        <h3>Comparativa global HRV</h3>
+        <p>No hay sesiones HRV guardadas con puntuación VFC.</p>
+      </div>
+    </ng-template>
+
+    <div class="hrv-global-card" *ngIf="restHrComparisonRows.length; else noRestHrComparison">
+      <div class="hrv-global-card-head">
+        <div>
+          <div class="hrv-global-eyebrow">FC en reposo</div>
+          <h3>Comparativa global FC reposo</h3>
+        </div>
+        <span class="hrv-global-count">{{ restHrComparisonRows.length }} dispositivos</span>
+      </div>
+
+      <div class="compact-bars">
+        <div class="compact-row" *ngFor="let row of restHrComparisonRows" [class.current]="row.isCurrent">
+          <div class="compact-name">{{ row.name }}</div>
+          <div class="compact-track">
+            <div class="compact-fill rest-hr" [style.width.%]="compactBarWidth(row.hrScore)"></div>
+          </div>
+          <div class="compact-score">{{ formatScore(row.hrScore) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #noRestHrComparison>
+      <div class="hrv-global-card empty">
+        <div class="hrv-global-eyebrow">FC en reposo</div>
+        <h3>Comparativa global FC reposo</h3>
+        <p>No hay sesiones HRV guardadas con puntuación de FC reposo.</p>
+      </div>
+    </ng-template>
+
+  </div>
+
   <!-- ── Comparison chart ── -->
   <ng-container *ngIf="allScores.length > 0">
 

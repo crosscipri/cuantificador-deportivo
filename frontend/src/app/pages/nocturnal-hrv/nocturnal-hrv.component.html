@@ -15,11 +15,11 @@
       <div class="eyebrow" style="margin-bottom:8px">Análisis nocturno · VFC</div>
       <h1 class="h1-display">HRV Nocturno</h1>
       <p class="page-sub">
-        Carga los ficheros de exportación de Polar H10 y de tu reloj óptico (Fitbit o Huawei)
-        para comparar RMSSD, FC y analizar la precisión del sensor óptico durante el sueño.
+        Carga los ficheros de referencia y los datos nocturnos del dispositivo para comparar
+        RMSSD, FC y analizar la precisión durante el sueño.
       </p>
     </div>
-    <div class="header-actions" *ngIf="hasData">
+    <div class="header-actions" *ngIf="activeHrvView === 'data' && hasData">
       <ng-container *ngIf="!currentSessionId">
         <input class="session-name-input" [(ngModel)]="sessionName"
                placeholder="Nombre de sesión…" maxlength="80">
@@ -44,26 +44,76 @@
     </div>
   </div>
 
+  <div class="hrv-view-switch" role="tablist" aria-label="Secciones HRV Nocturno">
+    <button class="hrv-view-btn" type="button"
+            [class.active]="activeHrvView === 'upload'"
+            (click)="activeHrvView = 'upload'">
+      Añadir medición
+    </button>
+    <button class="hrv-view-btn" type="button"
+            [class.active]="activeHrvView === 'data'"
+            (click)="activeHrvView = 'data'">
+      Datos subidos
+      <span class="hrv-view-count" *ngIf="savedSessions.length">{{ savedSessions.length }}</span>
+    </button>
+  </div>
+
   <!-- ── Saved sessions ─────────────────────────────────────────────── -->
-  <div class="saved-sessions" *ngIf="deviceId && (savedSessions.length > 0 || loadingSessions)">
-    <div class="saved-sessions-header">
-      <span class="saved-sessions-title">Sesiones guardadas</span>
-      <span class="saved-count" *ngIf="!loadingSessions">{{ savedSessions.length }}</span>
-      <div class="spinner-xs" *ngIf="loadingSessions"></div>
-    </div>
-    <div class="saved-sessions-list">
-      <div *ngFor="let s of savedSessions" class="saved-row"
-           [class.active]="s.id === currentSessionId"
-           (click)="loadSession(s.id)">
-        <div class="saved-row-name">{{ s.session_name }}</div>
-        <div class="saved-row-meta">{{ s.created_at | date:'dd/MM/yy HH:mm' }}</div>
-        <button class="saved-delete-btn" (click)="deleteSession(s.id, $event)" title="Eliminar">×</button>
+  <div class="session-navigator" *ngIf="activeHrvView === 'data' && deviceId && (savedSessions.length > 0 || loadingSessions)">
+    <div class="session-nav-main">
+      <div class="session-nav-label">
+        <span>Sesión</span>
+        <span class="saved-count" *ngIf="!loadingSessions">{{ savedSessions.length }}</span>
+        <div class="spinner-xs" *ngIf="loadingSessions"></div>
       </div>
+
+      <div class="session-nav-controls">
+        <button class="session-step-btn" type="button"
+                (click)="loadAdjacentSession(-1)"
+                [disabled]="selectedSessionIndex <= 0"
+                title="Sesión anterior">
+          ‹
+        </button>
+
+        <select class="session-select"
+                [ngModel]="currentSessionId"
+                (ngModelChange)="onSessionSelectorChange($event)">
+          <option [ngValue]="null" disabled>Selecciona una sesión</option>
+          <option *ngFor="let s of savedSessions" [ngValue]="s.id">
+            {{ s.session_name }} · {{ s.created_at | date:'dd/MM/yy HH:mm' }}
+          </option>
+        </select>
+
+        <button class="session-step-btn" type="button"
+                (click)="loadAdjacentSession(1)"
+                [disabled]="selectedSessionIndex < 0 || selectedSessionIndex >= savedSessions.length - 1"
+                title="Sesión siguiente">
+          ›
+        </button>
+      </div>
+
+      <div class="session-nav-meta" *ngIf="selectedSession as s">
+        <span>{{ s.created_at | date:'dd/MM/yyyy HH:mm' }}</span>
+        <span *ngIf="s.summary?.pearsonR != null">r RMSSD {{ fmt(s.summary!.pearsonR, 3) }}</span>
+        <span *ngIf="s.summary?.hrMAE != null">MAE FC {{ fmt(s.summary!.hrMAE, 1) }} bpm</span>
+      </div>
+    </div>
+
+    <div class="session-nav-actions">
+      <button class="ec-btn sm" type="button" (click)="activeHrvView = 'upload'">
+        Añadir otra
+      </button>
+      <button class="session-delete-action" type="button"
+              *ngIf="currentSessionId"
+              (click)="deleteSession(currentSessionId, $event)"
+              title="Eliminar sesión">
+        Eliminar
+      </button>
     </div>
   </div>
 
   <!-- ── Global aggregated charts ─────────────────────────────────── -->
-  <div class="global-section" *ngIf="globalData && globalData.n_sessions > 0">
+  <div class="global-section" *ngIf="activeHrvView === 'data' && (savedSessions.length > 0 || (globalData && globalData.n_sessions > 0))">
 
     <div class="global-section-header">
       <div class="global-title-group">
@@ -71,17 +121,17 @@
         <h2 class="global-title">Correlación y Bland-Altman · todas las sesiones</h2>
       </div>
       <div class="global-meta">
-        <span>{{ globalData.n_sessions }} sesiones</span>
-        <span *ngIf="globalData.rmssd.stats">· {{ globalData.rmssd.stats.n }} ventanas RMSSD</span>
+        <span>{{ globalData?.n_sessions || savedSessions.length }} sesiones</span>
+        <span *ngIf="globalData?.rmssd?.stats as rmssdStats">· {{ rmssdStats.n }} ventanas RMSSD</span>
       </div>
     </div>
 
-    <div class="global-stats-row" *ngIf="globalData.rmssd.stats as rs">
+    <div class="global-stats-row" *ngIf="globalData?.rmssd?.stats as rs">
       <span class="global-stat"><span class="global-stat-key">r RMSSD</span> {{ fmt(rs.pearsonR, 3) }}</span>
       <span class="global-stat"><span class="global-stat-key">MAE RMSSD</span> {{ fmt(rs.mae) }} ms</span>
       <span class="global-stat"><span class="global-stat-key">Sesgo</span> {{ fmtSign(rs.bias) }} ms</span>
       <span class="global-stat"><span class="global-stat-key">LoA</span> {{ fmtSign(rs.lowerLoa) }} / {{ fmtSign(rs.upperLoa) }} ms</span>
-      <ng-container *ngIf="globalData.hr.stats as hs">
+      <ng-container *ngIf="globalData?.hr?.stats as hs">
         <span class="global-stat-sep">|</span>
         <span class="global-stat"><span class="global-stat-key">r FC</span> {{ fmt(hs.pearsonR, 3) }}</span>
         <span class="global-stat"><span class="global-stat-key">MAE FC</span> {{ fmt(hs.mae, 1) }} bpm</span>
@@ -90,12 +140,60 @@
 
     <div class="global-charts-row">
 
+      <!-- G0: HRV global comparison -->
+      <div class="chart-card" *ngIf="gcHrvOverviewData.datasets.length; else noGcHrvOverview">
+        <div class="chart-header">
+          <div class="chart-title">Comparativa global HRV</div>
+          <div class="chart-header-right">
+            <div class="chart-sub">RMSSD medio por sesión</div>
+            <button class="chart-export-btn" (click)="exportChart(gcHrvOverviewRef, 'global-comparativa-hrv')" title="Exportar PNG">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart-body chart-body-sm">
+          <canvas baseChart #gcHrvOverview [type]="'bar'" [data]="gcHrvOverviewData" [options]="gcHrvOverviewOptions"></canvas>
+        </div>
+      </div>
+      <ng-template #noGcHrvOverview>
+        <div class="chart-card chart-placeholder">
+          <div class="chart-title" style="margin-bottom:8px">Comparativa global HRV</div>
+          <p class="placeholder-hint">Necesita ventanas RMSSD guardadas</p>
+        </div>
+      </ng-template>
+
+      <!-- G0b: Resting HR global comparison -->
+      <div class="chart-card" *ngIf="gcRestHrData.datasets.length; else noGcRestHr">
+        <div class="chart-header">
+          <div class="chart-title">FC en reposo · global</div>
+          <div class="chart-header-right">
+            <div class="chart-sub">Mínimo nocturno por sesión</div>
+            <button class="chart-export-btn" (click)="exportChart(gcRestHrRef, 'global-fc-reposo')" title="Exportar PNG">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart-body chart-body-sm">
+          <canvas baseChart #gcRestHr [type]="'line'" [data]="gcRestHrData" [options]="gcRestHrOptions"></canvas>
+        </div>
+      </div>
+      <ng-template #noGcRestHr>
+        <div class="chart-card chart-placeholder">
+          <div class="chart-title" style="margin-bottom:8px">FC en reposo · global</div>
+          <p class="placeholder-hint">Necesita ventanas de FC guardadas</p>
+        </div>
+      </ng-template>
+
+    </div>
+
+    <div class="global-charts-row">
+
       <!-- G1: RMSSD correlation -->
-      <div class="chart-card" *ngIf="globalData.rmssd.stats; else noGcRmssd">
+      <div class="chart-card" *ngIf="globalData?.rmssd?.stats; else noGcRmssd">
         <div class="chart-header">
           <div class="chart-title">Correlación RMSSD · global</div>
           <div class="chart-header-right">
-            <div class="chart-sub">r = {{ fmt(globalData.rmssd.stats.pearsonR, 3) }}</div>
+            <div class="chart-sub">r = {{ fmt(globalData!.rmssd.stats!.pearsonR, 3) }}</div>
             <button class="chart-export-btn" (click)="exportChart(gcRmssdRef, 'global-correlacion-rmssd')" title="Exportar PNG">
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
@@ -108,16 +206,16 @@
       <ng-template #noGcRmssd>
         <div class="chart-card chart-placeholder">
           <div class="chart-title" style="margin-bottom:8px">Correlación RMSSD · global</div>
-          <p class="placeholder-hint">Necesita al menos 3 ventanas de Polar RR y Fitbit HRV guardadas</p>
+          <p class="placeholder-hint">Necesita al menos 3 ventanas de RR de referencia y HRV del dispositivo guardadas</p>
         </div>
       </ng-template>
 
       <!-- G2: Bland-Altman global -->
-      <div class="chart-card" *ngIf="globalData.rmssd.stats; else noGcBland">
+      <div class="chart-card" *ngIf="globalData?.rmssd?.stats; else noGcBland">
         <div class="chart-header">
           <div class="chart-title">Bland-Altman RMSSD · global</div>
           <div class="chart-header-right">
-            <div class="chart-sub" *ngIf="globalData.rmssd.stats as rs">
+            <div class="chart-sub" *ngIf="globalData?.rmssd?.stats as rs">
               Sesgo {{ fmtSign(rs.bias) }} ms&nbsp;·&nbsp;LoA {{ fmtSign(rs.lowerLoa) }} / {{ fmtSign(rs.upperLoa) }} ms
             </div>
             <button class="chart-export-btn" (click)="exportChart(gcBlandRef, 'global-bland-altman-rmssd')" title="Exportar PNG">
@@ -132,19 +230,19 @@
       <ng-template #noGcBland>
         <div class="chart-card chart-placeholder">
           <div class="chart-title" style="margin-bottom:8px">Bland-Altman RMSSD · global</div>
-          <p class="placeholder-hint">Necesita al menos 3 ventanas de Polar RR y Fitbit HRV guardadas</p>
+          <p class="placeholder-hint">Necesita al menos 3 ventanas de RR de referencia y HRV del dispositivo guardadas</p>
         </div>
       </ng-template>
 
     </div>
 
     <!-- G3: HR correlation -->
-    <div class="global-charts-row" *ngIf="globalData.hr.stats">
+    <div class="global-charts-row" *ngIf="globalData?.hr?.stats">
       <div class="chart-card">
         <div class="chart-header">
           <div class="chart-title">Correlación FC · global</div>
           <div class="chart-header-right">
-            <div class="chart-sub">r = {{ fmt(globalData.hr.stats.pearsonR, 3) }}</div>
+            <div class="chart-sub">r = {{ fmt(globalData!.hr.stats!.pearsonR, 3) }}</div>
             <button class="chart-export-btn" (click)="exportChart(gcHrRef, 'global-correlacion-fc')" title="Exportar PNG">
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
@@ -254,7 +352,7 @@
   </div>
 
   <!-- ── Settings panel ─────────────────────────────────────────────── -->
-  <div class="settings-row">
+  <div class="settings-row" *ngIf="activeHrvView === 'upload'">
     <button class="ec-btn sm ghost" (click)="showSettings = !showSettings">
       <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
         <circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.3"/>
@@ -288,29 +386,49 @@
   </div>
 
   <!-- ── Upload grid ─────────────────────────────────────────────────── -->
-  <div class="upload-grid">
+  <div class="upload-sections" *ngIf="activeHrvView === 'upload'">
+    <section class="upload-section">
+      <div class="upload-section-head">
+        <span class="upload-section-kicker">Referencia</span>
+        <span class="upload-section-title">RR y FC de referencia</span>
+      </div>
+      <div class="upload-grid compact">
+        <ng-container *ngTemplateOutlet="uploadCards; context: { keys: referenceFileKeys }"></ng-container>
+      </div>
+    </section>
 
-    <div *ngFor="let key of fileKeys" class="upload-card"
-         [class.loaded]="files[key].loaded"
-         [class.has-error]="!!files[key].error"
+    <section class="upload-section">
+      <div class="upload-section-head">
+        <span class="upload-section-kicker">Dispositivo</span>
+        <span class="upload-section-title">HRV y FC del dispositivo</span>
+      </div>
+      <div class="upload-grid compact">
+        <ng-container *ngTemplateOutlet="uploadCards; context: { keys: deviceFileKeys }"></ng-container>
+      </div>
+    </section>
+  </div>
+
+  <ng-template #uploadCards let-keys="keys">
+    <div *ngFor="let key of keys" class="upload-card"
+         [class.loaded]="card(key).loaded"
+         [class.has-error]="!!card(key).error"
          (dragover)="onDragOver($event)"
          (dragleave)="onDragLeave($event)"
          (drop)="onDrop($event, key)">
 
       <label class="upload-label" [for]="'file-' + key">
-        <!-- Icon -->
         <div class="upload-icon">
-          <svg *ngIf="!files[key].loaded && !files[key].error" width="22" height="22" viewBox="0 0 24 24"
+          <svg *ngIf="!card(key).loaded && !card(key).error" width="22" height="22" viewBox="0 0 24 24"
                fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
-          <svg *ngIf="files[key].loaded" width="22" height="22" viewBox="0 0 24 24"
+          <svg *ngIf="card(key).loaded" width="22" height="22" viewBox="0 0 24 24"
                fill="none" stroke="var(--good)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
-          <svg *ngIf="files[key].error" width="22" height="22" viewBox="0 0 24 24"
+          <svg *ngIf="card(key).error" width="22" height="22" viewBox="0 0 24 24"
                fill="none" stroke="var(--bad)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <line x1="12" y1="8" x2="12" y2="12"/>
@@ -318,31 +436,26 @@
           </svg>
         </div>
 
-        <!-- Labels -->
         <div class="upload-text">
-          <div class="upload-title">{{ files[key].label }}</div>
-          <div class="upload-sub" *ngIf="!files[key].loaded && !files[key].error">
-            {{ files[key].sublabel }}<br>
+          <div class="upload-title">{{ card(key).label }}</div>
+          <div class="upload-sub" *ngIf="!card(key).loaded && !card(key).error">
+            {{ card(key).sublabel }}<br>
             <span style="opacity:.6">Arrastra aquí o haz clic</span>
           </div>
-          <div class="upload-filename" *ngIf="files[key].loaded">{{ files[key].name }}</div>
-          <div class="upload-error"   *ngIf="files[key].error">{{ files[key].error }}</div>
+          <div class="upload-filename" *ngIf="card(key).loaded">{{ card(key).name }}</div>
+          <div class="upload-error"   *ngIf="card(key).error">{{ card(key).error }}</div>
         </div>
 
-        <!-- Quality badge (after load) -->
-        <div class="quality-badge" *ngIf="files[key].loaded">
+        <div class="quality-badge" *ngIf="card(key).loaded">
           <ng-container [ngSwitch]="key">
             <ng-container *ngSwitchCase="'polarRR'">
-              <span class="qb-item">{{ files[key].validWindows }} ventanas</span>
-              <span class="qb-item" [class.bad]="files[key].rejectedPct > 10">
-                {{ files[key].rejectedPct | number:'1.1-1' }}% artefactos
+              <span class="qb-item">{{ card(key).validWindows }} ventanas</span>
+              <span class="qb-item" [class.bad]="card(key).rejectedPct > 10">
+                {{ card(key).rejectedPct | number:'1.1-1' }}% artefactos
               </span>
             </ng-container>
             <ng-container *ngSwitchCase="'fitbitHrv'">
-              <span class="qb-item">{{ files[key].validWindows }} ventanas</span>
-            </ng-container>
-            <ng-container *ngSwitchCase="'huaweiCombined'">
-              <span class="qb-item">{{ files[key].validWindows }} VFC</span>
+              <span class="qb-item">{{ card(key).validWindows }} ventanas</span>
             </ng-container>
             <ng-container *ngSwitchDefault>
               <span class="qb-item good">Cargado</span>
@@ -351,14 +464,31 @@
         </div>
       </label>
 
-      <input type="file" [id]="'file-' + key" [accept]="files[key].accept"
+      <input type="file" [id]="'file-' + key" [accept]="card(key).accept"
              class="file-input" (change)="onFileSelected($event, key)">
     </div>
+  </ng-template>
 
+  <div class="format-help" *ngIf="activeHrvView === 'upload'">
+    <div>
+      <span class="format-label">Dispositivo HRV</span>
+      <code>timestamp,rmssd</code>
+      <span>RMSSD en ms, una fila por ventana nocturna.</span>
+    </div>
+    <div>
+      <span class="format-label">Dispositivo FC</span>
+      <code>timestamp,bpm</code>
+      <span>FC en bpm, lectura puntual o promedio por intervalo.</span>
+    </div>
+    <div>
+      <span class="format-label">Separadores</span>
+      <code>,</code><code>;</code><code>tab</code>
+      <span>Fechas ISO recomendadas: 2026-07-30T23:45:00.</span>
+    </div>
   </div>
 
   <!-- ── Overlap warning ─────────────────────────────────────────────── -->
-  <div class="overlap-warning" *ngIf="overlapWarning">
+  <div class="overlap-warning" *ngIf="activeHrvView === 'data' && overlapWarning">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
          stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -366,17 +496,17 @@
       <line x1="12" y1="17" x2="12.01" y2="17"/>
     </svg>
     <span>
-      <strong>Sin solapamiento temporal.</strong> Los rangos horarios de Polar y {{ secondaryLabel }} no se cruzan.
+      <strong>Sin solapamiento temporal.</strong> Los rangos horarios de la referencia y {{ secondaryLabel }} no se cruzan.
       Verifica que ambos dispositivos graben la misma noche y que las zonas horarias coincidan.
     </span>
   </div>
 
   <!-- ── Summary stats ───────────────────────────────────────────────── -->
-  <div class="stats-grid" *ngIf="summary && hasData">
+  <div class="stats-grid" *ngIf="activeHrvView === 'data' && summary && hasData">
 
     <!-- RMSSD Polar -->
     <div class="stat-card" *ngIf="summary.polarRmssdMean != null">
-      <div class="stat-eyebrow">RMSSD Polar H10</div>
+      <div class="stat-eyebrow">RMSSD referencia</div>
       <div class="stat-value num">{{ fmt(summary.polarRmssdMean) }}</div>
       <div class="stat-unit">ms</div>
       <div class="stat-sub">± {{ fmt(summary.polarRmssdSd) }} ms (DE)</div>
@@ -403,7 +533,7 @@
       <div class="stat-eyebrow">Correlación (r)</div>
       <div class="stat-value num">{{ fmt(summary.pearsonR, 3) }}</div>
       <div class="stat-unit">Pearson</div>
-      <div class="stat-sub">RMSSD Polar vs {{ secondaryLabel }}</div>
+      <div class="stat-sub">RMSSD referencia vs {{ secondaryLabel }}</div>
     </div>
 
     <!-- MAE RMSSD -->
@@ -426,7 +556,7 @@
 
     <!-- Polar HR -->
     <div class="stat-card" *ngIf="summary.polarHRMean != null">
-      <div class="stat-eyebrow">FC media Polar</div>
+      <div class="stat-eyebrow">FC media referencia</div>
       <div class="stat-value num">{{ fmt(summary.polarHRMean, 0) }}</div>
       <div class="stat-unit">bpm</div>
       <div class="stat-sub">Mín: {{ fmt(summary.polarHRMin, 0) }} bpm</div>
@@ -451,18 +581,18 @@
   </div>
 
   <!-- ── Empty state ─────────────────────────────────────────────────── -->
-  <div class="empty-state" *ngIf="!hasData">
+  <div class="empty-state" *ngIf="activeHrvView === 'data' && !hasData">
     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
          stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" style="opacity:.28">
       <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
     </svg>
     <h3>Carga al menos un fichero para empezar</h3>
-    <p>Con solo Polar RR verás la evolución de RMSSD y FC nocturna.<br>
-       Carga también los datos de tu reloj óptico (Fitbit o Huawei) para la comparación completa.</p>
+    <p>Con solo RR de referencia verás la evolución de RMSSD y FC nocturna.<br>
+       Carga también HRV y FC del dispositivo para la comparación completa.</p>
   </div>
 
   <!-- ── Charts area ─────────────────────────────────────────────────── -->
-  <div class="charts-area" *ngIf="hasData">
+  <div class="charts-area" *ngIf="activeHrvView === 'data' && hasData">
 
     <div class="charts-toolbar">
       <span class="toolbar-hint">
@@ -546,7 +676,7 @@
       <ng-template #noChart3>
         <div class="chart-card chart-placeholder">
           <div class="chart-title" style="margin-bottom:8px">Error RMSSD a lo largo de la noche</div>
-          <p class="placeholder-hint">Necesita datos de Polar RR y {{ secondaryLabel }} HRV</p>
+          <p class="placeholder-hint">Necesita datos RR de referencia y HRV de {{ secondaryLabel }}</p>
         </div>
       </ng-template>
 
@@ -571,7 +701,7 @@
       <ng-template #noChart4>
         <div class="chart-card chart-placeholder">
           <div class="chart-title" style="margin-bottom:8px">Bland-Altman · RMSSD</div>
-          <p class="placeholder-hint">Necesita al menos 3 ventanas de Polar RR y {{ secondaryLabel }} HRV solapadas</p>
+          <p class="placeholder-hint">Necesita al menos 3 ventanas de referencia y {{ secondaryLabel }} solapadas</p>
         </div>
       </ng-template>
 
@@ -583,7 +713,7 @@
       <!-- Chart 5 — RMSSD correlation -->
       <div class="chart-card" *ngIf="hasChart5; else noChart5">
         <div class="chart-header">
-          <div class="chart-title">Correlación RMSSD · Polar vs {{ secondaryLabel }}</div>
+          <div class="chart-title">Correlación RMSSD · referencia vs {{ secondaryLabel }}</div>
           <div class="chart-header-right">
             <div class="chart-sub" *ngIf="summary?.pearsonR != null">
               r = {{ fmt(summary!.pearsonR, 3) }}
@@ -599,15 +729,15 @@
       </div>
       <ng-template #noChart5>
         <div class="chart-card chart-placeholder">
-          <div class="chart-title" style="margin-bottom:8px">Correlación RMSSD · Polar vs {{ secondaryLabel }}</div>
-          <p class="placeholder-hint">Necesita datos de Polar RR y {{ secondaryLabel }} HRV</p>
+          <div class="chart-title" style="margin-bottom:8px">Correlación RMSSD · referencia vs {{ secondaryLabel }}</div>
+          <p class="placeholder-hint">Necesita datos RR de referencia y HRV de {{ secondaryLabel }}</p>
         </div>
       </ng-template>
 
       <!-- Chart 6 — HR correlation -->
       <div class="chart-card" *ngIf="hasChart6; else noChart6">
         <div class="chart-header">
-          <div class="chart-title">Correlación FC · Polar vs {{ secondaryLabel }}</div>
+          <div class="chart-title">Correlación FC · referencia vs {{ secondaryLabel }}</div>
           <div class="chart-header-right">
             <div class="chart-sub" *ngIf="summary?.pearsonRHR != null">
               r = {{ fmt(summary!.pearsonRHR, 3) }}
@@ -623,8 +753,8 @@
       </div>
       <ng-template #noChart6>
         <div class="chart-card chart-placeholder">
-          <div class="chart-title" style="margin-bottom:8px">Correlación FC · Polar vs {{ secondaryLabel }}</div>
-          <p class="placeholder-hint">Necesita datos de Polar HR y {{ secondaryLabel }} HR</p>
+          <div class="chart-title" style="margin-bottom:8px">Correlación FC · referencia vs {{ secondaryLabel }}</div>
+          <p class="placeholder-hint">Necesita datos de FC de referencia y de {{ secondaryLabel }}</p>
         </div>
       </ng-template>
 
@@ -633,7 +763,7 @@
   </div>
 
   <!-- ── AI Analysis ────────────────────────────────────────────────────────── -->
-  <div class="hrv-ai-section" *ngIf="currentSessionId && hasData">
+  <div class="hrv-ai-section" *ngIf="activeHrvView === 'data' && currentSessionId && hasData">
 
     <!-- Header -->
     <div class="hrv-ai-header">
