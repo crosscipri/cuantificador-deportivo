@@ -23,51 +23,105 @@
       <span class="section-count">{{ hrvScores.length }} dispositivo{{ hrvScores.length !== 1 ? 's' : '' }}</span>
     </div>
 
-    <div class="section-header compact" *ngIf="hrvItems.length">
+    <div class="section-header compact">
       <div class="section-inner">
-        <span class="section-num">HRV</span>
-        <h2>Ranking HRV global</h2>
-        <span class="section-sub">Puntuación VFC nocturna guardada · 0–100 · de peor a mejor</span>
+        <span class="section-num">{{ hrvMetric === 'hrv' ? 'HRV' : 'FC' }}</span>
+        <h2>{{ activeHrvTitle }}</h2>
+        <span class="section-sub">{{ activeHrvSubtitle }}</span>
       </div>
       <div class="divider"></div>
-      <button class="chart-download-btn" (click)="exportHrvChart('hrv')" title="Descargar PNG">
+    </div>
+
+    <div class="hrv-control-row">
+      <div class="sport-selector hrv-metric-selector">
+        <button class="sport-pill" [class.active]="hrvMetric === 'hrv'"
+                [disabled]="!hrvItems.length"
+                (click)="setHrvMetric('hrv')">
+          HRV
+        </button>
+        <button class="sport-pill" [class.active]="hrvMetric === 'restHr'"
+                [disabled]="!restHrItems.length"
+                (click)="setHrvMetric('restHr')">
+          FC reposo
+        </button>
+      </div>
+
+      <span class="row-spacer"></span>
+
+      <div>
+        <span class="legend-chip good"><span class="dot"></span>≥ 95</span>
+        <span class="legend-chip warn"><span class="dot"></span>≥ 90</span>
+        <span class="legend-chip orange"><span class="dot"></span>≥ 80</span>
+        <span class="legend-chip bad"><span class="dot"></span>&lt; 80</span>
+        <span class="legend-sep">·</span>
+        <span class="legend-note">● puntuación</span>
+      </div>
+    </div>
+
+    <div class="device-filter hrv-device-filter" *ngIf="activeHrvItems.length > 1">
+      <span class="device-filter-label">Dispositivos</span>
+      <button *ngFor="let item of activeHrvItems" class="device-pill"
+              [class.hidden]="isHrvHidden(item.entry.device_id)"
+              (click)="toggleHrvDevice(item.entry.device_id)"
+              [title]="isHrvHidden(item.entry.device_id) ? 'Mostrar' : 'Ocultar'">
+        <span class="device-pill-dot" [style.background]="item.color"></span>
+        {{ item.entry.name }}
+      </button>
+      <button class="device-pill-reset" *ngIf="hiddenHrvDeviceIds.size > 0"
+              (click)="hiddenHrvDeviceIds.clear()">
+        Mostrar todos
+      </button>
+    </div>
+
+    <div class="viz-switcher hrv-viz-switcher">
+      <button [class.active]="hrvViz === 'lollipop'" (click)="hrvViz = 'lollipop'" title="Lollipop">
+        <mat-icon class="viz-icon">show_chart</mat-icon>
+      </button>
+      <button [class.active]="hrvViz === 'bars'" (click)="hrvViz = 'bars'" title="Barras">
+        <mat-icon class="viz-icon">bar_chart</mat-icon>
+      </button>
+      <button [class.active]="hrvViz === 'table'" (click)="hrvViz = 'table'" title="Tabla">
+        <mat-icon class="viz-icon">table_chart</mat-icon>
+      </button>
+      <span class="viz-sep"></span>
+      <button class="viz-export-btn" (click)="exportHrvChart(hrvMetric)" title="Descargar PNG">
         <mat-icon class="viz-icon">download</mat-icon>
       </button>
     </div>
 
-    <div class="chart-card hrv-ranking-card" *ngIf="hrvItems.length">
-      <div class="svg-wrap">
-        <svg [attr.viewBox]="'0 0 ' + SW + ' ' + hrvSvgHeight" [attr.height]="hrvSvgHeight" width="100%"
+    <div class="chart-card hrv-ranking-card">
+      <div class="svg-wrap" *ngIf="hrvViz === 'lollipop'">
+        <svg [attr.viewBox]="'0 0 ' + SW + ' ' + activeHrvSvgHeight" [attr.height]="activeHrvSvgHeight" width="100%"
              xmlns="http://www.w3.org/2000/svg">
           <g class="ref-lines">
             <ng-container *ngFor="let ref of hrvRefLines">
               <line [attr.x1]="ML + hrvTickPx(ref.v)" [attr.y1]="MT"
-                    [attr.x2]="ML + hrvTickPx(ref.v)" [attr.y2]="hrvSvgHeight - MB"
+                    [attr.x2]="ML + hrvTickPx(ref.v)" [attr.y2]="activeHrvSvgHeight - MB"
                     class="ref-line" />
               <text [attr.x]="ML + hrvTickPx(ref.v)" [attr.y]="MT - 8"
                     class="ref-label" text-anchor="middle">{{ ref.label }}</text>
             </ng-container>
           </g>
 
-          <line [attr.x1]="ML" [attr.y1]="hrvSvgHeight - MB"
-                [attr.x2]="ML + hrvChartW" [attr.y2]="hrvSvgHeight - MB"
+          <line [attr.x1]="ML" [attr.y1]="activeHrvSvgHeight - MB"
+                [attr.x2]="ML + hrvChartW" [attr.y2]="activeHrvSvgHeight - MB"
                 class="axis-line" />
 
           <g class="x-ticks">
             <ng-container *ngFor="let tick of hrvTicks">
-              <line [attr.x1]="ML + hrvTickPx(tick)" [attr.y1]="hrvSvgHeight - MB"
-                    [attr.x2]="ML + hrvTickPx(tick)" [attr.y2]="hrvSvgHeight - MB + 5"
+              <line [attr.x1]="ML + hrvTickPx(tick)" [attr.y1]="activeHrvSvgHeight - MB"
+                    [attr.x2]="ML + hrvTickPx(tick)" [attr.y2]="activeHrvSvgHeight - MB + 5"
                     class="tick-line" />
-              <text [attr.x]="ML + hrvTickPx(tick)" [attr.y]="hrvSvgHeight - MB + 17"
+              <text [attr.x]="ML + hrvTickPx(tick)" [attr.y]="activeHrvSvgHeight - MB + 17"
                     class="tick-label" text-anchor="middle">{{ tick }}</text>
             </ng-container>
           </g>
 
-          <text [attr.x]="ML + hrvChartW / 2" [attr.y]="hrvSvgHeight - 8"
-                class="axis-label" text-anchor="middle">Puntuación HRV global · 0–100</text>
+          <text [attr.x]="ML + hrvChartW / 2" [attr.y]="activeHrvSvgHeight - 8"
+                class="axis-label" text-anchor="middle">{{ activeHrvAxisLabel }}</text>
 
           <g class="lollipops">
-            <g *ngFor="let item of hrvItems" class="lollipop-row">
+            <g *ngFor="let item of activeHrvItemsVisible" class="lollipop-row">
               <text [attr.x]="ML - 14" [attr.y]="item.cy - 5"
                     class="device-name" text-anchor="end">{{ item.entry.name }}</text>
               <text [attr.x]="ML - 14" [attr.y]="item.cy + 11"
@@ -87,71 +141,48 @@
           </g>
         </svg>
       </div>
-    </div>
 
-    <div class="section-header compact" *ngIf="restHrItems.length">
-      <div class="section-inner">
-        <span class="section-num">FC</span>
-        <h2>Ranking FC reposo global</h2>
-        <span class="section-sub">Puntuación FC reposo guardada · 0–100 · de peor a mejor</span>
+      <div class="bars-view" *ngIf="hrvViz === 'bars'">
+        <div *ngFor="let item of activeHrvItemsBestFirst" class="bar-row">
+          <div class="bar-name">
+            <div class="bar-device">{{ item.entry.name }}</div>
+            <div class="bar-device-sub">{{ item.entry.n_sessions }} sesión{{ item.entry.n_sessions !== 1 ? 'es' : '' }}</div>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" [style.width.%]="item.score ?? 0" [style.background]="item.color"></div>
+            <div class="bar-refline" style="left:80%"></div>
+            <div class="bar-refline" style="left:90%"></div>
+            <div class="bar-refline" style="left:95%"></div>
+          </div>
+          <div class="bar-val" [style.color]="item.color">{{ scoreLabel(item.score) }}</div>
+        </div>
       </div>
-      <div class="divider"></div>
-      <button class="chart-download-btn" (click)="exportHrvChart('restHr')" title="Descargar PNG">
-        <mat-icon class="viz-icon">download</mat-icon>
-      </button>
-    </div>
 
-    <div class="chart-card hrv-ranking-card" *ngIf="restHrItems.length">
-      <div class="svg-wrap">
-        <svg [attr.viewBox]="'0 0 ' + SW + ' ' + restHrSvgHeight" [attr.height]="restHrSvgHeight" width="100%"
-             xmlns="http://www.w3.org/2000/svg">
-          <g class="ref-lines">
-            <ng-container *ngFor="let ref of hrvRefLines">
-              <line [attr.x1]="ML + hrvTickPx(ref.v)" [attr.y1]="MT"
-                    [attr.x2]="ML + hrvTickPx(ref.v)" [attr.y2]="restHrSvgHeight - MB"
-                    class="ref-line" />
-              <text [attr.x]="ML + hrvTickPx(ref.v)" [attr.y]="MT - 8"
-                    class="ref-label" text-anchor="middle">{{ ref.label }}</text>
-            </ng-container>
-          </g>
-
-          <line [attr.x1]="ML" [attr.y1]="restHrSvgHeight - MB"
-                [attr.x2]="ML + hrvChartW" [attr.y2]="restHrSvgHeight - MB"
-                class="axis-line" />
-
-          <g class="x-ticks">
-            <ng-container *ngFor="let tick of hrvTicks">
-              <line [attr.x1]="ML + hrvTickPx(tick)" [attr.y1]="restHrSvgHeight - MB"
-                    [attr.x2]="ML + hrvTickPx(tick)" [attr.y2]="restHrSvgHeight - MB + 5"
-                    class="tick-line" />
-              <text [attr.x]="ML + hrvTickPx(tick)" [attr.y]="restHrSvgHeight - MB + 17"
-                    class="tick-label" text-anchor="middle">{{ tick }}</text>
-            </ng-container>
-          </g>
-
-          <text [attr.x]="ML + hrvChartW / 2" [attr.y]="restHrSvgHeight - 8"
-                class="axis-label" text-anchor="middle">Puntuación FC reposo global · 0–100</text>
-
-          <g class="lollipops">
-            <g *ngFor="let item of restHrItems" class="lollipop-row">
-              <text [attr.x]="ML - 14" [attr.y]="item.cy - 5"
-                    class="device-name" text-anchor="end">{{ item.entry.name }}</text>
-              <text [attr.x]="ML - 14" [attr.y]="item.cy + 11"
-                    class="lag-label" text-anchor="end">{{ item.entry.n_sessions }} sesión{{ item.entry.n_sessions !== 1 ? 'es' : '' }}</text>
-
-              <line [attr.x1]="ML" [attr.y1]="item.cy"
-                    [attr.x2]="ML + hrvChartW" [attr.y2]="item.cy"
-                    class="track-line" />
-              <line [attr.x1]="ML" [attr.y1]="item.cy"
-                    [attr.x2]="ML + item.cx" [attr.y2]="item.cy"
-                    [attr.stroke]="item.color" class="stem-line" />
-              <circle [attr.cx]="ML + item.cx" [attr.cy]="item.cy"
-                      r="6" [attr.fill]="item.color" class="dot-circle" />
-              <text [attr.x]="ML + item.labelX" [attr.y]="item.cy + 4"
-                    [attr.fill]="item.color" class="r-label">{{ scoreLabel(item.score) }}</text>
-            </g>
-          </g>
-        </svg>
+      <div class="table-view" *ngIf="hrvViz === 'table'">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Dispositivo</th>
+              <th>Métrica</th>
+              <th>Puntuación</th>
+              <th>Ses.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of activeHrvItemsBestFirst; let i = index">
+              <td class="num col-rank">{{ i + 1 }}</td>
+              <td class="col-name">{{ item.entry.name }}</td>
+              <td class="col-ref">{{ hrvMetric === 'hrv' ? 'HRV' : 'FC reposo' }}</td>
+              <td>
+                <span class="q-badge" [ngClass]="scoreQuality(item.score)">
+                  {{ scoreLabel(item.score) }}
+                </span>
+              </td>
+              <td class="num col-n">{{ item.entry.n_sessions }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </section>

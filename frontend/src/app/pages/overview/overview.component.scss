@@ -151,6 +151,27 @@
   margin-bottom: 20px;
 }
 
+.hrv-control-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.hrv-metric-selector {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.hrv-device-filter {
+  margin-top: 4px;
+}
+
+.hrv-viz-switcher {
+  width: fit-content;
+  margin: 0 0 10px auto;
+}
+
 .chart-download-btn {
   appearance: none;
   border: 1px solid var(--line);

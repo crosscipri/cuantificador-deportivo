@@ -65,6 +65,8 @@ export interface HrvLollipopItem {
 }
 
 export type VizMode = 'lollipop' | 'bars' | 'radar' | 'table';
+export type HrvMetric = 'hrv' | 'restHr';
+export type HrvVizMode = 'lollipop' | 'bars' | 'table';
 
 // ── SVG layout constants (design spec: rowH=56, ML=220, MR=90, W=1080) ────
 const ML =  220; // margin left  (device name area)
@@ -140,6 +142,9 @@ export class OverviewComponent implements OnInit {
   hrvSvgHeight = 0;
   restHrSvgHeight = 0;
   hrvChartW = SW - ML - MR;
+  hrvMetric: HrvMetric = 'hrv';
+  hrvViz: HrvVizMode = 'lollipop';
+  hiddenHrvDeviceIds = new Set<string>();
 
 
   // Expose layout to template
@@ -204,6 +209,7 @@ export class OverviewComponent implements OnInit {
 
   private _buildHrv(entries: HrvOverviewEntry[]): void {
     this.hrvScores = entries;
+    this.hiddenHrvDeviceIds.clear();
     this.hrvItems = this._buildHrvMetric(entries, 'hrv_score');
     this.restHrItems = this._buildHrvMetric(entries, 'hr_score');
     this.hrvSvgHeight = this.hrvItems.length * RH + MT + MB;
@@ -258,6 +264,57 @@ export class OverviewComponent implements OnInit {
     { v: 90, label: '90' },
     { v: 95, label: '95' },
   ];
+
+  setHrvMetric(metric: HrvMetric): void {
+    this.hrvMetric = metric;
+    if (!this.activeHrvItems.length) {
+      this.hrvViz = 'lollipop';
+    }
+  }
+
+  toggleHrvDevice(id: string): void {
+    if (this.hiddenHrvDeviceIds.has(id)) {
+      this.hiddenHrvDeviceIds.delete(id);
+    } else {
+      this.hiddenHrvDeviceIds.add(id);
+    }
+  }
+
+  isHrvHidden(id: string): boolean { return this.hiddenHrvDeviceIds.has(id); }
+
+  get activeHrvItems(): HrvLollipopItem[] {
+    return this.hrvMetric === 'hrv' ? this.hrvItems : this.restHrItems;
+  }
+
+  get activeHrvItemsVisible(): HrvLollipopItem[] {
+    return this.activeHrvItems
+      .filter(item => !this.hiddenHrvDeviceIds.has(item.entry.device_id))
+      .map((item, i) => ({ ...item, cy: MT + i * RH + RH / 2 }));
+  }
+
+  get activeHrvItemsBestFirst(): HrvLollipopItem[] {
+    return [...this.activeHrvItemsVisible].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  }
+
+  get activeHrvSvgHeight(): number {
+    return this.activeHrvItemsVisible.length * RH + MT + MB;
+  }
+
+  get activeHrvTitle(): string {
+    return this.hrvMetric === 'hrv' ? 'Ranking HRV global' : 'Ranking FC reposo global';
+  }
+
+  get activeHrvSubtitle(): string {
+    return this.hrvMetric === 'hrv'
+      ? 'Puntuación VFC nocturna guardada · 0–100 · de peor a mejor'
+      : 'Puntuación FC reposo guardada · 0–100 · de peor a mejor';
+  }
+
+  get activeHrvAxisLabel(): string {
+    return this.hrvMetric === 'hrv'
+      ? 'Puntuación HRV global · 0–100'
+      : 'Puntuación FC reposo global · 0–100';
+  }
 
   private _gpsColor(v: number): string {
     if (v >= 85) return 'var(--good)';
@@ -324,7 +381,10 @@ export class OverviewComponent implements OnInit {
   // ── Export ───────────────────────────────────────────────────────
 
   exportHrvChart(metric: 'hrv' | 'restHr'): void {
-    const items = metric === 'hrv' ? this.hrvItems : this.restHrItems;
+    const baseItems = metric === 'hrv' ? this.hrvItems : this.restHrItems;
+    const items = baseItems
+      .filter(item => !this.hiddenHrvDeviceIds.has(item.entry.device_id))
+      .map((item, i) => ({ ...item, cy: MT + i * RH + RH / 2 }));
     if (!items.length) return;
 
     const isHrv = metric === 'hrv';
