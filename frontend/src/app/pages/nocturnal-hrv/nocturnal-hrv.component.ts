@@ -174,6 +174,12 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     return this.files[key as FileKey];
   }
 
+  uploadCardLabel(key: FileKey | string): string {
+    if (key === 'fitbitHrv') return `${this.secondaryLabel} — RMSSD`;
+    if (key === 'fitbitHR') return `${this.secondaryLabel} — FC`;
+    return this.card(key).label;
+  }
+
   // ── Parsed raw data ────────────────────────────────────────────────────────
   private rawRR:         RawRR[]        = [];
   private cleanRR:       RawRR[]        = [];
@@ -231,14 +237,19 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       this.api.getDevice(this.deviceId).subscribe({
         next: d => {
           this.device = d;
-          this.refreshDeviceAxisLabels();
-          // Charts built before the device name arrived need an explicit
-          // redraw — mutating .scales.*.title.text doesn't change the bound
-          // options object's identity, so ng2-charts won't pick it up on its own.
-          for (const ref of [this.c3Ref, this.c4Ref, this.c5Ref, this.c6Ref,
-                              this.gcRmssdRef, this.gcBlandRef, this.gcHrRef,
-                              this.gcHrvOverviewRef, this.gcRestHrRef]) {
-            ref?.chart?.update();
+          if (this.hasData) {
+            this.buildCharts();
+            this.buildGcSessionSummaries();
+          } else {
+            this.refreshDeviceAxisLabels();
+            // Charts built before the device name arrived need an explicit
+            // redraw — mutating .scales.*.title.text doesn't change the bound
+            // options object's identity, so ng2-charts won't pick it up on its own.
+            for (const ref of [this.c3Ref, this.c4Ref, this.c5Ref, this.c6Ref,
+                                this.gcRmssdRef, this.gcBlandRef, this.gcHrRef,
+                                this.gcHrvOverviewRef, this.gcRestHrRef]) {
+              ref?.chart?.update();
+            }
           }
           this.cdRef.markForCheck();
         },
@@ -1313,7 +1324,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       datasets: [
         {
           type: 'scatter',
-          label: 'Ventana 5 min',
+          label: `RMSSD ${this.secondaryLabel}`,
           data: pairs.map(p => ({ x: p.polar, y: p.fitbit })),
           backgroundColor: 'rgba(99,102,241,0.55)', borderColor: 'transparent',
           pointRadius: 5, pointHoverRadius: 7,
@@ -1355,7 +1366,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       datasets: [
         {
           type: 'scatter',
-          label: 'Ventana 5 min',
+          label: `FC ${this.secondaryLabel}`,
           data: pairs.map(p => ({ x: p.polar, y: p.fitbit })),
           backgroundColor: 'rgba(34,197,94,0.55)', borderColor: 'transparent',
           pointRadius: 5, pointHoverRadius: 7,

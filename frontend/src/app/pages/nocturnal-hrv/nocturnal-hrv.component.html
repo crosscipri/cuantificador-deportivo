@@ -437,7 +437,7 @@
         </div>
 
         <div class="upload-text">
-          <div class="upload-title">{{ card(key).label }}</div>
+          <div class="upload-title">{{ uploadCardLabel(key) }}</div>
           <div class="upload-sub" *ngIf="!card(key).loaded && !card(key).error">
             {{ card(key).sublabel }}<br>
             <span style="opacity:.6">Arrastra aquí o haz clic</span>
