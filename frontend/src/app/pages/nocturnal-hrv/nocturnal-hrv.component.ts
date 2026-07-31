@@ -1761,8 +1761,16 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   }
 
   private parseTs(s: string | undefined): Date {
+    const raw = (s ?? '').trim();
+    if (/^\d+(?:\.\d+)?$/.test(raw)) {
+      const n = Number(raw);
+      if (isFinite(n)) {
+        // Unix epoch: 10 digits = seconds, 13 digits = milliseconds.
+        return new Date(n < 1e12 ? n * 1000 : n);
+      }
+    }
     // Handles ISO with Z (UTC) or without Z (local)
-    return new Date((s ?? '').trim());
+    return new Date(raw);
   }
 
   private hhMM(d: Date): string {
