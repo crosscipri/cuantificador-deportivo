@@ -5,6 +5,7 @@ Receives FIT/TCX/GPX file bytes, returns metrics, zones, charts (base64 PNG).
 
 import io
 import base64
+import re
 import matplotlib
 matplotlib.use("Agg")  # non-interactive backend — must be before pyplot import
 
@@ -116,30 +117,105 @@ def _read_tcx(data: bytes) -> pd.Series:
     return _records_to_series(records)
 
 
-def _read_gpx(data: bytes) -> pd.Series:
-    """Parse GPX with heart rate in Garmin TrackPointExtension."""
+def _xml_local_name(tag: str) -> str:
+    """Return a lowercase XML tag name without its namespace or prefix."""
+    if not isinstance(tag, str):
+        return ""
+    return tag.rsplit("}", 1)[-1].rsplit(":", 1)[-1].lower()
+
+
+def _parse_gpx_xml(data: bytes):
+    """Parse GPX XML, repairing exporter files with undeclared prefixes."""
     import xml.etree.ElementTree as ET
-    root = ET.fromstring(data)
-    GPX_NS  = "http://www.topografix.com/GPX/1/1"
-    EXT_NS1 = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
-    EXT_NS2 = "http://www.garmin.com/xmlschemas/TrackPointExtension/v2"
+
+    try:
+        return ET.fromstring(data)
+    except ET.ParseError as exc:
+        if "unbound prefix" not in str(exc).lower():
+            raise ValueError(f"El archivo GPX no contiene XML válido: {exc}") from exc
+
+    # Some watch exporters emit tags such as <gpxtpx:hr> but forget the
+    # corresponding xmlns:gpxtpx declaration. Add inert namespace declarations
+    # only for the missing prefixes, then let ElementTree parse normally.
+    declared = set(re.findall(
+        rb"\bxmlns:([A-Za-z_][A-Za-z0-9_.-]*)\s*=", data
+    ))
+    element_prefixes = set(re.findall(
+        rb"</?([A-Za-z_][A-Za-z0-9_.-]*):[A-Za-z_][A-Za-z0-9_.-]*\b",
+        data,
+    ))
+    attribute_prefixes = set(re.findall(
+        rb"\s([A-Za-z_][A-Za-z0-9_.-]*):[A-Za-z_][A-Za-z0-9_.-]*\s*=",
+        data,
+    ))
+    missing = sorted(
+        (element_prefixes | attribute_prefixes)
+        - declared
+        - {b"xml", b"xmlns"}
+    )
+    root_tag = re.search(
+        rb"<(?:[A-Za-z_][A-Za-z0-9_.-]*:)?gpx\b", data, re.IGNORECASE
+    )
+    if not missing or root_tag is None:
+        raise ValueError("El archivo GPX usa prefijos XML sin declarar.")
+
+    declarations = b"".join(
+        b' xmlns:' + prefix + b'="urn:gpx-recovered:' + prefix + b'"'
+        for prefix in missing
+    )
+    repaired = data[:root_tag.end()] + declarations + data[root_tag.end():]
+    try:
+        return ET.fromstring(repaired)
+    except ET.ParseError as exc:
+        raise ValueError(f"El archivo GPX no contiene XML válido: {exc}") from exc
+
+
+def _read_gpx(data: bytes) -> pd.Series:
+    """Parse heart rate from standard and exporter-specific GPX extensions."""
+    root = _parse_gpx_xml(data)
 
     records = []
-    for trkpt in root.iter(f"{{{GPX_NS}}}trkpt"):
-        time_el = trkpt.find(f"{{{GPX_NS}}}time")
-        if time_el is None:
+    for point in root.iter():
+        if _xml_local_name(point.tag) not in {"trkpt", "rtept"}:
             continue
-        hr = None
-        for ns in (EXT_NS1, EXT_NS2):
-            hr_el = trkpt.find(f".//{{{ns}}}hr")
-            if hr_el is not None:
-                try:
-                    hr = float(hr_el.text.strip())
-                except (ValueError, AttributeError):
-                    pass
+
+        time_text = None
+        for element in point.iter():
+            if _xml_local_name(element.tag) == "time" and element.text:
+                time_text = element.text.strip()
                 break
+        if not time_text:
+            continue
+
+        hr = None
+        for element in point.iter():
+            local_name = _xml_local_name(element.tag)
+            if local_name not in {
+                "hr", "heartrate", "heart_rate", "heart-rate", "bpm",
+                "heartratebpm", "heart_rate_bpm",
+            }:
+                continue
+
+            values = [element.text]
+            if local_name in {"heartratebpm", "heart_rate_bpm"}:
+                values.extend(
+                    child.text
+                    for child in element.iter()
+                    if _xml_local_name(child.tag) in {"value", "bpm"}
+                )
+            for value in values:
+                if not value:
+                    continue
+                try:
+                    hr = float(value.strip())
+                except (ValueError, AttributeError):
+                    continue
+                break
+            if hr is not None:
+                break
+
         if hr is not None:
-            records.append({"time": time_el.text.strip(), "hr": hr})
+            records.append({"time": time_text, "hr": hr})
     return _records_to_series(records)
 
 
