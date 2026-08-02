@@ -92,36 +92,63 @@ def _read_fit(data: bytes) -> pd.Series:
     return _records_to_series(records)
 
 
-def _read_tcx(data: bytes) -> pd.Series:
-    """Parse TCX (Training Center XML). Handles Garmin namespaces."""
-    import xml.etree.ElementTree as ET
-    root = ET.fromstring(data)
-    NS = "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
-
-    def tag(name):
-        return f"{{{NS}}}{name}"
-
-    records = []
-    for tp in root.iter(tag("Trackpoint")):
-        time_el   = tp.find(tag("Time"))
-        hr_parent = tp.find(tag("HeartRateBpm"))
-        if time_el is None or hr_parent is None:
-            continue
-        hr_val_el = hr_parent.find(tag("Value"))
-        if hr_val_el is not None:
-            try:
-                records.append({"time": time_el.text.strip(),
-                                 "hr":   float(hr_val_el.text.strip())})
-            except (ValueError, AttributeError):
-                continue
-    return _records_to_series(records)
-
-
 def _xml_local_name(tag: str) -> str:
     """Return a lowercase XML tag name without its namespace or prefix."""
     if not isinstance(tag, str):
         return ""
     return tag.rsplit("}", 1)[-1].rsplit(":", 1)[-1].lower()
+
+
+def _read_tcx(data: bytes) -> pd.Series:
+    """Parse namespaced Garmin TCX and namespace-free watch exports."""
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(data)
+    except ET.ParseError as exc:
+        raise ValueError(f"El archivo TCX no contiene XML válido: {exc}") from exc
+
+    records = []
+    for trackpoint in root.iter():
+        if _xml_local_name(trackpoint.tag) != "trackpoint":
+            continue
+
+        time_text = None
+        for element in trackpoint.iter():
+            if _xml_local_name(element.tag) == "time" and element.text:
+                time_text = element.text.strip()
+                break
+        if not time_text:
+            continue
+
+        hr = None
+        for element in trackpoint.iter():
+            local_name = _xml_local_name(element.tag)
+            if local_name not in {
+                "heartratebpm", "heart_rate_bpm", "heartrate",
+                "heart_rate", "heart-rate", "hr", "bpm",
+            }:
+                continue
+
+            values = [element.text]
+            values.extend(
+                child.text
+                for child in element.iter()
+                if _xml_local_name(child.tag) in {"value", "bpm"}
+            )
+            for value in values:
+                if not value:
+                    continue
+                try:
+                    hr = float(value.strip())
+                except (ValueError, AttributeError):
+                    continue
+                break
+            if hr is not None:
+                break
+
+        if hr is not None:
+            records.append({"time": time_text, "hr": hr})
+    return _records_to_series(records)
 
 
 def _parse_gpx_xml(data: bytes):
