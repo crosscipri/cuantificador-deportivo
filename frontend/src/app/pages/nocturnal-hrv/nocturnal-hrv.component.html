@@ -58,60 +58,6 @@
     </button>
   </div>
 
-  <!-- ── Saved sessions ─────────────────────────────────────────────── -->
-  <div class="session-navigator" *ngIf="activeHrvView === 'data' && deviceId && (savedSessions.length > 0 || loadingSessions)">
-    <div class="session-nav-main">
-      <div class="session-nav-label">
-        <span>Sesión</span>
-        <span class="saved-count" *ngIf="!loadingSessions">{{ savedSessions.length }}</span>
-        <div class="spinner-xs" *ngIf="loadingSessions"></div>
-      </div>
-
-      <div class="session-nav-controls">
-        <button class="session-step-btn" type="button"
-                (click)="loadAdjacentSession(-1)"
-                [disabled]="selectedSessionIndex <= 0"
-                title="Sesión anterior">
-          ‹
-        </button>
-
-        <select class="session-select"
-                [ngModel]="currentSessionId"
-                (ngModelChange)="onSessionSelectorChange($event)">
-          <option [ngValue]="null" disabled>Selecciona una sesión</option>
-          <option *ngFor="let s of savedSessions" [ngValue]="s.id">
-            {{ s.session_name }} · {{ s.created_at | date:'dd/MM/yy HH:mm' }}
-          </option>
-        </select>
-
-        <button class="session-step-btn" type="button"
-                (click)="loadAdjacentSession(1)"
-                [disabled]="selectedSessionIndex < 0 || selectedSessionIndex >= savedSessions.length - 1"
-                title="Sesión siguiente">
-          ›
-        </button>
-      </div>
-
-      <div class="session-nav-meta" *ngIf="selectedSession as s">
-        <span>{{ s.created_at | date:'dd/MM/yyyy HH:mm' }}</span>
-        <span *ngIf="s.summary?.pearsonR != null">r RMSSD {{ fmt(s.summary!.pearsonR, 3) }}</span>
-        <span *ngIf="s.summary?.hrMAE != null">MAE FC {{ fmt(s.summary!.hrMAE, 1) }} bpm</span>
-      </div>
-    </div>
-
-    <div class="session-nav-actions">
-      <button class="ec-btn sm" type="button" (click)="startNewMeasurement(true)">
-        Añadir otra
-      </button>
-      <button class="session-delete-action" type="button"
-              *ngIf="currentSessionId"
-              (click)="deleteSession(currentSessionId, $event)"
-              title="Eliminar sesión">
-        Eliminar
-      </button>
-    </div>
-  </div>
-
   <!-- ── Global aggregated charts ─────────────────────────────────── -->
   <div class="global-section" *ngIf="activeHrvView === 'data' && (savedSessions.length > 0 || (globalData && globalData.n_sessions > 0))">
 
@@ -123,6 +69,60 @@
       <div class="global-meta">
         <span>{{ globalData?.n_sessions || savedSessions.length }} sesiones</span>
         <span *ngIf="globalData?.rmssd?.stats as rmssdStats">· {{ rmssdStats.n }} ventanas RMSSD</span>
+      </div>
+    </div>
+
+    <!-- ── Saved sessions ───────────────────────────────────────────── -->
+    <div class="session-navigator" *ngIf="deviceId && (savedSessions.length > 0 || loadingSessions)">
+      <div class="session-nav-main">
+        <div class="session-nav-label">
+          <span>Sesión</span>
+          <span class="saved-count" *ngIf="!loadingSessions">{{ savedSessions.length }}</span>
+          <div class="spinner-xs" *ngIf="loadingSessions"></div>
+        </div>
+
+        <div class="session-nav-controls">
+          <button class="session-step-btn" type="button"
+                  (click)="loadAdjacentSession(-1)"
+                  [disabled]="selectedSessionIndex <= 0"
+                  title="Sesión anterior">
+            ‹
+          </button>
+
+          <select class="session-select"
+                  [ngModel]="currentSessionId"
+                  (ngModelChange)="onSessionSelectorChange($event)">
+            <option [ngValue]="null" disabled>Selecciona una sesión</option>
+            <option *ngFor="let s of savedSessions" [ngValue]="s.id">
+              {{ s.session_name }} · {{ s.created_at | date:'dd/MM/yy HH:mm' }}
+            </option>
+          </select>
+
+          <button class="session-step-btn" type="button"
+                  (click)="loadAdjacentSession(1)"
+                  [disabled]="selectedSessionIndex < 0 || selectedSessionIndex >= savedSessions.length - 1"
+                  title="Sesión siguiente">
+            ›
+          </button>
+        </div>
+
+        <div class="session-nav-meta" *ngIf="selectedSession as s">
+          <span>{{ s.created_at | date:'dd/MM/yyyy HH:mm' }}</span>
+          <span *ngIf="s.summary?.pearsonR != null">r RMSSD {{ fmt(s.summary!.pearsonR, 3) }}</span>
+          <span *ngIf="s.summary?.hrMAE != null">MAE FC {{ fmt(s.summary!.hrMAE, 1) }} bpm</span>
+        </div>
+      </div>
+
+      <div class="session-nav-actions">
+        <button class="ec-btn sm" type="button" (click)="startNewMeasurement(true)">
+          Añadir otra
+        </button>
+        <button class="session-delete-action" type="button"
+                *ngIf="currentSessionId"
+                (click)="deleteSession(currentSessionId, $event)"
+                title="Eliminar sesión">
+          Eliminar
+        </button>
       </div>
     </div>
 
