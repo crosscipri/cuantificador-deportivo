@@ -47,7 +47,7 @@
   <div class="hrv-view-switch" role="tablist" aria-label="Secciones HRV Nocturno">
     <button class="hrv-view-btn" type="button"
             [class.active]="activeHrvView === 'upload'"
-            (click)="activeHrvView = 'upload'">
+            (click)="startNewMeasurement()">
       Añadir medición
     </button>
     <button class="hrv-view-btn" type="button"
@@ -100,7 +100,7 @@
     </div>
 
     <div class="session-nav-actions">
-      <button class="ec-btn sm" type="button" (click)="activeHrvView = 'upload'">
+      <button class="ec-btn sm" type="button" (click)="startNewMeasurement(true)">
         Añadir otra
       </button>
       <button class="session-delete-action" type="button"
@@ -406,6 +406,13 @@
         <ng-container *ngTemplateOutlet="uploadCards; context: { keys: deviceFileKeys }"></ng-container>
       </div>
     </section>
+  </div>
+
+  <div class="upload-readiness" *ngIf="activeHrvView === 'upload'" role="status" aria-live="polite">
+    <span class="upload-readiness-count">{{ loadedUploadFileCount }} / {{ fileKeys.length }}</span>
+    <span>
+      Ficheros cargados. La medición se generará automáticamente cuando estén los cuatro.
+    </span>
   </div>
 
   <ng-template #uploadCards let-keys="keys">

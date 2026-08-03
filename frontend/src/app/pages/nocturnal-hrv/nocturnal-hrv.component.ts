@@ -174,6 +174,16 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     return this.files[key as FileKey];
   }
 
+  get loadedUploadFileCount(): number {
+    return this.fileKeys.filter(key =>
+      this.files[key].loaded && this.rawFileObjects[key] != null
+    ).length;
+  }
+
+  get allRequiredFilesLoaded(): boolean {
+    return this.loadedUploadFileCount === this.fileKeys.length;
+  }
+
   uploadCardLabel(key: FileKey | string): string {
     if (key === 'fitbitHrv') return `${this.secondaryLabel} — RMSSD`;
     if (key === 'fitbitHR') return `${this.secondaryLabel} — FC`;
@@ -318,6 +328,28 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     if (idx < 0) return;
     const next = this.savedSessions[idx + delta];
     if (next) this.loadSession(next.id);
+  }
+
+  startNewMeasurement(forceReset = false): void {
+    // Keep an unsaved draft when returning from its results to replace a file.
+    // A saved session, however, has no browser File objects, so start clean.
+    if (forceReset || this.currentSessionId) {
+      this.currentSessionId = null;
+      this.sessionName = '';
+      this.windows = [];
+      this.summary = null;
+      this.overlapWarning = false;
+      this.aiAnalysis = null;
+      this.aiError = '';
+      this.rawRR = [];
+      this.cleanRR = [];
+      this.rawHR = [];
+      this.fitbitHrvRows = [];
+      this.fitbitHrRows = [];
+      this.rawFileObjects = {};
+      this.resetFileCards();
+    }
+    this.activeHrvView = 'upload';
   }
 
   loadSession(id: string): void {
@@ -693,7 +725,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   }
 
   saveCurrentSession(): void {
-    if (!this.hasData || !this.deviceId || this.savingSession) return;
+    if (!this.hasData || !this.allRequiredFilesLoaded || !this.deviceId || this.savingSession) return;
     this.savingSession = true;
 
     const fd = new FormData();
@@ -752,6 +784,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     this.currentSessionId = null;
     this.files[fileKey].error = '';
     this.files[fileKey].name  = file.name;
+    this.files[fileKey].loaded = false;
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target!.result as string;
@@ -779,6 +812,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     this.currentSessionId = null;
     this.files[fileKey].error = '';
     this.files[fileKey].name  = file.name;
+    this.files[fileKey].loaded = false;
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target!.result as string;
@@ -915,6 +949,17 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   // ── Processing pipeline ────────────────────────────────────────────────────
 
   processAll(): void {
+    // Do not create a partial measurement or leave the upload tab. Besides the
+    // visual card state, require the actual File objects: saved sessions only
+    // retain filenames and must not count towards a new upload.
+    if (!this.allRequiredFilesLoaded) {
+      this.windows = [];
+      this.summary = null;
+      this.overlapWarning = false;
+      this.activeHrvView = 'upload';
+      return;
+    }
+
     const hasPolarRR   = this.rawRR.length > 0;
     const hasFitbitHrv = this.fitbitHrvRows.length > 0;
     if (!hasPolarRR && !hasFitbitHrv) { this.windows = []; this.summary = null; return; }
