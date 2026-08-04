@@ -478,13 +478,18 @@
 
   <div class="format-help" *ngIf="activeHrvView === 'upload'">
     <div>
+      <span class="format-label">Referencia HR / R-R</span>
+      <code>epoch,value</code>
+      <span>HR en bpm; intervalos R-R en segundos o milisegundos.</span>
+    </div>
+    <div>
       <span class="format-label">Dispositivo RMSSD</span>
-      <code>timestamp,rmssd_ms</code>
+      <code>timestamp,hrv_ms</code><code>timestamp,rmssd_ms</code>
       <span>Valor RMSSD ya calculado en ms, una fila por ventana nocturna.</span>
     </div>
     <div>
       <span class="format-label">Dispositivo FC</span>
-      <code>timestamp,bpm</code>
+      <code>timestamp,heart_rate</code><code>timestamp,bpm</code>
       <span>FC en bpm, lectura puntual o promedio por intervalo.</span>
     </div>
     <div>

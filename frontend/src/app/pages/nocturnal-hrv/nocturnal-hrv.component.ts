@@ -164,10 +164,10 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   readonly deviceFileKeys: FileKey[] = ['fitbitHrv', 'fitbitHR'];
 
   files: Record<FileKey, FileCard> = {
-    polarRR:   { label: 'Referencia — RR',       sublabel: '.txt · timestamp;RR[ms]',           accept: '.txt',      loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
-    polarHR:   { label: 'Referencia — FC',       sublabel: '.txt · timestamp;HR;HRV;Breathing', accept: '.txt',      loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
-    fitbitHrv: { label: 'Dispositivo — RMSSD',   sublabel: '.csv/.txt · timestamp,rmssd_ms',    accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
-    fitbitHR:  { label: 'Dispositivo — FC',      sublabel: '.csv/.txt · timestamp,bpm',         accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    polarRR:   { label: 'Referencia — RR',       sublabel: '.csv/.txt · epoch,value[s] o timestamp;RR[ms]',           accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    polarHR:   { label: 'Referencia — FC',       sublabel: '.csv/.txt · epoch,value[bpm] o timestamp;HR;HRV;Breathing', accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    fitbitHrv: { label: 'Dispositivo — RMSSD',   sublabel: '.csv/.txt · timestamp,hrv_ms o rmssd_ms',      accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    fitbitHR:  { label: 'Dispositivo — FC',      sublabel: '.csv/.txt · timestamp,heart_rate o bpm',       accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
   };
 
   card(key: FileKey | string): FileCard {
@@ -851,18 +851,26 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   private parsePolarRR(text: string): void {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length < 2) throw new Error('Fichero sin datos');
-    const sep = lines[0].includes(';') ? ';' : ',';
+    const sep   = this.detectDelimiter(lines[0]);
+    const cols  = this.parseHeaderColumns(lines[0], sep);
+    const tsIdx = this.findColumn(cols, ['epoch', 'timestamp', 'time', 'datetime', 'date', 'fecha', 'hora'], 0);
+    const rrIdx = this.findColumn(cols, ['rr_ms', 'rr', 'r-r', 'interval', 'intervalo', 'value', 'valor'], 1);
     const raw: RawRR[] = [];
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = cols.length ? 1 : 0; i < lines.length; i++) {
       const p = lines[i].split(sep);
       if (p.length < 2) continue;
-      const ts = this.parseTs(p[0]);
-      const rr = parseFloat(p[1].trim());
-      if (!isFinite(rr) || isNaN(ts.getTime())) continue;
-      if (rr < 300 || rr > 2000) continue;   // physiological bounds: 30–200 bpm
-      raw.push({ ts, rr });
+      const ts    = this.parseTs(p[tsIdx]);
+      const value = this.parseNumber(p[rrIdx]);
+      if (!isFinite(value) || isNaN(ts.getTime())) continue;
+
+      // RR_CsvData exports intervals in seconds (e.g. 0.921875). The legacy
+      // reference format already uses milliseconds, so support both units.
+      const rrMs = value > 0 && value < 10 ? value * 1000 : value;
+      if (rrMs < 300 || rrMs > 2000) continue; // physiological bounds: 30–200 bpm
+      raw.push({ ts, rr: rrMs });
     }
-    if (!raw.length) throw new Error('Sin intervalos RR válidos (300–2000 ms)');
+    if (!raw.length) throw new Error('Sin intervalos RR válidos (0,3–2 s o 300–2000 ms)');
+    raw.sort((a, b) => a.ts.getTime() - b.ts.getTime());
     this.rawRR = raw;
 
     // Ectopic filter: remove beats where |RR - local_median| > threshold
@@ -883,16 +891,21 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   private parsePolarHR(text: string): void {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length < 2) throw new Error('Fichero sin datos');
-    const sep  = lines[0].includes(';') ? ';' : ',';
+    const sep   = this.detectDelimiter(lines[0]);
+    const cols  = this.parseHeaderColumns(lines[0], sep);
+    const tsIdx = this.findColumn(cols, ['epoch', 'timestamp', 'time', 'datetime', 'date', 'fecha', 'hora'], 0);
+    const hrIdx = this.findColumn(cols, ['heart_rate', 'heartrate', 'bpm', 'hr', 'fc', 'value', 'valor'], 1);
+    const hrvIdx = this.findColumn(cols, ['hrv', 'vfc'], 2);
+    const breathingIdx = this.findColumn(cols, ['breathing', 'respiration', 'respiracion'], 3);
     const rows: RawHRRow[] = [];
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = cols.length ? 1 : 0; i < lines.length; i++) {
       const p  = lines[i].split(sep);
       if (p.length < 2) continue;
-      const ts = this.parseTs(p[0]);
-      const hr = parseFloat(p[1].trim());
-      if (!isFinite(hr) || isNaN(ts.getTime())) continue;
-      const hrv = p[2]?.trim() ? parseFloat(p[2].trim().replace(',', '.')) : null;
-      const br  = p[3]?.trim() ? parseFloat(p[3].trim().replace(',', '.')) : null;
+      const ts = this.parseTs(p[tsIdx]);
+      const hr = this.parseNumber(p[hrIdx]);
+      if (!isFinite(hr) || hr < 20 || hr > 250 || isNaN(ts.getTime())) continue;
+      const hrv = p[hrvIdx]?.trim() ? this.parseNumber(p[hrvIdx]) : null;
+      const br  = p[breathingIdx]?.trim() ? this.parseNumber(p[breathingIdx]) : null;
       rows.push({
         ts, hr,
         hrv: hrv != null && !isNaN(hrv) ? hrv : null,
@@ -900,6 +913,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       });
     }
     if (!rows.length) throw new Error('Sin datos de FC válidos');
+    rows.sort((a, b) => a.ts.getTime() - b.ts.getTime());
     this.rawHR = rows;
   }
 
@@ -909,7 +923,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     const sep  = this.detectDelimiter(lines[0]);
     const cols = this.parseHeaderColumns(lines[0], sep);
     const tsIdx = this.findColumn(cols, ['timestamp', 'time', 'datetime', 'date', 'fecha', 'hora'], 0);
-    const valueIdx = this.findColumn(cols, ['rmssd_ms', 'rmssd', 'hrv', 'vfc', 'valor', 'value'], 1);
+    const valueIdx = this.findColumn(cols, ['rmssd_ms', 'hrv_ms', 'rmssd', 'hrv', 'vfc', 'valor', 'value'], 1);
     const rows: DeviceHrvRow[] = [];
     for (let i = cols.length ? 1 : 0; i < lines.length; i++) {
       const p     = lines[i].split(sep);
@@ -920,6 +934,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       rows.push({ ts, rmssd });
     }
     if (!rows.length) throw new Error('Sin datos HRV válidos');
+    rows.sort((a, b) => a.ts.getTime() - b.ts.getTime());
     this.fitbitHrvRows = rows;
     this.files.fitbitHrv.validWindows = rows.length;
     this.secondarySource = 'generic';
@@ -931,17 +946,18 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     const sep  = this.detectDelimiter(lines[0]);
     const cols = this.parseHeaderColumns(lines[0], sep);
     const tsIdx = this.findColumn(cols, ['timestamp', 'time', 'datetime', 'date', 'fecha', 'hora'], 0);
-    const valueIdx = this.findColumn(cols, ['bpm', 'hr', 'fc', 'heart_rate', 'pulso', 'valor', 'value'], 1);
+    const valueIdx = this.findColumn(cols, ['heart_rate', 'heart_rate_bpm', 'bpm', 'hr', 'fc', 'pulso', 'valor', 'value'], 1);
     const rows: DeviceHRRow[] = [];
     for (let i = cols.length ? 1 : 0; i < lines.length; i++) {
       const p   = lines[i].split(sep);
       if (p.length < 2) continue;
       const ts  = this.parseTs(p[tsIdx]);
       const bpm = this.parseNumber(p[valueIdx]);
-      if (!isFinite(bpm) || isNaN(ts.getTime())) continue;
+      if (!isFinite(bpm) || bpm < 20 || bpm > 250 || isNaN(ts.getTime())) continue;
       rows.push({ ts, bpm });
     }
     if (!rows.length) throw new Error('Sin datos de FC válidos');
+    rows.sort((a, b) => a.ts.getTime() - b.ts.getTime());
     this.fitbitHrRows = rows;
     this.secondarySource = 'generic';
   }
@@ -1814,8 +1830,13 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
         return new Date(n < 1e12 ? n * 1000 : n);
       }
     }
-    // Handles ISO with Z (UTC) or without Z (local)
-    return new Date(raw);
+    // Normalize the common CSV form "YYYY-MM-DD HH:mm:ss" to ISO local time.
+    // Parsing the version with a space is implementation-dependent in browsers.
+    const normalized = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(raw)
+      ? raw.replace(/\s+/, 'T')
+      : raw;
+    // Handles ISO with Z (UTC) or without Z (local).
+    return new Date(normalized);
   }
 
   private hhMM(d: Date): string {
