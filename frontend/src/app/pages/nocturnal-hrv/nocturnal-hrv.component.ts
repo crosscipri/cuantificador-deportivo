@@ -167,7 +167,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     polarRR:   { label: 'Referencia — RR',       sublabel: '.csv/.txt · epoch,value[s] o timestamp;RR[ms]',           accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
     polarHR:   { label: 'Referencia — FC',       sublabel: '.csv/.txt · epoch,value[bpm] o timestamp;HR;HRV;Breathing', accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
     fitbitHrv: { label: 'Dispositivo — RMSSD',   sublabel: '.csv/.txt · timestamp,hrv_ms o rmssd_ms',      accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
-    fitbitHR:  { label: 'Dispositivo — FC',      sublabel: '.csv/.txt · timestamp,heart_rate o bpm',       accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    fitbitHR:  { label: 'Dispositivo — FC',      sublabel: '.csv/.txt · timestamp,fc_ppm / heart_rate / bpm', accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
   };
 
   card(key: FileKey | string): FileCard {
@@ -946,7 +946,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     const sep  = this.detectDelimiter(lines[0]);
     const cols = this.parseHeaderColumns(lines[0], sep);
     const tsIdx = this.findColumn(cols, ['timestamp', 'time', 'datetime', 'date', 'fecha', 'hora'], 0);
-    const valueIdx = this.findColumn(cols, ['heart_rate', 'heart_rate_bpm', 'bpm', 'hr', 'fc', 'pulso', 'valor', 'value'], 1);
+    const valueIdx = this.findColumn(cols, ['fc_ppm', 'heart_rate', 'heart_rate_bpm', 'bpm', 'hr', 'fc', 'pulso', 'valor', 'value'], 1);
     const rows: DeviceHRRow[] = [];
     for (let i = cols.length ? 1 : 0; i < lines.length; i++) {
       const p   = lines[i].split(sep);
@@ -1826,6 +1826,20 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     if (/^\d+(?:\.\d+)?$/.test(raw)) {
       const n = Number(raw);
       if (isFinite(n)) {
+        // Garmin/Excel serial date: integer part = days since 1899-12-30,
+        // decimal part = local time of day (e.g. 46237.99653).
+        if (n >= 20_000 && n < 100_000) {
+          const serialUtc = new Date(Date.UTC(1899, 11, 30) + n * 86_400_000);
+          return new Date(
+            serialUtc.getUTCFullYear(),
+            serialUtc.getUTCMonth(),
+            serialUtc.getUTCDate(),
+            serialUtc.getUTCHours(),
+            serialUtc.getUTCMinutes(),
+            serialUtc.getUTCSeconds(),
+            serialUtc.getUTCMilliseconds(),
+          );
+        }
         // Unix epoch: 10 digits = seconds, 13 digits = milliseconds.
         return new Date(n < 1e12 ? n * 1000 : n);
       }
