@@ -924,11 +924,15 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     const cols = this.parseHeaderColumns(lines[0], sep);
     const tsIdx = this.findColumn(cols, ['timestamp', 'time', 'datetime', 'date', 'fecha', 'hora'], 0);
     const valueIdx = this.findColumn(cols, ['rmssd_ms', 'hrv_ms', 'rmssd', 'hrv', 'vfc', 'valor', 'value'], 1);
+    // Garmin HRV_STATUS FIT timestamps are UTC. Common CSV converters preserve
+    // the clock value but omit the timezone suffix, so recognize this export by
+    // filename and restore UTC before comparing it with epoch-based reference RR.
+    const timestampsAreUtc = this.files.fitbitHrv.name.toLowerCase().includes('hrv_status');
     const rows: DeviceHrvRow[] = [];
     for (let i = cols.length ? 1 : 0; i < lines.length; i++) {
       const p     = lines[i].split(sep);
       if (p.length < 2) continue;
-      const ts    = this.parseTs(p[tsIdx]);
+      const ts    = this.parseTs(p[tsIdx], timestampsAreUtc ? 'utc' : 'local');
       const rmssd = this.parseNumber(p[valueIdx]);
       if (!isFinite(rmssd) || isNaN(ts.getTime())) continue;
       rows.push({ ts, rmssd });
@@ -1821,7 +1825,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     return parseFloat((value ?? '').trim().replace(',', '.'));
   }
 
-  private parseTs(s: string | undefined): Date {
+  private parseTs(s: string | undefined, naiveTimeZone: 'local' | 'utc' = 'local'): Date {
     const raw = (s ?? '').trim();
     if (/^\d+(?:\.\d+)?$/.test(raw)) {
       const n = Number(raw);
@@ -1849,6 +1853,10 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     const normalized = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(raw)
       ? raw.replace(/\s+/, 'T')
       : raw;
+    const isNaiveDateTime = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(normalized);
+    if (naiveTimeZone === 'utc' && isNaiveDateTime) {
+      return new Date(`${normalized}Z`);
+    }
     // Handles ISO with Z (UTC) or without Z (local).
     return new Date(normalized);
   }
