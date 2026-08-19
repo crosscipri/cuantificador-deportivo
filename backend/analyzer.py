@@ -82,6 +82,18 @@ def _records_to_series(records: list) -> pd.Series:
     return series
 
 
+def _parse_xml(data: bytes):
+    """
+    Parse XML exports that may include a UTF-8 BOM or leading whitespace before
+    the declaration. Some Samsung Health GPX exports arrive in that shape.
+    """
+    import xml.etree.ElementTree as ET
+    xml_data = data.lstrip()
+    if xml_data.startswith(b"\xef\xbb\xbf"):
+        xml_data = xml_data[3:].lstrip()
+    return ET.fromstring(xml_data)
+
+
 def _read_fit(data: bytes) -> pd.Series:
     fitfile = fitparse.FitFile(io.BytesIO(data), check_crc=False)
     records = []
@@ -103,7 +115,7 @@ def _read_tcx(data: bytes) -> pd.Series:
     """Parse namespaced Garmin TCX and namespace-free watch exports."""
     import xml.etree.ElementTree as ET
     try:
-        root = ET.fromstring(data)
+        root = _parse_xml(data)
     except ET.ParseError as exc:
         raise ValueError(f"El archivo TCX no contiene XML válido: {exc}") from exc
 
@@ -154,6 +166,10 @@ def _read_tcx(data: bytes) -> pd.Series:
 def _parse_gpx_xml(data: bytes):
     """Parse GPX XML, repairing exporter files with undeclared prefixes."""
     import xml.etree.ElementTree as ET
+
+    data = data.lstrip()
+    if data.startswith(b"\xef\xbb\xbf"):
+        data = data[3:].lstrip()
 
     try:
         return ET.fromstring(data)
@@ -252,9 +268,9 @@ def _read_healthkit(data: bytes) -> pd.Series:
     from datetime import timezone as tz
 
     try:
-        root = ET.fromstring(data)
+        root = _parse_xml(data)
     except ET.ParseError:
-        root = ET.fromstring(b"<root>" + data + b"</root>")
+        root = ET.fromstring(b"<root>" + data.strip() + b"</root>")
 
     records = []
     for rec in root.iter("Record"):
