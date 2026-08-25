@@ -273,6 +273,11 @@ export interface Session {
   lag: number;
   fcmax: number;
   duration_seconds: number;
+  /** Original-source bounds used when this session was permanently cropped. */
+  interval_start_sec?: number;
+  interval_end_sec?: number;
+  source_duration_seconds?: number;
+  interval_updated_at?: string;
   charts: Charts;
   fc_data?: FcData;    // only present in GET /api/sessions/:id
   spark_data?: SparkData; // 20-point sparkline, present in list responses
@@ -280,6 +285,16 @@ export interface Session {
   has_ai_analysis?:   boolean;
   ai_analysis_at?:    string;
   ai_analysis_model?: string;
+}
+
+export interface IntervalAnalysis {
+  metrics: Metrics;
+  zones: Zone[];
+  lag: number;
+  fcmax: number;
+  duration_seconds: number;
+  source_duration_seconds: number;
+  fc_data: FcData;
 }
 
 export interface AggregateResult {

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AggregateResult, AiAnalysis, AiVerdict, Device, Session, SportType, SessionDifficulty, OverviewEntry, SportAggregateCharts } from '../models/session.model';
+import { AggregateResult, AiAnalysis, AiVerdict, Device, IntervalAnalysis, Session, SportType, SessionDifficulty, OverviewEntry, SportAggregateCharts } from '../models/session.model';
 import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail, UrbanAiAnalysis, GpsTrackModeScore, GpsUrbanModeScore, GpsStoredScores, GpsOverviewEntry } from '../models/gps-analysis.model';
 import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated, NocturnalHrvGlobalAiAnalysis, HrvOverviewEntry } from '../models/hrv-analysis.model';
 
@@ -81,8 +81,12 @@ export class ApiService {
     return this.http.post<Session>(`${this.base}/sessions/${id}/reanalyze`, {});
   }
 
-  analyzeInterval(id: string, startSec: number, endSec: number): Observable<any> {
-    return this.http.post<any>(`${this.base}/sessions/${id}/analyze-interval`, { start_sec: startSec, end_sec: endSec });
+  analyzeInterval(id: string, startSec: number, endSec: number): Observable<IntervalAnalysis> {
+    return this.http.post<IntervalAnalysis>(`${this.base}/sessions/${id}/analyze-interval`, { start_sec: startSec, end_sec: endSec });
+  }
+
+  saveInterval(id: string, startSec: number, endSec: number): Observable<Session> {
+    return this.http.post<Session>(`${this.base}/sessions/${id}/save-interval`, { start_sec: startSec, end_sec: endSec });
   }
 
   // ── Overview ──────────────────────────────────────────────────────────────

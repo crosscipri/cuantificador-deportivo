@@ -779,6 +779,90 @@ def analyze_session(
     }
 
 
+def analyze_interval(
+    device_bytes: bytes,
+    reference_bytes: bytes,
+    start_sec: float,
+    end_sec: float,
+    device_name: str = "Dispositivo",
+    ref_name: str = "Referencia",
+    device_filename: str = "",
+    reference_filename: str = "",
+    include_charts: bool = False,
+) -> dict:
+    """Analyse a time window from the original files.
+
+    The returned FC timeline is rebased to zero so it can replace the stored
+    full-session analysis when the user decides to persist the crop.
+    """
+    if not math.isfinite(start_sec) or not math.isfinite(end_sec):
+        raise ValueError("Los límites del intervalo deben ser números válidos.")
+    if start_sec < 0:
+        raise ValueError("El inicio del intervalo no puede ser negativo.")
+    if end_sec <= start_sec:
+        raise ValueError("El final del intervalo debe ser mayor que el inicio.")
+
+    fc_ref = read_fc_from_bytes(reference_bytes, reference_filename)
+    fc_dev = read_fc_from_bytes(device_bytes, device_filename)
+    ref_aligned, dev_aligned, x_seg, _ = align(fc_ref, fc_dev)
+
+    source_duration = int(len(ref_aligned))
+    if start_sec >= source_duration or end_sec > source_duration:
+        raise ValueError(
+            f"El intervalo debe estar dentro de la duración original "
+            f"(0–{_sec_to_mmss(source_duration, None)})."
+        )
+
+    mask = (x_seg >= start_sec) & (x_seg <= end_sec)
+    ref_interval = ref_aligned[mask].reset_index(drop=True)
+    dev_interval = dev_aligned[mask].reset_index(drop=True)
+    x_interval = x_seg[mask] - start_sec
+
+    if len(ref_interval) < 10:
+        raise ValueError("Intervalo demasiado corto (mínimo 10 s).")
+
+    metrics = calculate_metrics(ref_interval, dev_interval)
+    zones, fcmax = analyze_by_zones(ref_interval, dev_interval)
+    lag = estimate_lag(ref_interval, dev_interval)
+
+    step = max(1, len(ref_interval) // 2000)
+    result = {
+        "metrics": metrics,
+        "zones": zones,
+        "lag": lag,
+        "fcmax": fcmax,
+        "duration_seconds": int(len(ref_interval)),
+        "fc_data": {
+            "reference": ref_interval.values[::step].round(1).tolist(),
+            "device": dev_interval.values[::step].round(1).tolist(),
+            "time": x_interval[::step].tolist(),
+            "step": step,
+        },
+        "source_duration_seconds": source_duration,
+    }
+
+    if include_charts:
+        result["charts"] = {
+            "temporal": generate_temporal_chart(
+                ref_interval, dev_interval, ref_name, device_name, x_interval
+            ),
+            "validation": generate_validation_chart(
+                ref_interval,
+                dev_interval,
+                metrics,
+                zones,
+                fcmax,
+                ref_name,
+                device_name,
+                title_suffix=(
+                    f"{_sec_to_mmss(start_sec, None)}–{_sec_to_mmss(end_sec, None)}"
+                ),
+            ),
+        }
+
+    return result
+
+
 def generate_aggregate_analysis(
     sessions_data: list,
     training_type: str,

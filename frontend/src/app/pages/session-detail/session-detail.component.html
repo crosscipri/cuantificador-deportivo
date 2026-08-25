@@ -124,37 +124,38 @@
         <div class="section-inner">
           <h2>Métricas principales</h2>
           <span class="section-sub">
-            contra {{ session.reference_name }} · n = {{ activeMetrics?.n | number }} muestras
+            contra {{ session.reference_name }} · n = {{ activeMetrics.n | number }} muestras
           </span>
-          <span class="interval-badge" *ngIf="intervalResult">
+          <span class="interval-badge" *ngIf="intervalResult || hasSavedInterval">
+            {{ intervalResult ? 'Vista' : 'Recorte guardado' }} ·
             {{ secToMmss(intervalStart) }} – {{ secToMmss(intervalEnd) }}
-            <button class="interval-badge-clear" (click)="clearInterval()">✕</button>
+            <button *ngIf="intervalResult" class="interval-badge-clear" (click)="clearInterval()">✕</button>
           </span>
         </div>
         <div class="divider"></div>
       </div>
 
       <div class="hero-metrics">
-        <div class="metric-hero" [ngClass]="mq('ccc', activeMetrics?.ccc)">
+        <div class="metric-hero" [ngClass]="mq('ccc', activeMetrics.ccc)">
           <div class="eyebrow">CCC de Lin</div>
-          <div class="metric-hero-val num">{{ activeMetrics?.ccc | number:'1.3-3' }}</div>
-          <div class="metric-hero-hint">r = {{ activeMetrics?.r | number:'1.3-3' }}</div>
+          <div class="metric-hero-val num">{{ activeMetrics.ccc | number:'1.3-3' }}</div>
+          <div class="metric-hero-hint">r = {{ activeMetrics.r | number:'1.3-3' }}</div>
         </div>
-        <div class="metric-hero" [ngClass]="mq('mae', activeMetrics?.mae)">
+        <div class="metric-hero" [ngClass]="mq('mae', activeMetrics.mae)">
           <div class="eyebrow">MAE</div>
-          <div class="metric-hero-val num">{{ activeMetrics?.mae | number:'1.1-1' }}<span class="unit">bpm</span></div>
-          <div class="metric-hero-hint">{{ activeMetrics?.mape | number:'1.1-1' }}% relativo</div>
+          <div class="metric-hero-val num">{{ activeMetrics.mae | number:'1.1-1' }}<span class="unit">bpm</span></div>
+          <div class="metric-hero-hint">{{ activeMetrics.mape | number:'1.1-1' }}% relativo</div>
         </div>
         <div class="metric-hero"
-          [ngClass]="mq('bias_abs', (activeMetrics?.bias < 0 ? -activeMetrics?.bias : activeMetrics?.bias))">
+          [ngClass]="mq('bias_abs', (activeMetrics.bias < 0 ? -activeMetrics.bias : activeMetrics.bias))">
           <div class="eyebrow">Bias</div>
-          <div class="metric-hero-val num">{{ biasSign(activeMetrics?.bias) }}{{ activeMetrics?.bias | number:'1.1-1' }}<span class="unit">bpm</span></div>
+          <div class="metric-hero-val num">{{ biasSign(activeMetrics.bias) }}{{ activeMetrics.bias | number:'1.1-1' }}<span class="unit">bpm</span></div>
           <div class="metric-hero-hint">Bland–Altman</div>
         </div>
         <div class="metric-hero" [ngClass]="mq('loa_semiancho', loaSemi(activeSessionForCharts))">
           <div class="eyebrow">LoA 95%</div>
           <div class="metric-hero-val num">±{{ loaSemi(activeSessionForCharts) }}<span class="unit">bpm</span></div>
-          <div class="metric-hero-hint">[{{ activeMetrics?.loa_l | number:'1.1-1' }}, {{ activeMetrics?.loa_u | number:'1.1-1' }}]</div>
+          <div class="metric-hero-hint">[{{ activeMetrics.loa_l | number:'1.1-1' }}, {{ activeMetrics.loa_u | number:'1.1-1' }}]</div>
         </div>
       </div>
 
@@ -229,11 +230,19 @@
                  (change)="onIntervalEndSecChange($event)" class="interval-input interval-input-sec">
           <span class="interval-sep">s</span>
         </div>
-        <button class="ec-btn primary" (click)="analyzeInterval()" [disabled]="analyzingInterval">
+        <button class="ec-btn primary" (click)="analyzeInterval()" [disabled]="analyzingInterval || savingInterval">
           <span *ngIf="analyzingInterval" class="spinner-xs"></span>
-          {{ analyzingInterval ? 'Analizando…' : 'Analizar intervalo' }}
+          {{ analyzingInterval ? 'Analizando…' : intervalResult ? 'Actualizar vista' : 'Analizar intervalo' }}
         </button>
-        <button class="ec-btn" *ngIf="intervalResult" (click)="clearInterval()">Restaurar</button>
+        <button class="ec-btn primary" *ngIf="intervalResult" (click)="saveInterval()" [disabled]="savingInterval">
+          <span *ngIf="savingInterval" class="spinner-xs"></span>
+          {{ savingInterval ? 'Guardando…' : 'Guardar recorte' }}
+        </button>
+        <button class="ec-btn" *ngIf="intervalResult" (click)="clearInterval()" [disabled]="savingInterval">Descartar vista</button>
+        <button class="ec-btn" *ngIf="hasSavedInterval && !intervalResult" (click)="reanalyze()" [disabled]="reanalyzing">
+          <span *ngIf="reanalyzing" class="spinner-xs"></span>
+          {{ reanalyzing ? 'Restaurando…' : 'Restaurar original' }}
+        </button>
       </div>
 
       <!-- ── § 3 · Validación científica ── -->
@@ -331,7 +340,7 @@
 
         <!-- Cabecera del informe IA -->
         <div class="ai-report-header">
-          <span class="interval-badge" *ngIf="aiIsInterval">
+          <span class="interval-badge" *ngIf="aiIsInterval || hasSavedInterval">
             Intervalo {{ secToMmss(intervalStart) }} – {{ secToMmss(intervalEnd) }}
           </span>
           <button class="ec-btn ai-pdf-btn" (click)="downloadPdf()" title="Descargar informe como PDF">

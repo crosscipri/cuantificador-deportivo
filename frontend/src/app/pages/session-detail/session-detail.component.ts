@@ -10,7 +10,7 @@ import { MatSelectModule } from '@angular/material/select';
 
 import { ApiService } from '../../services/api.service';
 import { ReportPdfService } from '../../services/report-pdf.service';
-import { Session, AiAnalysis, AiCalificacion, metricQuality, SportType, SessionDifficulty,
+import { Session, IntervalAnalysis, Metrics, Zone, FcData, AiAnalysis, AiCalificacion, metricQuality, SportType, SessionDifficulty,
          SPORT_TYPE_LABELS, DIFFICULTY_LABELS,
          TRAINING_TYPES_BY_SPORT, SPORT_HAS_DIFFICULTY, GYM_DIFFICULTY,
 } from '../../models/session.model';
@@ -61,12 +61,21 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   intervalStart    = 0;
   intervalEnd      = 0;
   analyzingInterval = false;
-  intervalResult: { metrics: any; zones: any[]; lag: number; fcmax: number; duration_seconds: number; fc_data: any } | null = null;
+  savingInterval    = false;
+  intervalResult: IntervalAnalysis | null = null;
 
-  get activeMetrics() { return this.intervalResult?.metrics  ?? this.session?.metrics; }
-  get activeZones()   { return this.intervalResult?.zones    ?? this.session?.zones; }
-  get activeFcData()  { return this.intervalResult?.fc_data  ?? this.session?.fc_data; }
-  get activeFcmax()   { return this.intervalResult?.fcmax    ?? this.session?.fcmax; }
+  get hasSavedInterval(): boolean {
+    return this.session?.interval_start_sec != null && this.session?.interval_end_sec != null;
+  }
+
+  get sourceDuration(): number {
+    return this.session?.source_duration_seconds ?? this.session?.duration_seconds ?? 0;
+  }
+
+  get activeMetrics(): Metrics { return this.intervalResult?.metrics ?? this.session!.metrics; }
+  get activeZones(): Zone[] { return this.intervalResult?.zones ?? this.session!.zones; }
+  get activeFcData(): FcData | undefined { return this.intervalResult?.fc_data ?? this.session?.fc_data; }
+  get activeFcmax(): number { return this.intervalResult?.fcmax ?? this.session?.fcmax ?? 0; }
   get activeDuration(){ return this.intervalResult?.duration_seconds ?? this.session?.duration_seconds ?? 0; }
 
   get activeSessionForCharts(): any {
@@ -148,8 +157,8 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
     this.api.getSession(id).subscribe({
       next: s => {
         this.session   = s;
-        this.intervalStart = 0;
-        this.intervalEnd   = s.duration_seconds ?? 0;
+        this.intervalStart = s.interval_start_sec ?? 0;
+        this.intervalEnd   = s.interval_end_sec ?? s.source_duration_seconds ?? s.duration_seconds ?? 0;
         this.intervalResult = null;
         this.loading = false;
         if (s.has_ai_analysis) {
@@ -286,6 +295,11 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
     this.api.reanalyzeSession(this.session.id).subscribe({
       next: updated => {
         this.session     = updated;
+        this.intervalStart = 0;
+        this.intervalEnd = updated.duration_seconds ?? 0;
+        this.intervalResult = null;
+        this.aiAnalysis = null;
+        this.aiIsInterval = false;
         this.reanalyzing = false;
         this.snack.open('Actividad recalculada correctamente', 'OK', { duration: 3000 });
       },
@@ -381,6 +395,14 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
 
   analyzeInterval(): void {
     if (!this.session) return;
+    if (this.intervalStart < 0 || this.intervalEnd > this.sourceDuration) {
+      this.snack.open(
+        `El intervalo debe estar entre 0:00 y ${this.secToMmss(this.sourceDuration)}.`,
+        '',
+        { duration: 3500 },
+      );
+      return;
+    }
     if (this.intervalEnd <= this.intervalStart) {
       this.snack.open('El tiempo final debe ser mayor que el inicial.', '', { duration: 3000 });
       return;
@@ -394,6 +416,28 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.snack.open(err?.error?.detail ?? 'Error al analizar el intervalo.', '', { duration: 4000 });
         this.analyzingInterval = false;
+      },
+    });
+  }
+
+  saveInterval(): void {
+    if (!this.session || !this.intervalResult || this.savingInterval) return;
+    this.savingInterval = true;
+    this.api.saveInterval(this.session.id, this.intervalStart, this.intervalEnd).subscribe({
+      next: updated => {
+        this.session = updated;
+        this.intervalStart = updated.interval_start_sec ?? this.intervalStart;
+        this.intervalEnd = updated.interval_end_sec ?? this.intervalEnd;
+        this.intervalResult = null;
+        this.aiAnalysis = null;
+        this.aiError = '';
+        this.aiIsInterval = false;
+        this.savingInterval = false;
+        this.snack.open('Intervalo guardado permanentemente', 'OK', { duration: 3000 });
+      },
+      error: err => {
+        this.savingInterval = false;
+        this.snack.open(err?.error?.detail ?? 'Error al guardar el intervalo.', 'Cerrar', { duration: 4000 });
       },
     });
   }

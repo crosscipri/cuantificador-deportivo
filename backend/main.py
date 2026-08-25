@@ -38,8 +38,7 @@ from analyzer import (analyze_session, generate_aggregate_analysis,
                       build_sport_chart_data,
                       _weighted_global_score, DIFFICULTY_WEIGHTS,
                       VALID_CHART_CRITERIA,
-                      read_fc_from_bytes, align, calculate_metrics,
-                      analyze_by_zones, estimate_lag)
+                      analyze_interval as calculate_interval_analysis)
 from ai_analyzer import generate_session_ai_analysis, generate_device_ai_verdict, generate_gps_track_ai_analysis, generate_gps_urban_ai_analysis, generate_nocturnal_hrv_ai_analysis, generate_nocturnal_hrv_global_ai_analysis
 
 load_dotenv()
@@ -189,6 +188,21 @@ def _ser(doc: dict, *, keep_fc: bool = False) -> dict:
     else:
         doc["has_ai_verdict"] = False
     return doc
+
+
+def _build_spark_data(fc_data: dict) -> dict:
+    """Build the lightweight session-list preview from stored FC points."""
+    dev_pts = fc_data.get("device", [])
+    ref_pts = fc_data.get("reference", [])
+    n = min(len(dev_pts), len(ref_pts))
+    if n < 2:
+        return {}
+    step = max(1, n // 20)
+    indices = list(range(0, n, step))[:20]
+    return {
+        "device": [dev_pts[i] for i in indices],
+        "reference": [ref_pts[i] for i in indices],
+    }
 
 
 def _ser_urban_test(doc: dict, *, include_points: bool = False) -> dict:
@@ -548,7 +562,24 @@ async def reanalyze_session(session_id: str) -> dict:
         log.error("Unhandled exception", exc_info=True)
         raise HTTPException(status_code=422, detail=str(exc))
 
-    await db().sessions.update_one({"_id": _oid(session_id)}, {"$set": result})
+    result["spark_data"] = _build_spark_data(result.get("fc_data", {}))
+    await db().sessions.update_one(
+        {"_id": _oid(session_id)},
+        {
+            "$set": result,
+            "$unset": {
+                "interval_start_sec": "",
+                "interval_end_sec": "",
+                "source_duration_seconds": "",
+                "interval_updated_at": "",
+                "ai_analysis": "",
+            },
+        },
+    )
+    await db().devices.update_one(
+        {"_id": doc["device_id"]},
+        {"$unset": {"ai_verdict": ""}},
+    )
 
     updated = await db().sessions.find_one({"_id": _oid(session_id)})
     return _ser(updated, keep_fc=True)
@@ -557,11 +588,11 @@ async def reanalyze_session(session_id: str) -> dict:
 @app.post("/api/sessions/{session_id}/analyze-interval", status_code=200)
 async def analyze_session_interval(session_id: str, body: dict) -> dict:
     """Recalculate all metrics for a specific time window [start_sec, end_sec]."""
-    start_sec = float(body.get("start_sec", 0))
-    end_sec   = float(body.get("end_sec",   0))
-
-    if end_sec <= start_sec:
-        raise HTTPException(status_code=422, detail="end_sec debe ser mayor que start_sec")
+    try:
+        start_sec = float(body.get("start_sec", 0))
+        end_sec = float(body.get("end_sec", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="Los límites del intervalo no son válidos.")
 
     doc = await db().sessions.find_one({"_id": _oid(session_id)})
     if not doc:
@@ -572,40 +603,74 @@ async def analyze_session_interval(session_id: str, body: dict) -> dict:
     if not device_bytes or not reference_bytes:
         raise HTTPException(status_code=422, detail="Esta sesión no tiene los ficheros originales almacenados.")
 
-    import numpy as np
-    fc_ref = read_fc_from_bytes(bytes(reference_bytes), doc.get("reference_file_name", ""))
-    fc_dev = read_fc_from_bytes(bytes(device_bytes),    doc.get("device_file_name",    ""))
+    try:
+        return calculate_interval_analysis(
+            bytes(device_bytes),
+            bytes(reference_bytes),
+            start_sec,
+            end_sec,
+            device_name=doc.get("device_name", "Dispositivo"),
+            ref_name=doc.get("reference_name", "Referencia"),
+            device_filename=doc.get("device_file_name", ""),
+            reference_filename=doc.get("reference_file_name", ""),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
-    ref_aligned, dev_aligned, x_seg, _ = align(fc_ref, fc_dev)
 
-    mask = (x_seg >= start_sec) & (x_seg <= end_sec)
-    ref_interval = ref_aligned[mask]
-    dev_interval = dev_aligned[mask]
-    x_interval   = x_seg[mask] - start_sec
+@app.post("/api/sessions/{session_id}/save-interval", status_code=200)
+async def save_session_interval(session_id: str, body: dict) -> dict:
+    """Persist a cropped analysis while retaining the original source files."""
+    try:
+        start_sec = float(body.get("start_sec", 0))
+        end_sec = float(body.get("end_sec", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="Los límites del intervalo no son válidos.")
 
-    if len(ref_interval) < 10:
-        raise HTTPException(status_code=422, detail="Intervalo demasiado corto (mínimo 10 s).")
+    doc = await db().sessions.find_one({"_id": _oid(session_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
 
-    metrics        = calculate_metrics(ref_interval, dev_interval)
-    zones, fcmax   = analyze_by_zones(ref_interval, dev_interval)
-    lag            = estimate_lag(ref_interval, dev_interval)
+    device_bytes = doc.get("device_file_bytes")
+    reference_bytes = doc.get("reference_file_bytes")
+    if not device_bytes or not reference_bytes:
+        raise HTTPException(
+            status_code=422,
+            detail="Esta sesión no tiene los ficheros originales almacenados.",
+        )
 
-    step = max(1, len(ref_interval) // 2000)
-    fc_data = {
-        "reference": ref_interval.values[::step].round(1).tolist(),
-        "device":    dev_interval.values[::step].round(1).tolist(),
-        "time":      x_interval[::step].tolist(),
-        "step":      step,
-    }
+    try:
+        result = calculate_interval_analysis(
+            bytes(device_bytes),
+            bytes(reference_bytes),
+            start_sec,
+            end_sec,
+            device_name=doc.get("device_name", "Dispositivo"),
+            ref_name=doc.get("reference_name", "Referencia"),
+            device_filename=doc.get("device_file_name", ""),
+            reference_filename=doc.get("reference_file_name", ""),
+            include_charts=True,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
-    return {
-        "metrics":          metrics,
-        "zones":            zones,
-        "lag":              lag,
-        "fcmax":            fcmax,
-        "duration_seconds": int(len(ref_interval)),
-        "fc_data":          fc_data,
-    }
+    result.update({
+        "interval_start_sec": start_sec,
+        "interval_end_sec": end_sec,
+        "interval_updated_at": datetime.utcnow(),
+        "spark_data": _build_spark_data(result.get("fc_data", {})),
+    })
+    await db().sessions.update_one(
+        {"_id": _oid(session_id)},
+        {"$set": result, "$unset": {"ai_analysis": ""}},
+    )
+    await db().devices.update_one(
+        {"_id": doc["device_id"]},
+        {"$unset": {"ai_verdict": ""}},
+    )
+
+    updated = await db().sessions.find_one({"_id": _oid(session_id)})
+    return _ser(updated, keep_fc=True)
 
 
 @app.post("/api/admin/backfill-activity-dates", status_code=200)
