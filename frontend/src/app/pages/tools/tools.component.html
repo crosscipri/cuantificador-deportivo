@@ -1,0 +1,60 @@
+<div class="tools-page">
+  <header class="page-header">
+    <div>
+      <div class="eyebrow">Utilidades de datos</div>
+      <h1>Herramientas</h1>
+      <p>Conversores y utilidades para preparar archivos antes de analizarlos.</p>
+    </div>
+    <span class="privacy-badge">Procesamiento local</span>
+  </header>
+
+  <section class="tool-card">
+    <div class="tool-heading">
+      <div class="tool-icon">FIT</div>
+      <div><h2>Conversor Garmin FC y VFC</h2><p>Convierte los archivos FIT de Garmin en CSV compatibles con el cuantificador.</p></div>
+    </div>
+
+    <nav class="tabs" aria-label="Tipo de conversión">
+      <button [class.active]="tab === 'fc'" (click)="tab = 'fc'">FC nocturna</button>
+      <button [class.active]="tab === 'hrv'" (click)="tab = 'hrv'">VFC nocturna</button>
+    </nav>
+
+    <div *ngIf="tab === 'fc'">
+      <p class="instructions">Añade el <strong>SLEEP_DATA.fit</strong> y todos los <strong>WELLNESS.fit</strong> relacionados. Obtendrás un CSV con <code>timestamp</code> y <code>fc_ppm</code>.</p>
+      <label class="drop-zone" (dragover)="$event.preventDefault()" (drop)="drop($event, 'fc')">
+        <input type="file" accept=".fit,.FIT" multiple (change)="addFiles('fc', $any($event.target).files); $any($event.target).value = ''">
+        <span class="upload-icon">＋</span><strong>Arrastra aquí los archivos FIT</strong><small>o pulsa para seleccionarlos</small>
+      </label>
+      <ul class="file-list" *ngIf="fcFiles.length"><li *ngFor="let file of fcFiles"><span>{{ file.name }}</span><em>{{ classify(file.name, 'fc') }}</em></li></ul>
+      <div class="actions"><button class="primary" [disabled]="!fcFiles.length || processingFc" (click)="processFc()">{{ processingFc ? 'Procesando…' : 'Procesar archivos' }}</button><button class="secondary" [disabled]="!fcFiles.length" (click)="clear('fc')">Limpiar</button></div>
+      <div class="status" [class.success]="fcStatus.type === 'success'" [class.error]="fcStatus.type === 'error'">{{ fcStatus.text }}</div>
+
+      <div class="result" *ngIf="nights.length">
+        <label for="night">Noche detectada</label>
+        <select id="night" [(ngModel)]="selectedNight" (change)="generateFc()"><option *ngFor="let night of nights; let i = index" [ngValue]="i">{{ nightLabel(night) }}</option></select>
+        <ng-container *ngTemplateOutlet="metrics; context: { stats: fcStats }"></ng-container>
+        <a class="download" *ngIf="fcUrl" [href]="fcUrl" [download]="fcFileName">Descargar CSV</a>
+        <div class="table-wrap" *ngIf="fcRows.length"><table><thead><tr><th>timestamp</th><th>fc_ppm</th></tr></thead><tbody><tr *ngFor="let row of fcRows | slice:0:20"><td>{{ timestamp(row.fitTimestamp) }}</td><td>{{ row.heartRate }}</td></tr></tbody></table></div>
+      </div>
+    </div>
+
+    <div *ngIf="tab === 'hrv'">
+      <p class="instructions">Añade uno o varios <strong>HRV_STATUS.fit</strong>. Obtendrás un CSV por lote con <code>timestamp</code> y <code>hrv_ms</code>.</p>
+      <label class="drop-zone" (dragover)="$event.preventDefault()" (drop)="drop($event, 'hrv')">
+        <input type="file" accept=".fit,.FIT" multiple (change)="addFiles('hrv', $any($event.target).files); $any($event.target).value = ''">
+        <span class="upload-icon">＋</span><strong>Arrastra aquí los HRV_STATUS.fit</strong><small>o pulsa para seleccionarlos</small>
+      </label>
+      <ul class="file-list" *ngIf="hrvFiles.length"><li *ngFor="let file of hrvFiles"><span>{{ file.name }}</span><em>{{ classify(file.name, 'hrv') }}</em></li></ul>
+      <div class="actions"><button class="primary" [disabled]="!hrvFiles.length || processingHrv" (click)="processHrv()">{{ processingHrv ? 'Procesando…' : 'Procesar VFC' }}</button><button class="secondary" [disabled]="!hrvFiles.length" (click)="clear('hrv')">Limpiar</button></div>
+      <div class="status" [class.success]="hrvStatus.type === 'success'" [class.error]="hrvStatus.type === 'error'">{{ hrvStatus.text }}</div>
+      <div class="result" *ngIf="hrvStats">
+        <ng-container *ngTemplateOutlet="metrics; context: { stats: hrvStats }"></ng-container>
+        <a class="download" *ngIf="hrvUrl" [href]="hrvUrl" [download]="hrvFileName">Descargar CSV</a>
+        <div class="table-wrap"><table><thead><tr><th>timestamp</th><th>hrv_ms</th></tr></thead><tbody><tr *ngFor="let row of hrvRows | slice:0:20"><td>{{ timestamp(row.fitTimestamp) }}</td><td>{{ row.hrvMs | number:'1.1-1' }}</td></tr></tbody></table></div>
+      </div>
+    </div>
+    <p class="privacy-note">Los FIT se procesan íntegramente en tu navegador. No se envían ni se almacenan en el servidor. Las fechas se convierten automáticamente a Europe/Madrid (CET/CEST).</p>
+  </section>
+</div>
+
+<ng-template #metrics let-stats="stats"><div class="metrics" *ngIf="stats"><div><span>Muestras</span><strong>{{ stats.count }}</strong></div><div><span>Mínima</span><strong>{{ stats.min }}</strong></div><div><span>Media</span><strong>{{ stats.avg }}</strong></div><div><span>Máxima</span><strong>{{ stats.max }}</strong></div></div></ng-template>

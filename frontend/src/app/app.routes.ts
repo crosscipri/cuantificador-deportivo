@@ -58,6 +58,11 @@ export const routes: Routes = [
       import('./pages/overview/overview.component').then(m => m.OverviewComponent),
   },
   {
+    path: 'tools',
+    loadComponent: () =>
+      import('./pages/tools/tools.component').then(m => m.ToolsComponent),
+  },
+  {
     path: 'devices/:deviceId/nocturnal-hrv',
     loadComponent: () =>
       import('./pages/nocturnal-hrv/nocturnal-hrv.component').then(m => m.NocturnalHrvComponent),
