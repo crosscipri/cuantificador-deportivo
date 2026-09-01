@@ -675,12 +675,10 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
       preferCanvas: true,
     });
     L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
       {
-        attribution:
-          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
-        maxZoom: 20,
-        subdomains: "abcd",
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
       },
     ).addTo(this.leafletMap);
     this.drawAllLayers();
