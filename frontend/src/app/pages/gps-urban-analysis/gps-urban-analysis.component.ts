@@ -310,6 +310,7 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
   analyzeError = "";
   analytics: UrbanModeAnalytics[] | null = null;
   hoveredModeId: string | null = null;
+  rightPanelCollapsed = false;
 
   // ── Buildings (async, Overpass API) ───────────────────────────────────────
   loadingBuildings = false;
@@ -350,6 +351,11 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.cursorMarker?.remove();
     this.leafletMap?.remove();
+  }
+
+  toggleRightPanel(): void {
+    this.rightPanelCollapsed = !this.rightPanelCollapsed;
+    window.setTimeout(() => this.leafletMap?.invalidateSize(), 220);
   }
 
   // ── Reference file ────────────────────────────────────────────────────────

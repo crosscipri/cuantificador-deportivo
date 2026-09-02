@@ -178,7 +178,7 @@
 <!-- ── ANALYTICAL LAYOUT ───────────────────────────────────────────────────── -->
 <ng-container *ngIf="analytics">
   <div class="analytical">
-    <div class="analytical-top">
+    <div class="analytical-top" [class.right-panel-collapsed]="rightPanelCollapsed">
 
       <!-- ── LEFT SIDEBAR ─────────────────────────────────────────────────── -->
       <aside class="col-left">
@@ -369,7 +369,16 @@
       </main>
 
       <!-- ── RIGHT METRICS PANEL ───────────────────────────────────────────── -->
-      <aside class="col-right">
+      <aside class="col-right" [class.collapsed]="rightPanelCollapsed">
+
+        <button type="button" class="right-panel-toggle" (click)="toggleRightPanel()"
+          [attr.aria-expanded]="!rightPanelCollapsed" aria-controls="gps-metrics-panel"
+          [title]="rightPanelCollapsed ? 'Mostrar análisis' : 'Contraer análisis'">
+          <span class="toggle-arrow" aria-hidden="true">{{ rightPanelCollapsed ? '‹' : '›' }}</span>
+          <span class="toggle-label" *ngIf="rightPanelCollapsed">Análisis</span>
+        </button>
+
+        <div id="gps-metrics-panel" class="right-panel-content" [attr.aria-hidden]="rightPanelCollapsed">
 
         <ng-container *ngIf="selectedAnalytics as sel">
 
@@ -491,6 +500,7 @@
           </div>
 
         </ng-container>
+        </div>
 
       </aside>
 

@@ -619,9 +619,14 @@
 .analytical-top {
   display: grid;
   grid-template-columns: 300px 1fr 360px;
+  transition: grid-template-columns 0.2s ease;
   height: calc(100vh - 52px);
   flex-shrink: 0;
   overflow: hidden;
+
+  &.right-panel-collapsed {
+    grid-template-columns: 300px 1fr 44px;
+  }
 }
 
 .col-left,
@@ -648,6 +653,11 @@
 .col-right {
   border-right: none;
   border-left: 1px solid var(--border);
+  position: relative;
+
+  &.collapsed {
+    overflow: hidden;
+  }
 }
 
 .col-center {
@@ -1015,6 +1025,60 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // RIGHT PANEL
 // ══════════════════════════════════════════════════════════════════════════════
+
+.right-panel-toggle {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-paper);
+  color: var(--ink-3);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--ink);
+    background: var(--bg);
+  }
+}
+
+.toggle-arrow {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.toggle-label {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  writing-mode: vertical-rl;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 10px;
+  font-weight: 700;
+  transform: translateX(-50%);
+}
+
+.right-panel-content {
+  min-width: 359px;
+}
+
+.col-right.collapsed .right-panel-toggle {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.col-right.collapsed .right-panel-content {
+  visibility: hidden;
+  pointer-events: none;
+}
 
 .kpi-mode-header {
   display: flex;
