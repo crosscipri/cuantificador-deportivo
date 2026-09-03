@@ -678,6 +678,12 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     this.leafletMap = L.map(container, {
       zoomControl: true,
       scrollWheelZoom: true,
+      touchZoom: true,
+      dragging: true,
+      doubleClickZoom: true,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      bounceAtZoomLimits: false,
       preferCanvas: true,
     });
     L.tileLayer(
@@ -707,7 +713,7 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
     if (this.refPoints.length > 1) {
       this.refLayer = L.polyline(
         this.refPoints.map((p) => [p.lat, p.lon] as [number, number]),
-        { color: "#1a1a1a", weight: 5, opacity: 0.85 },
+        { color: "#1a1a1a", weight: 5, opacity: 0.85, className: "gps-reference-line" },
       ).addTo(this.leafletMap);
       L.polyline(
         this.refPoints.map((p) => [p.lat, p.lon] as [number, number]),
@@ -762,6 +768,7 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
                   : 0.75
                 : 0,
               smoothFactor: 1.2,
+              className: "gps-run-line",
             },
           ).addTo(this.leafletMap!),
         );

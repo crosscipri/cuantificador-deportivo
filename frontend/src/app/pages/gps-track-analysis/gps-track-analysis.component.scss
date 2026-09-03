@@ -323,7 +323,7 @@
 
 .analytical-top {
   display: grid;
-  grid-template-columns: 320px 1fr 380px;
+  grid-template-columns: 270px minmax(0, 1fr) 320px;
   height: calc(100vh - 52px);
   flex-shrink: 0;
   overflow: hidden;
@@ -607,12 +607,21 @@
   position: relative;
   overflow: hidden;
   cursor: crosshair;
+  touch-action: none;
+  overscroll-behavior: contain;
+  user-select: none;
   background:
     linear-gradient(var(--border) 1px, transparent 1px) 0 0 / 40px 40px,
     linear-gradient(90deg, var(--border) 1px, transparent 1px) 0 0 / 40px 40px,
     var(--bg);
 
   &.is-dragging { cursor: grabbing; }
+  &.track-stage-realista {
+    background:
+      radial-gradient(ellipse at center, rgba(255, 255, 255, 0.6) 0 28%, transparent 59%),
+      repeating-linear-gradient(102deg, rgba(49, 74, 53, 0.035) 0 1px, transparent 1px 9px),
+      linear-gradient(145deg, #e6ece2 0%, #d8e2d3 52%, #edf1e9 100%);
+  }
   &.track-stage-blueprint { background: #0E2A4A; }
 }
 
@@ -656,7 +665,7 @@
   top: 16px; left: 16px;
   background: var(--bg-paper);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 9px;
   padding: 10px 14px;
   font-family: var(--font-mono);
   font-size: 10px;
@@ -667,6 +676,8 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   pointer-events: none;
+  box-shadow: 0 8px 24px rgba(20, 19, 15, 0.08);
+  backdrop-filter: blur(8px);
 
   .v { color: var(--ink); font-weight: 500; }
 
@@ -683,7 +694,7 @@
   bottom: 16px; right: 16px;
   background: var(--bg-paper);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 9px;
   padding: 10px 12px;
   font-family: var(--font-mono);
   font-size: 10px;
@@ -692,6 +703,8 @@
   flex-direction: column;
   gap: 5px;
   pointer-events: none;
+  box-shadow: 0 8px 24px rgba(20, 19, 15, 0.08);
+  backdrop-filter: blur(8px);
 
   &.track-legend-blueprint { background: rgba(14, 42, 74, 0.85); border-color: #2A5C9A; color: #BFE0FF; }
 }
@@ -745,6 +758,46 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  z-index: 5;
+
+  .tool-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    justify-content: center;
+    background: rgba(251, 250, 246, 0.94);
+    font-size: 16px;
+    box-shadow: 0 4px 14px rgba(20, 19, 15, 0.08);
+    backdrop-filter: blur(8px);
+  }
+}
+
+.track-gesture-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border: 1px solid rgba(226, 223, 214, 0.9);
+  border-radius: 999px;
+  background: rgba(251, 250, 246, 0.9);
+  color: var(--ink-3);
+  box-shadow: 0 6px 20px rgba(20, 19, 15, 0.08);
+  backdrop-filter: blur(8px);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 4;
+
+  &.track-gesture-hint-blueprint {
+    color: #bfe0ff;
+    background: rgba(14, 42, 74, 0.86);
+    border-color: #2a5c9a;
+  }
 }
 
 .gps-tooltip {
@@ -1285,7 +1338,7 @@
 .rank-full-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 900px;
+  min-width: 680px;
 
   .rft-pos  { width: 44px; text-align: center; }
   .rft-name { min-width: 130px; }
@@ -1723,4 +1776,173 @@
   font-family: var(--font-mono);
   text-align: right;
   margin-top: 4px;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TABLET / IPAD — map-first layout
+// ══════════════════════════════════════════════════════════════════════════════
+
+@media (max-width: 1200px), (hover: none) and (pointer: coarse) and (max-width: 1400px) {
+  .analytical {
+    overflow: visible;
+  }
+
+  .analytical-top {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+
+  .col-center {
+    order: 1;
+    width: 100%;
+    height: calc(100dvh - 52px);
+    min-height: 620px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .col-left {
+    order: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-header,
+  .sidebar-tabs {
+    min-height: 52px;
+  }
+
+  .sidebar-tabs {
+    border-left: 1px solid var(--border);
+  }
+
+  .mode-list {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  }
+
+  .meta-section {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px 24px;
+  }
+
+  .sig-section {
+    display: none;
+  }
+
+  .col-right {
+    order: 3;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .track-header {
+    padding: 13px 20px;
+  }
+
+  .track-stage {
+    min-height: 0;
+  }
+
+  .track-zoom-controls .tool-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .rank-full {
+    padding: 28px 24px 40px;
+  }
+
+  .rank-full-header {
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  .rank-full-sub {
+    max-width: 560px;
+    line-height: 1.55;
+  }
+}
+
+@media (max-width: 700px) {
+  .col-center {
+    height: 78dvh;
+    min-height: 500px;
+  }
+
+  .track-header {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 10px 12px;
+  }
+
+  .track-tools {
+    width: 100%;
+
+    .tool-btn { flex: 1; justify-content: center; }
+  }
+
+  .track-overlay-info {
+    top: 10px;
+    left: 10px;
+    padding: 8px 10px;
+  }
+
+  .track-zoom-controls {
+    top: 10px;
+    right: 10px;
+  }
+
+  .track-legend {
+    right: 10px;
+    bottom: 10px;
+    max-width: 46%;
+  }
+
+  .track-scale {
+    left: 10px;
+    bottom: 10px;
+  }
+
+  .track-gesture-hint {
+    display: none;
+  }
+
+  .col-left {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-tabs {
+    border-left: 0;
+  }
+
+  .mode-list,
+  .meta-section {
+    grid-column: 1;
+  }
+
+  .mode-list,
+  .meta-section {
+    grid-template-columns: 1fr;
+  }
+
+  .rank-full {
+    padding: 24px 12px 36px;
+  }
+
+  .rank-full-table {
+    min-width: 650px;
+  }
 }

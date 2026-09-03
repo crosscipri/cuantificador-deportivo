@@ -618,14 +618,14 @@
 
 .analytical-top {
   display: grid;
-  grid-template-columns: 300px 1fr 360px;
+  grid-template-columns: 260px minmax(0, 1fr) 310px;
   transition: grid-template-columns 0.2s ease;
   height: calc(100vh - 52px);
   flex-shrink: 0;
   overflow: hidden;
 
   &.right-panel-collapsed {
-    grid-template-columns: 300px 1fr 44px;
+    grid-template-columns: 260px minmax(0, 1fr) 44px;
   }
 }
 
@@ -1019,6 +1019,66 @@
   width: 100%;
   min-height: 0;
   z-index: 0;
+  position: relative;
+  isolation: isolate;
+  background: #dce4e8;
+
+  &::after {
+    content: 'Arrastra para mover · Pellizca para ampliar';
+    position: absolute;
+    z-index: 800;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    padding: 7px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 999px;
+    background: rgba(20, 31, 38, 0.78);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(20, 31, 38, 0.18);
+    backdrop-filter: blur(8px);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+}
+
+:host ::ng-deep .urban-map-container {
+  .leaflet-tile-pane {
+    filter: saturate(0.72) contrast(1.04) brightness(1.03);
+  }
+
+  .leaflet-control-zoom {
+    overflow: hidden;
+    border: 0;
+    border-radius: 9px;
+    box-shadow: 0 6px 20px rgba(20, 31, 38, 0.18);
+  }
+
+  .leaflet-control-zoom a {
+    width: 38px;
+    height: 38px;
+    line-height: 38px;
+    border-color: #e2dfd6;
+    color: #28343b;
+    background: rgba(255, 255, 255, 0.94);
+  }
+
+  .leaflet-control-attribution {
+    padding: 3px 7px;
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(6px);
+    font-size: 9px;
+  }
+
+  .gps-run-line {
+    filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.95)) drop-shadow(0 1px 2px rgba(20, 31, 38, 0.35));
+  }
+
+  .gps-reference-line {
+    filter: drop-shadow(0 2px 2px rgba(20, 31, 38, 0.28));
+  }
 }
 
 
@@ -1476,9 +1536,9 @@
 
 .rank-table-wrap {
   overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
-  overflow: hidden;
 }
 
 .rank-full-table {
@@ -1979,4 +2039,157 @@
 
   .ai-tech-label { color: #c0392b; }
   p { color: #7f1d1d; }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TABLET / IPAD — map-first layout
+// ══════════════════════════════════════════════════════════════════════════════
+
+@media (max-width: 1200px), (hover: none) and (pointer: coarse) and (max-width: 1400px) {
+  .analytical {
+    overflow: visible;
+  }
+
+  .analytical-top,
+  .analytical-top.right-panel-collapsed {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+
+  .col-center {
+    order: 1;
+    width: 100%;
+    height: calc(100dvh - 52px);
+    min-height: 620px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .chart-section {
+    display: none;
+  }
+
+  .col-left {
+    order: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-header,
+  .sidebar-tabs {
+    min-height: 52px;
+  }
+
+  .sidebar-tabs {
+    border-left: 1px solid var(--border);
+  }
+
+  .mode-list {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  }
+
+  .meta-section {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px 24px;
+  }
+
+  .meta-section .section-eyebrow {
+    grid-column: 1 / -1;
+  }
+
+  .sig-section {
+    display: none;
+  }
+
+  .col-right,
+  .col-right.collapsed {
+    order: 3;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .right-panel-toggle {
+    display: none;
+  }
+
+  .right-panel-content,
+  .col-right.collapsed .right-panel-content {
+    min-width: 0;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  :host ::ng-deep .urban-map-container .leaflet-control-zoom a {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+    font-size: 20px;
+  }
+
+  .rank-full {
+    padding: 28px 24px 40px;
+  }
+
+  .rank-full-sub {
+    max-width: 560px;
+    text-align: left;
+    line-height: 1.55;
+  }
+
+  .rank-full-table {
+    min-width: 720px;
+  }
+}
+
+@media (max-width: 700px) {
+  .col-center {
+    height: 78dvh;
+    min-height: 500px;
+  }
+
+  .map-header {
+    padding: 10px 12px;
+  }
+
+  .map-legend {
+    display: none;
+  }
+
+  .urban-map-container::after {
+    bottom: 10px;
+  }
+
+  .col-left {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-tabs {
+    border-left: 0;
+  }
+
+  .mode-list,
+  .meta-section {
+    grid-column: 1;
+    grid-template-columns: 1fr;
+  }
+
+  .meta-section .section-eyebrow {
+    grid-column: 1;
+  }
+
+  .rank-full {
+    padding: 24px 12px 36px;
+  }
 }

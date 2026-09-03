@@ -52,6 +52,18 @@ interface HoveredTrackPoint {
   modeColor: string; modeName: string; err: number;
 }
 
+interface TrackPointer {
+  x: number;
+  y: number;
+}
+
+interface TrackPinch {
+  startDistance: number;
+  startZoom: number;
+  anchorX: number;
+  anchorY: number;
+}
+
 // ── Timeline constants ──────────────────────────────────────────────────────
 const TL_W = 340, TL_H = 110, TL_PL = 26, TL_PR = 8, TL_PT = 8, TL_PB = 18;
 const TL_BINS = 50;
@@ -91,7 +103,9 @@ export class GpsTrackAnalysisComponent implements OnInit {
   trackPanY   = 0;
   hoveredTrackPoint: HoveredTrackPoint | null = null;
 
-  private svgDrag: { startX: number; startY: number; panX: number; panY: number } | null = null;
+  private svgDrag: { pointerId: number; startX: number; startY: number; panX: number; panY: number } | null = null;
+  private trackPointers = new Map<number, TrackPointer>();
+  private trackPinch: TrackPinch | null = null;
 
   // ── Exposed constants for template ──────────────────────────────────────
   readonly STRAIGHT = STRAIGHT;
@@ -151,7 +165,7 @@ export class GpsTrackAnalysisComponent implements OnInit {
 
   // ── Getters ──────────────────────────────────────────────────────────────
 
-  get isDragging(): boolean { return !!this.svgDrag; }
+  get isDragging(): boolean { return !!this.svgDrag || !!this.trackPinch; }
 
   get selectedAnalytics(): GpsModeAnalytics | null {
     return this.analytics?.find(m => m.selected) ?? this.analytics?.[0] ?? null;
@@ -593,23 +607,100 @@ export class GpsTrackAnalysisComponent implements OnInit {
 
   // ── SVG track events ─────────────────────────────────────────────────────
 
-  onTrackMouseMove(e: MouseEvent): void {
-    if (this.svgDrag) {
-      const bb  = trackBbox(); const PAD = 12;
-      const bvW = bb.maxX - bb.minX + PAD * 2;
-      const bvH = bb.maxY - bb.minY + PAD * 2;
-      const el  = this.trackStageEl?.nativeElement;
-      if (!el) return;
-      const dx = (e.clientX - this.svgDrag.startX) * (bvW / this.trackZoom) / el.clientWidth;
-      const dy = (e.clientY - this.svgDrag.startY) * (bvH / this.trackZoom) / el.clientHeight;
-      this.trackPanX = this.svgDrag.panX - dx;
-      this.trackPanY = this.svgDrag.panY - dy;  // Y screen = -Y world (flip)
+  onTrackPointerDown(e: PointerEvent): void {
+    if ((e.target as HTMLElement).closest('button') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+
+    this.trackStageEl.nativeElement.setPointerCapture(e.pointerId);
+    this.trackPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.hoveredTrackPoint = null;
+
+    if (this.trackPointers.size >= 2) {
+      this.beginTrackPinch();
+      this.svgDrag = null;
       return;
     }
+
+    this.svgDrag = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      panX: this.trackPanX,
+      panY: this.trackPanY,
+    };
+  }
+
+  onTrackPointerMove(e: PointerEvent): void {
+    if (this.trackPointers.has(e.pointerId)) {
+      this.trackPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      e.preventDefault();
+    }
+
+    if (this.trackPinch && this.trackPointers.size >= 2) {
+      const [a, b] = [...this.trackPointers.values()];
+      const distance = Math.hypot(b.x - a.x, b.y - a.y);
+      const zoom = Math.max(0.75, Math.min(10, this.trackPinch.startZoom * distance / this.trackPinch.startDistance));
+      this.positionTrackAnchorAt(
+        this.trackPinch.anchorX,
+        this.trackPinch.anchorY,
+        (a.x + b.x) / 2,
+        (a.y + b.y) / 2,
+        zoom,
+      );
+      this.trackZoom = zoom;
+      return;
+    }
+
+    if (this.svgDrag?.pointerId === e.pointerId) {
+      const el = this.trackStageEl?.nativeElement;
+      if (!el) return;
+      const { width, height } = this.trackBaseSize();
+      const scale = Math.min(el.clientWidth / (width / this.trackZoom), el.clientHeight / (height / this.trackZoom));
+      this.trackPanX = this.svgDrag.panX - (e.clientX - this.svgDrag.startX) / scale;
+      this.trackPanY = this.svgDrag.panY - (e.clientY - this.svgDrag.startY) / scale;
+      return;
+    }
+
+    if (e.pointerType !== 'touch') this.updateTrackHover(e.clientX, e.clientY);
+  }
+
+  onTrackPointerUp(e: PointerEvent): void {
+    this.trackPointers.delete(e.pointerId);
+    if (this.trackStageEl.nativeElement.hasPointerCapture(e.pointerId)) {
+      this.trackStageEl.nativeElement.releasePointerCapture(e.pointerId);
+    }
+
+    this.trackPinch = null;
+    this.svgDrag = null;
+
+    const remaining = [...this.trackPointers.entries()][0];
+    if (remaining) {
+      const [pointerId, point] = remaining;
+      this.svgDrag = {
+        pointerId,
+        startX: point.x,
+        startY: point.y,
+        panX: this.trackPanX,
+        panY: this.trackPanY,
+      };
+    }
+  }
+
+  onTrackPointerCancel(e: PointerEvent): void {
+    this.trackPointers.delete(e.pointerId);
+    this.svgDrag = null;
+    this.trackPinch = null;
+    this.hoveredTrackPoint = null;
+  }
+
+  onTrackPointerLeave(): void {
+    if (!this.trackPointers.size) this.hoveredTrackPoint = null;
+  }
+
+  private updateTrackHover(clientX: number, clientY: number): void {
     if (!this.analytics || !this.trackSvgEl) return;
     const svg = this.trackSvgEl.nativeElement;
     const pt  = svg.createSVGPoint();
-    pt.x = e.clientX; pt.y = e.clientY;
+    pt.x = clientX; pt.y = clientY;
     const ctm = svg.getScreenCTM();
     if (!ctm) return;
     const sp = pt.matrixTransform(ctm.inverse());
@@ -629,50 +720,89 @@ export class GpsTrackAnalysisComponent implements OnInit {
       const rect = this.trackStageEl.nativeElement.getBoundingClientRect();
       this.hoveredTrackPoint = {
         worldX: best.pt.x, worldY: best.pt.y,
-        screenX: e.clientX - rect.left, screenY: e.clientY - rect.top,
+        screenX: clientX - rect.left, screenY: clientY - rect.top,
         modeColor: best.color, modeName: best.name, err: best.err,
       };
     } else { this.hoveredTrackPoint = null; }
   }
 
-  onTrackMouseDown(e: MouseEvent): void {
-    if (e.button !== 0) return;
-    this.svgDrag = { startX: e.clientX, startY: e.clientY, panX: this.trackPanX, panY: this.trackPanY };
-  }
-  onTrackMouseUp():    void { this.svgDrag = null; }
-  onTrackMouseLeave(): void { this.svgDrag = null; this.hoveredTrackPoint = null; }
   onTrackWheel(e: WheelEvent): void {
     e.preventDefault();
     // Smooth continuous zoom: small deltaY (trackpad) = tiny step, large (wheel) = bigger step
     const factor  = Math.pow(0.997, e.deltaY);
     const newZoom = Math.max(0.6, Math.min(8, this.trackZoom * factor));
 
-    // Zoom towards cursor position (like Google Maps)
-    const el = this.trackStageEl?.nativeElement;
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      const bb   = trackBbox(); const PAD = 12;
-      const bvW  = bb.maxX - bb.minX + PAD * 2;
-      const bvH  = bb.maxY - bb.minY + PAD * 2;
-      const mx   = (e.clientX - rect.left)  / el.clientWidth;   // [0,1]
-      const my   = (e.clientY - rect.top)   / el.clientHeight;  // [0,1]
-      const cx   = bb.minX - PAD + bvW / 2 + this.trackPanX;
-      const cy   = bb.minY - PAD + bvH / 2 + this.trackPanY;
-      // World point under cursor before zoom
-      const vx   = cx + (mx - 0.5) * bvW / this.trackZoom;
-      const vy   = cy + (my - 0.5) * bvH / this.trackZoom;
-      // Keep that point under cursor after zoom
-      const cx2  = vx - (mx - 0.5) * bvW / newZoom;
-      const cy2  = vy - (my - 0.5) * bvH / newZoom;
-      this.trackPanX = cx2 - (bb.minX - PAD + bvW / 2);
-      this.trackPanY = cy2 - (bb.minY - PAD + bvH / 2);
-    }
+    const anchor = this.screenToTrack(e.clientX, e.clientY);
+    if (anchor) this.positionTrackAnchorAt(anchor.x, anchor.y, e.clientX, e.clientY, newZoom);
 
     this.trackZoom = newZoom;
   }
   resetTrack(): void { this.trackZoom = 1; this.trackPanX = 0; this.trackPanY = 0; }
   zoomIn():  void { this.trackZoom = Math.min(8, this.trackZoom * 1.25); }
   zoomOut(): void { this.trackZoom = Math.max(0.6, this.trackZoom / 1.25); }
+
+  private beginTrackPinch(): void {
+    const [a, b] = [...this.trackPointers.values()];
+    const anchor = this.screenToTrack((a.x + b.x) / 2, (a.y + b.y) / 2);
+    if (!anchor) return;
+    this.trackPinch = {
+      startDistance: Math.max(Math.hypot(b.x - a.x, b.y - a.y), 1),
+      startZoom: this.trackZoom,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
+    };
+  }
+
+  private screenToTrack(clientX: number, clientY: number): { x: number; y: number } | null {
+    const svg = this.trackSvgEl?.nativeElement;
+    if (!svg) return null;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    const mapped = point.matrixTransform(ctm.inverse());
+    return { x: mapped.x, y: mapped.y };
+  }
+
+  private positionTrackAnchorAt(
+    anchorX: number,
+    anchorY: number,
+    clientX: number,
+    clientY: number,
+    zoom: number,
+  ): void {
+    const el = this.trackStageEl?.nativeElement;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const base = this.trackBaseSize();
+    const viewW = base.width / zoom;
+    const viewH = base.height / zoom;
+    const scale = Math.min(el.clientWidth / viewW, el.clientHeight / viewH);
+    const contentW = viewW * scale;
+    const contentH = viewH * scale;
+    const offsetX = (el.clientWidth - contentW) / 2;
+    const offsetY = (el.clientHeight - contentH) / 2;
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+    const centerX = anchorX + viewW / 2 - (localX - offsetX) / scale;
+    const centerY = anchorY + viewH / 2 - (localY - offsetY) / scale;
+    this.trackPanX = centerX - base.centerX;
+    this.trackPanY = centerY - base.centerY;
+  }
+
+  private trackBaseSize(): { width: number; height: number; centerX: number; centerY: number } {
+    const bb = trackBbox();
+    const pad = 12;
+    const width = bb.maxX - bb.minX + pad * 2;
+    const height = bb.maxY - bb.minY + pad * 2;
+    return {
+      width,
+      height,
+      centerX: bb.minX - pad + width / 2,
+      centerY: bb.minY - pad + height / 2,
+    };
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
