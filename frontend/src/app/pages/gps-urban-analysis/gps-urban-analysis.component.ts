@@ -224,6 +224,7 @@ interface UrbanRunMetrics {
   rmse: number;
   p95: number;
   maxErr: number;
+  distance: number;   // Total GPS distance recorded for this run (meters)
   mape: number;       // |GPS_dist - ref_dist| / ref_dist * 100
   distDelta: number;  // GPS_dist - ref_dist  (signed, meters)
   buildingPct: number;   // NaN until Overpass data loaded
@@ -547,6 +548,7 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
         rmse: Math.sqrt(errors.reduce((s, e) => s + e * e, 0) / errors.length),
         p95: percentile(errors, 95),
         maxErr: Math.max(...errors),
+        distance: run.distance_m,
         mape,
         distDelta,
         buildingPct: NaN,

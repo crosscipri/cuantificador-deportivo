@@ -247,6 +247,7 @@
                 <th>Modo</th>
                 <th>Freq</th>
                 <th>Muestras</th>
+                <th title="Distancia GPS media registrada por recorrido">Dist. total</th>
               </tr>
             </thead>
             <tbody>
@@ -257,6 +258,7 @@
                 </td>
                 <td class="num">{{ fmtHz(m.sampleHz) }}</td>
                 <td class="num">{{ m.nSamples }}</td>
+                <td class="num">{{ fmtDist(modeAvgDist(m)) }}</td>
               </tr>
             </tbody>
           </table>
@@ -475,6 +477,7 @@
                   <th>Fichero</th>
                   <th title="RMSE cross-track">RMSE</th>
                   <th title="Percentil 95">P95</th>
+                  <th title="Distancia GPS total registrada">Dist. total</th>
                   <th title="MAPE de distancia">MAPE</th>
                   <th title="Diferencia de distancia vs. referencia">Δ Dist</th>
                   <th title="% puntos en edificios">Edif%</th>
@@ -486,6 +489,7 @@
                   <td class="run-name">{{ rm.filename }}</td>
                   <td class="num">{{ fmt(rm.rmse, 2) }} m</td>
                   <td class="num">{{ fmt(rm.p95, 1) }} m</td>
+                  <td class="num">{{ fmtDist(rm.distance) }}</td>
                   <td class="num" [class.mape-ok]="rm.mape < 1" [class.mape-warn]="rm.mape >= 1 && rm.mape < 3"
                     [class.mape-bad]="rm.mape >= 3">
                     {{ fmt(rm.mape, 2) }}%
@@ -529,6 +533,7 @@
               <th class="rft-num"
                 title="Índice de Invasión de Edificios — % puntos GPS dentro de polígonos de edificio">Inv. Edif.</th>
               <th class="rft-num" title="Error de Giro — distancia media al vértice de esquina">Error Esq.</th>
+              <th class="rft-num" title="Distancia GPS media registrada por run">Dist. total</th>
               <th class="rft-num" title="MAPE — Mean Absolute Percentage Error de distancia vs. referencia">MAPE</th>
               <th class="rft-apt" title="Urban Elite ≤2.5m · High ≤5m · Standard ≤10m · Marginal ≤15m · No Apto >15m">
                 Aptitud</th>
@@ -568,6 +573,7 @@
               </td>
 
               <td class="rft-td-num num">{{ fmt(m.cornerErr, 1) }} m</td>
+              <td class="rft-td-num num">{{ fmtDist(modeAvgDist(m)) }}</td>
               <td class="rft-td-num num" [class.mape-ok]="m.mape < 1" [class.mape-warn]="m.mape >= 1 && m.mape < 3"
                 [class.mape-bad]="m.mape >= 3">
                 {{ fmt(m.mape, 2) }}%

@@ -167,6 +167,7 @@
                 <th>Modo</th>
                 <th>Freq</th>
                 <th>Muestras</th>
+                <th title="Distancia GPS media registrada por recorrido">Dist. total</th>
               </tr>
             </thead>
             <tbody>
@@ -177,6 +178,7 @@
                 </td>
                 <td class="num">{{ fmtHz(m.sampleHz) }}</td>
                 <td class="num">{{ m.nSamples }}</td>
+                <td class="num">{{ fmt(m.recDist, 0) }} m</td>
               </tr>
             </tbody>
           </table>
@@ -604,6 +606,7 @@
               <th class="rft-name">Modo GPS</th>
               <th class="rft-num" title="Root Mean Square Error perpendicular — métrica principal GNSS">RMSE ⊥</th>
               <th class="rft-num" title="Percentil 95 del error perpendicular">P95 ⊥</th>
+              <th class="rft-num" title="Distancia GPS registrada">Dist. total</th>
               <th class="rft-num" title="Diferencia con distancia de referencia">Δ Dist</th>
               <th class="rft-num" title="Mean Absolute Percentage Error de distancia · &lt;1% excelente · &lt;2% apto">
                 MAPE%</th>
@@ -636,6 +639,7 @@
               </td>
 
               <td class="rft-td-num num">{{ fmt(m.p95Err) }} m</td>
+              <td class="rft-td-num num">{{ fmt(m.recDist, 0) }} m</td>
 
               <td class="rft-td-num num" [class.over]="m.deltaDist > 0" [class.under]="m.deltaDist < 0">
                 {{ fmtSign(m.deltaDist) }} m
