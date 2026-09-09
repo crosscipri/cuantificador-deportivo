@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -10,6 +11,13 @@ from pymongo.errors import DuplicateKeyError
 from .channels import read_channels
 
 router = APIRouter(prefix="/api", tags=["comparisons"])
+
+COMPARISON_OPTION_FIELDS = (
+    "device_id", "device_name", "reference_name", "session_name", "activity_date",
+    "sport_type", "session_difficulty", "training_type", "duration_seconds",
+    "experiment_id", "protocol_id", "protocol_version", "metrics",
+    "reference_recording_id", "recording_id", "firmware", "participant_id",
+)
 
 
 @router.get("/comparison-definitions")
@@ -43,13 +51,16 @@ async def options(request: Request, device_id: str | None = None,
         query["protocol_id"] = protocol_id
     if sport_type:
         query["sport_type"] = sport_type
-    fields = {k: 1 for k in ("device_id", "device_name", "reference_name", "session_name", "activity_date",
-                             "sport_type", "session_difficulty", "training_type", "duration_seconds",
-                             "experiment_id", "protocol_id", "protocol_version", "metrics",
-                             "reference_recording_id", "recording_id","firmware","participant_id")}
-    cursor = db.sessions.find(query, fields).sort("activity_date", -1).skip(offset).limit(limit+1)
-    docs = await cursor.to_list(length=limit+1)
-    return {"items": public(docs[:limit]), "has_more": len(docs)>limit, "offset": offset}
+    # A few legacy documents make Mongo fail when it assembles a larger batch
+    # with this projection, although those documents can be read individually.
+    # Page over lightweight IDs first and hydrate each selected row separately.
+    cursor = db.sessions.find(query, {"_id": 1}).sort("activity_date", -1).skip(offset).limit(limit+1)
+    page = await cursor.to_list(length=limit+1)
+    fields = {key: 1 for key in COMPARISON_OPTION_FIELDS}
+    docs = await asyncio.gather(*(
+        db.sessions.find_one({"_id": item["_id"]}, fields) for item in page[:limit]
+    ))
+    return {"items": public([doc for doc in docs if doc]), "has_more": len(page)>limit, "offset": offset}
 
 
 @router.get("/recordings")
