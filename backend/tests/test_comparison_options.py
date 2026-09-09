@@ -1,9 +1,10 @@
+import asyncio
 import unittest
 from types import SimpleNamespace
 
 from bson import ObjectId
 
-from comparisons.router import options
+from comparisons.router import COMPARISON_OPTION_CONCURRENCY, options
 
 
 class _Cursor:
@@ -37,6 +38,21 @@ class _Sessions:
     async def find_one(self, query, projection):
         self.hydration_projection = projection
         return next((doc for doc in (self.docs or []) if doc["_id"] == query["_id"]), None)
+
+
+class _ConcurrentSessions(_Sessions):
+    def __init__(self, docs):
+        super().__init__(docs)
+        self.active = 0
+        self.maximum_active = 0
+
+    async def find_one(self, query, projection):
+        self.hydration_projection = projection
+        self.active += 1
+        self.maximum_active = max(self.maximum_active, self.active)
+        await asyncio.sleep(0)
+        self.active -= 1
+        return next(doc for doc in self.docs if doc["_id"] == query["_id"])
 
 
 class _Devices:
@@ -88,6 +104,18 @@ class ComparisonOptionsTests(unittest.IsolatedAsyncioTestCase):
         await options(request, device_id=str(device_id), offset=0, limit=100)
 
         self.assertEqual(sessions.query["device_id"], device_id)
+
+    async def test_hydration_concurrency_is_bounded_for_hosted_mongodb(self):
+        device_id = ObjectId()
+        docs = [{"_id": ObjectId(), "device_id": device_id} for _ in range(20)]
+        sessions = _ConcurrentSessions(docs)
+        db = SimpleNamespace(devices=None, sessions=sessions)
+        request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(db=db)))
+
+        response = await options(request, device_id=str(device_id), offset=0, limit=20)
+
+        self.assertEqual(len(response["items"]), 20)
+        self.assertLessEqual(sessions.maximum_active, COMPARISON_OPTION_CONCURRENCY)
 
 
 if __name__ == "__main__":
