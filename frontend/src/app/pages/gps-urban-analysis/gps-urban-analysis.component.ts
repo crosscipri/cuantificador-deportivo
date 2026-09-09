@@ -854,7 +854,7 @@ export class GpsUrbanAnalysisComponent implements OnInit, OnDestroy {
       next: (tests) => {
         this.savedTests = tests;
         this.loadingTests = false;
-        if (tests.length > 0) this.loadTest(tests[0].id);
+        if (tests.length > 0) this.loadTest(tests.find(t=>t.id===this.route.snapshot.queryParamMap.get('test'))?.id||tests[0].id);
       },
       error: () => {
         this.loadingTests = false;

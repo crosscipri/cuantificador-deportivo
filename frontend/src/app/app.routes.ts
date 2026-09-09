@@ -2,6 +2,8 @@ import { Routes } from '@angular/router';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'devices', pathMatch: 'full' },
+  { path: 'comparisons', loadComponent: () => import('./pages/comparisons/comparisons.component').then(m => m.ComparisonsComponent) },
+  { path: 'comparisons/:comparisonId', loadComponent: () => import('./pages/comparisons/comparisons.component').then(m => m.ComparisonsComponent) },
   {
     path: 'devices',
     loadComponent: () =>

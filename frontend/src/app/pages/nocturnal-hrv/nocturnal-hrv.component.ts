@@ -281,7 +281,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
         this.loadGlobalSessionDetails(sessions);
         this.loadGlobalData();
         if (sessions.length > 0 && !this.hasData) {
-          this.loadSession(sessions[0].id);
+          this.loadSession(sessions.find(s=>s.id===this.route.snapshot.queryParamMap.get('session'))?.id||sessions[0].id);
         }
       },
       error: () => { this.loadingSessions = false; },

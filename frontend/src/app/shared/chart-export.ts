@@ -42,3 +42,16 @@ export function downloadCanvasPng(canvas: HTMLCanvasElement, filename: string): 
   link.download = filename;
   link.click();
 }
+
+/** Letterbox a scientific figure into a fixed 16:9 publication frame. */
+export function downloadCanvasFramePng(canvas:HTMLCanvasElement,width:number,height:number,filename:string,title:string):void {
+  const output=document.createElement('canvas');output.width=width;output.height=height;
+  const ctx=output.getContext('2d')!;const margin=width/40;
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);ctx.fillStyle='#18181b';ctx.font=`600 ${width/60}px sans-serif`;
+  ctx.fillText(title,margin,margin*1.4,width-2*margin);
+  const factor=Math.min((width-2*margin)/canvas.width,(height-4*margin)/canvas.height);
+  const w=canvas.width*factor,h=canvas.height*factor;
+  ctx.drawImage(canvas,(width-w)/2,(height-h)/2,w,h);
+  ctx.font=`${width/110}px sans-serif`;ctx.fillText('Comparativa descriptiva · consultar selección, referencias y metodología de la evidencia exportada.',margin,height-margin,width-2*margin);
+  downloadCanvasPng(output,filename);
+}

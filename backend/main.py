@@ -40,10 +40,19 @@ from analyzer import (analyze_session, generate_aggregate_analysis,
                       VALID_CHART_CRITERIA,
                       analyze_interval as calculate_interval_analysis)
 from ai_analyzer import generate_session_ai_analysis, generate_device_ai_verdict, generate_gps_track_ai_analysis, generate_gps_urban_ai_analysis, generate_nocturnal_hrv_ai_analysis, generate_nocturnal_hrv_global_ai_analysis
+from comparisons.router import router as comparisons_router
+from comparisons.service import create_indexes as create_comparison_indexes, ensure_recordings, protect_sources
+from comparisons.protocols import router as comparison_protocols_router
+from comparisons.archive import router as comparison_archive_router, protect_archive, ensure_archive_recordings
+from comparisons.sleep import router as comparison_sleep_router
 
 load_dotenv()
 
 app = FastAPI(title="HR Analyzer API", version="2.0.0")
+app.include_router(comparisons_router)
+app.include_router(comparison_protocols_router)
+app.include_router(comparison_archive_router)
+app.include_router(comparison_sleep_router)
 
 APP_USERNAME = os.getenv("APP_USERNAME", "cuantificador")
 APP_PASSWORD = os.getenv("APP_PASSWORD", "")
@@ -128,6 +137,7 @@ async def startup() -> None:
     await app.state.db.gps_scores.create_index("device_id", unique=True)
     await app.state.db.nocturnal_hrv_sessions.create_index("device_id")
     await app.state.db.nocturnal_hrv_sessions.create_index([("created_at", -1)])
+    await create_comparison_indexes(app.state.db)
 
 
 @app.on_event("shutdown")
@@ -354,6 +364,13 @@ async def get_device(device_id: str) -> dict:
 async def delete_device(device_id: str) -> dict:
     """Delete a device and ALL its sessions."""
     oid = _oid(device_id)
+    source_ids = [str(d["_id"]) async for d in db().sessions.find({"device_id": oid}, {"_id": 1})]
+    await protect_sources(db(), source_ids)
+    if await db().sleep_recordings.find_one({'device_id':device_id},{'_id':1}):
+        raise HTTPException(409,'El dispositivo tiene grabaciones de sueño conservadas; no se elimina su identidad.')
+    for collection in ("nocturnal_hrv_sessions","gps_tests","urban_tests"):
+        archive_ids=[str(d["_id"]) async for d in db()[collection].find({"device_id":oid},{"_id":1})]
+        await protect_archive(db(),collection,archive_ids)
     result = await db().devices.delete_one({"_id": oid})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
@@ -438,6 +455,7 @@ async def create_session(
     }
     inserted = await db().sessions.insert_one(doc)
     doc["_id"] = inserted.inserted_id
+    await ensure_recordings(db(),doc)
     return _ser(doc)
 
 
@@ -526,6 +544,7 @@ async def update_session(session_id: str, body: dict) -> dict:
 @app.delete("/api/sessions/{session_id}")
 async def delete_session(session_id: str) -> dict:
     """Delete a session."""
+    await protect_sources(db(), [session_id])
     result = await db().sessions.delete_one({"_id": _oid(session_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
@@ -538,6 +557,7 @@ async def reanalyze_session(session_id: str) -> dict:
     doc = await db().sessions.find_one({"_id": _oid(session_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
+    await ensure_recordings(db(), doc)
 
     device_bytes: bytes | None    = doc.get("device_file_bytes")
     reference_bytes: bytes | None = doc.get("reference_file_bytes")
@@ -630,6 +650,7 @@ async def save_session_interval(session_id: str, body: dict) -> dict:
     doc = await db().sessions.find_one({"_id": _oid(session_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
+    await ensure_recordings(db(), doc)
 
     device_bytes = doc.get("device_file_bytes")
     reference_bytes = doc.get("reference_file_bytes")
@@ -1290,6 +1311,7 @@ async def create_gps_test(device_id: str, body: dict) -> dict:
     }
     inserted = await db().gps_tests.insert_one(doc)
     doc["_id"] = inserted.inserted_id
+    await ensure_archive_recordings(db(),doc,"GPS_TRACK")
     return _ser_gps_test(doc, include_points=False)
 
 
@@ -1313,6 +1335,7 @@ async def get_gps_test(test_id: str) -> dict:
 
 @app.delete("/api/gps-tests/{test_id}")
 async def delete_gps_test(test_id: str) -> dict:
+    await protect_archive(db(),"gps_tests",[test_id])
     result = await db().gps_tests.delete_one({"_id": _oid(test_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Test GPS no encontrado")
@@ -1378,6 +1401,7 @@ async def create_urban_test(device_id: str, body: dict) -> dict:
     }
     inserted = await db().urban_tests.insert_one(doc)
     doc["_id"] = inserted.inserted_id
+    await ensure_archive_recordings(db(),doc,"GPS_URBAN")
     return _ser_urban_test(doc, include_points=False)
 
 
@@ -1401,6 +1425,7 @@ async def get_urban_test(test_id: str) -> dict:
 
 @app.delete("/api/urban-tests/{test_id}")
 async def delete_urban_test(test_id: str) -> dict:
+    await protect_archive(db(),"urban_tests",[test_id])
     result = await db().urban_tests.delete_one({"_id": _oid(test_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Test urbano no encontrado")
@@ -1810,6 +1835,7 @@ async def create_nocturnal_hrv_session(
 
     inserted = await db().nocturnal_hrv_sessions.insert_one(doc)
     doc["_id"] = inserted.inserted_id
+    await ensure_archive_recordings(db(),doc,"NIGHT_RMSSD")
     return _ser_nocturnal_hrv(doc, include_windows=False)
 
 
@@ -1844,6 +1870,7 @@ async def get_nocturnal_hrv_session(session_id: str) -> dict:
 
 @app.delete("/api/nocturnal-hrv/{session_id}")
 async def delete_nocturnal_hrv_session(session_id: str) -> dict:
+    await protect_archive(db(),"nocturnal_hrv_sessions",[session_id])
     result = await db().nocturnal_hrv_sessions.delete_one({"_id": _oid(session_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Sesión HRV no encontrada")
