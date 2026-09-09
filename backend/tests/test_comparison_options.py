@@ -14,6 +14,9 @@ class _Cursor:
     def sort(self, *_args):
         return self
 
+    def allow_disk_use(self, *_args):
+        return self
+
     def skip(self, *_args):
         return self
 

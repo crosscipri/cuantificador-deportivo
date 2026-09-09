@@ -475,3 +475,5 @@ async def create_indexes(db):
     await db.experiments.create_index("session_ids", unique=True)
     await db.sessions.create_index("experiment_id")
     await db.sessions.create_index([("protocol_id", 1), ("protocol_version", 1)])
+    await db.sessions.create_index([("activity_date", -1), ("_id", -1)])
+    await db.sessions.create_index([("device_id", 1), ("activity_date", -1), ("_id", -1)])

@@ -65,7 +65,10 @@ async def options(request: Request, device_id: str | None = None,
     # A few legacy documents make Mongo fail when it assembles a larger batch
     # with this projection, although those documents can be read individually.
     # Page over lightweight IDs first and hydrate each selected row separately.
-    cursor = db.sessions.find(query, {"_id": 1}).sort("activity_date", -1).skip(offset).limit(limit+1)
+    cursor = (db.sessions.find(query, {"_id": 1})
+              .sort([("activity_date", -1), ("_id", -1)])
+              .allow_disk_use(True)
+              .skip(offset).limit(limit+1))
     page = await cursor.to_list(length=limit+1)
     fields = {key: 1 for key in COMPARISON_OPTION_FIELDS}
     docs = await _comparison_option_rows(db, page[:limit], fields)
