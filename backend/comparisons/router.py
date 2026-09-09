@@ -32,6 +32,13 @@ async def options(request: Request, device_id: str | None = None,
         query["_id"] = {"$in": [oid(s) for s in ids]}
     if device_id:
         query["device_id"] = oid(device_id)
+    else:
+        # Deleted devices can leave legacy/orphaned session documents behind.
+        # Apart from being unusable in a comparison, some old documents may no
+        # longer conform to the current response schema and can make the whole
+        # paginated selector fail during decoding/serialization.
+        active_device_ids = await db.devices.distinct("_id")
+        query["device_id"] = {"$in": active_device_ids}
     if protocol_id:
         query["protocol_id"] = protocol_id
     if sport_type:
