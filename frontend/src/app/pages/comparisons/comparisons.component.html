@@ -1,21 +1,22 @@
-<div class="page">
-  <div class="heading"><div><p class="eyebrow">EVIDENCIA POR DISPOSITIVO</p><h1>Comparativas</h1><p>Compara una misma prueba o el rendimiento entre sesiones.</p></div><button [disabled]="busy" (click)="newComparison()">Nueva comparativa</button></div>
-  <div class="actions"><button [class.primary]="workspace==='hr'" (click)="workspace='hr'">Entrenamientos FC / GPS</button><button [class.primary]="workspace==='archive'" (click)="workspace='archive'">Histórico GPS y noches</button><button [class.primary]="workspace==='sleep'" (click)="workspace='sleep'">Sueño por épocas</button></div>
+<div class="page" [class.embedded]="workspaceId">
+  <div class="heading" *ngIf="!workspaceId"><div><p class="eyebrow">EVIDENCIA POR DISPOSITIVO</p><h1>Comparativas</h1><p>Compara una misma prueba o el rendimiento entre sesiones.</p></div><button [disabled]="busy" (click)="newComparison()">Nueva comparativa</button></div>
+  <div class="actions" *ngIf="!workspaceId"><button [class.primary]="workspace==='hr'" (click)="workspace='hr'">Entrenamientos FC / GPS</button><button [class.primary]="workspace==='archive'" (click)="workspace='archive'">Histórico GPS y noches</button><button [class.primary]="workspace==='sleep'" (click)="workspace='sleep'">Sueño por épocas</button></div>
   <app-comparison-archive *ngIf="workspace==='archive'" [devices]="devices"></app-comparison-archive>
   <app-comparison-sleep *ngIf="workspace==='sleep'" [devices]="devices"></app-comparison-sleep>
   <ng-container *ngIf="workspace==='hr'">
   <p class="error" role="alert" *ngIf="errorMessage">{{errorMessage}}</p>
   <p class="notice" role="status" *ngIf="notice">{{notice}}</p>
-  <details class="panel" *ngIf="saved.length"><summary>Comparativas guardadas ({{saved.length}})</summary><div class="saved"><div *ngFor="let item of saved"><a [routerLink]="['/comparisons',item.id]" (click)="busy && $event.preventDefault()" [attr.aria-disabled]="busy">{{item.configuration.name}} <small>{{item.configuration.mode}} · {{item.created_at | date:'shortDate'}}</small></a><a [href]="'/api/comparisons/'+item.id+'/evidence'" target="_blank" rel="noopener">Evidencia guardada JSON</a></div></div></details>
-  <button *ngIf="savedMore" [disabled]="busy" (click)="loadMoreSaved()">Más comparativas guardadas</button>
+  <details class="panel" *ngIf="!workspaceId&&saved.length"><summary>Comparativas guardadas ({{saved.length}})</summary><div class="saved"><div *ngFor="let item of saved"><a [routerLink]="['/comparisons',item.id]" (click)="busy && $event.preventDefault()" [attr.aria-disabled]="busy">{{item.configuration.name}} <small>{{item.configuration.mode}} · {{item.created_at | date:'shortDate'}}</small></a><a [href]="'/api/comparisons/'+item.id+'/evidence'" target="_blank" rel="noopener">Evidencia guardada JSON</a></div></div></details>
+  <button *ngIf="!workspaceId&&savedMore" [disabled]="busy" (click)="loadMoreSaved()">Más comparativas guardadas</button>
   <details class="panel" *ngIf="revisions.length>1"><summary>Versiones de esta comparativa</summary><p *ngFor="let item of revisions"><a [routerLink]="['/comparisons',item.id]">{{item.configuration.name}} · {{item.created_at|date:'medium'}} · {{item.configuration.storage_mode||'SNAPSHOT'}}</a></p></details>
   <section class="panel">
     <fieldset [disabled]="busy">
+    <div class="fields"><label>Tipo de gráfica<select [(ngModel)]="chartType" (ngModelChange)="chartTypeChanged()"><option value="hr">Frecuencia cardíaca</option><option value="error">Error de frecuencia cardíaca</option><option value="gps">Trayectorias GPS</option><option value="metric">Métricas entre entrenamientos</option><option value="scatter">Dispersión</option><option value="bland_altman">Bland–Altman</option><option value="ecdf">Distribución acumulada del error</option></select></label></div>
     <div class="modes"><label [class.active]="selection.mode==='DIRECT'"><input type="radio" name="mode" value="DIRECT" [(ngModel)]="selection.mode" (ngModelChange)="modeChanged()"><strong>Mismo entrenamiento</strong><span>Referencia común · Señales y GPS</span></label>
     <label [class.active]="selection.mode==='BENCHMARK'"><input type="radio" name="mode" value="BENCHMARK" [(ngModel)]="selection.mode" (ngModelChange)="modeChanged()"><strong>Entrenamientos distintos</strong><span>Resultados por sesión · Distribución y n</span></label></div>
-    <div class="fields"><label>Nombre<input [(ngModel)]="selection.name" (ngModelChange)="invalidate()" maxlength="160"></label>
+    <div class="fields"><label>Nombre de la gráfica<input [(ngModel)]="selection.name" (ngModelChange)="invalidate()" maxlength="160"></label>
     <label *ngIf="selection.mode==='DIRECT'">Experimento existente<select (change)="chooseExperiment($any($event.target).value)"><option value="">Selección manual</option><option *ngFor="let exp of experiments" [value]="exp.id">{{exp.name}}</option></select></label></div>
-    <div class="fields"><label>Dispositivo<select [(ngModel)]="deviceFilter"><option value="">Todos</option><option *ngFor="let d of devices" [value]="d.id">{{d.name}}</option></select></label>
+    <div class="fields"><label>Dispositivo<select [(ngModel)]="deviceFilter" (ngModelChange)="deviceFilterChanged()"><option value="">Todos</option><option *ngFor="let d of devices" [value]="d.id">{{d.name}}</option></select></label>
       <label>Deporte<select [(ngModel)]="sportFilter"><option value="">Todos</option><option value="running">Carrera</option><option value="cycling">Ciclismo</option><option value="gym">Fuerza</option></select></label>
       <label>Categoría<select [(ngModel)]="difficultyFilter"><option value="">Todas</option><option value="z2">Suave / Z2</option><option value="tempo">Tempo</option><option value="series">Series</option></select></label>
       <label>Protocolo<select [(ngModel)]="selection.protocol_id" (ngModelChange)="selection.protocol_version=null;invalidate()"><option [ngValue]="null">Todos / histórico sin clasificar</option><option *ngFor="let p of protocolChoices" [value]="p.id">{{p.name}}</option></select></label>
@@ -67,6 +68,7 @@
     <label *ngIf="selection.mode==='BENCHMARK'">Resultados que se utilizarán<select [(ngModel)]="selection.benchmark_method" (ngModelChange)="invalidate()"><option value="LEGACY">Históricos guardados — sin recalcular</option><option value="CURRENT">Motor actual — reutilizar revisión o calcular desde originales</option></select></label>
     <p *ngIf="selection.mode==='BENCHMARK'" class="hint">Cada sesión tiene el mismo peso. Selecciona el mismo deporte y categoría. Los resultados históricos sin cobertura o P95 muestran NO DATA.</p>
     <ng-container *ngIf="selection.mode==='BENCHMARK'">
+      <label>Métrica de la gráfica<select [(ngModel)]="metric" (ngModelChange)="buildDots()"><option *ngFor="let d of definitions" [value]="d.id">{{d.name}} {{d.unit}}</option></select></label>
       <label>Agregación<select [(ngModel)]="selection.aggregation" (ngModelChange)="invalidate()"><option value="SESSION">Igual peso por sesión</option><option value="DURATION">Ponderar por duración analizada</option><option value="VALID_PAIRS">Ponderar por pares válidos</option><option value="MANUAL">Pesos manuales explícitos</option></select></label>
       <div class="fields" *ngIf="selection.aggregation==='MANUAL'"><label *ngFor="let s of selectedSessions">Peso {{s.device_name}} · {{s.session_name}}<input type="number" min="0" [(ngModel)]="selection.manual_weights[s.id]" (ngModelChange)="invalidate()"></label></div>
       <label class="check"><input type="checkbox" [(ngModel)]="selection.uncertainty.enabled" (ngModelChange)="invalidate()">Intervalo de confianza por clusters de participante o experimento/sesión</label>
@@ -74,7 +76,8 @@
       <p class="hint">La media, mediana y dispersión descriptivas siguen usando sesiones. La estimación ponderada se muestra aparte con su n elegible. El bootstrap nunca remuestrea segundos como sujetos; con menos de 5 clusters no se informa intervalo.</p>
     </ng-container>
     <label>Tipo de comparativa<select [(ngModel)]="selection.storage_mode"><option value="SNAPSHOT">Snapshot: evidencia congelada</option><option value="LIVE">Live: actualizar al abrir</option></select></label>
-    <div class="actions"><button class="primary" [disabled]="busy||(selection.selection_policy==='EXPLICIT'&&selection.session_ids.length<2)" (click)="calculate()">{{busy?'Procesando…':'Calcular comparativa'}}</button><button [disabled]="busy||!result" (click)="calculate(true)">{{revisionParent?'Guardar nueva versión':'Guardar comparativa'}}</button></div>
+    <div class="actions"><button class="primary" [disabled]="busy||!!calculationIssue" aria-describedby="calculation-requirements" (click)="calculate()">{{busy?'Procesando…':'Calcular comparativa'}}</button><button [disabled]="busy||!!calculationIssue" (click)="calculate(true)">{{workspaceId?(workspaceChartId?'Guardar cambios de la gráfica':'Guardar gráfica en la comparativa'):(revisionParent?'Guardar nueva versión':'Guardar comparativa')}}</button></div>
+    <p id="calculation-requirements" class="hint" role="status">{{calculationIssue || 'Selección lista. Puedes calcular o guardar la gráfica directamente.'}}</p>
     </fieldset>
   </section>
   <ng-container *ngIf="result as r">

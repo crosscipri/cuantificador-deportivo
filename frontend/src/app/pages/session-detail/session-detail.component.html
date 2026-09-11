@@ -37,7 +37,7 @@
         </div>
       </div>
       <div class="header-actions">
-        <a class="ec-btn" routerLink="/comparisons" [queryParams]="{session: session.id}">Comparar sesión</a>
+        <a class="ec-btn" routerLink="/comparisons/calculate" [queryParams]="{session: session.id}">Comparar sesión</a>
         <div class="session-nav" *ngIf="siblingIds.length > 1">
           <button class="ec-btn nav-btn" (click)="navigateTo(prevId!)" [disabled]="!prevId" title="Sesión anterior">
             ←

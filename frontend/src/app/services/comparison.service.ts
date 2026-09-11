@@ -1,10 +1,16 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { ComparisonResult, ComparisonSelection, ComparisonSession, ComparisonSeries, Experiment, SavedComparison, StatisticDefinition } from '../models/comparison.model';
+import { ComparisonResult, ComparisonSelection, ComparisonSession, ComparisonSeries, ComparisonWorkspace, WorkspaceChart, Experiment, SavedComparison, StatisticDefinition } from '../models/comparison.model';
 
 @Injectable({ providedIn: 'root' })
 export class ComparisonService {
   constructor(private http: HttpClient) {}
+  workspaces(offset=0) { return this.http.get<ComparisonWorkspace[]>('/api/comparison-workspaces', {params:{offset}}); }
+  createWorkspace(name:string) { return this.http.post<ComparisonWorkspace>('/api/comparison-workspaces', {name}); }
+  workspace(id:string) { return this.http.get<ComparisonWorkspace>(`/api/comparison-workspaces/${id}`); }
+  saveWorkspaceChart(id:string,chartId:string|null,selection:ComparisonSelection) {
+    return this.http.post<{id:string;result:ComparisonResult;chart:WorkspaceChart}>(`/api/comparison-workspaces/${id}/charts`, {chart_id:chartId,selection});
+  }
   definitions() {
     return this.http.get<{version: string; statistics: StatisticDefinition[]; protocols: {id: string; name: string; version: number}[]}>('/api/comparison-definitions');
   }

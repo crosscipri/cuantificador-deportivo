@@ -8,6 +8,8 @@ from .service import (build, public, oid, sessions_for, ensure_recordings, read_
                       direct_compute, source_manifest,digest)
 from starlette.concurrency import run_in_threadpool
 from pymongo.errors import DuplicateKeyError
+from bson import ObjectId
+from .models import ComparisonWorkspaceInput, WorkspaceChartInput
 from .channels import read_channels
 
 router = APIRouter(prefix="/api", tags=["comparisons"])
@@ -19,6 +21,57 @@ COMPARISON_OPTION_FIELDS = (
     "reference_recording_id", "recording_id", "firmware", "participant_id",
 )
 COMPARISON_OPTION_CONCURRENCY = 5
+
+
+@router.post("/comparison-workspaces", status_code=201)
+async def create_workspace(request: Request, body: ComparisonWorkspaceInput):
+    doc = {"name": body.name, "charts": [], "created_at": datetime.now(timezone.utc)}
+    result = await request.app.state.db.comparison_workspaces.insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return public(doc)
+
+
+@router.get("/comparison-workspaces")
+async def workspaces(request: Request, offset: int = Query(default=0, ge=0)):
+    docs = await request.app.state.db.comparison_workspaces.find().sort("created_at", -1).skip(offset).limit(50).to_list(length=50)
+    return public(docs)
+
+
+@router.get("/comparison-workspaces/{workspace_id}")
+async def workspace(request: Request, workspace_id: str):
+    doc = await request.app.state.db.comparison_workspaces.find_one({"_id": oid(workspace_id)})
+    if not doc:
+        raise HTTPException(404, "Comparativa no encontrada.")
+    return public(doc)
+
+
+@router.post("/comparison-workspaces/{workspace_id}/charts", status_code=201)
+async def save_workspace_chart(request: Request, workspace_id: str, body: WorkspaceChartInput):
+    db = request.app.state.db
+    doc = await workspace(request, workspace_id)
+    existing = next((chart for chart in doc["charts"] if chart["id"] == body.chart_id), None)
+    if body.chart_id and not existing:
+        raise HTTPException(404, "Gráfica no encontrada en esta comparativa.")
+    parent = None
+    if existing:
+        parent = await db.comparisons.find_one({"_id": oid(existing["comparison_id"])})
+        if not parent:
+            raise HTTPException(404, "No se encuentra el cálculo anterior de esta gráfica.")
+    saved = await store_comparison(db, body.selection, parent)
+    chart = {"id": body.chart_id or str(ObjectId()), "comparison_id": saved["id"],
+             "name": body.selection.name, "mode": body.selection.mode,
+             "chart_type": body.selection.visualization.chart_type}
+    query = {"_id": oid(workspace_id)}
+    if existing:
+        # A concurrent editor must not silently replace a newer chart revision.
+        query["charts"] = {"$elemMatch": {"id": existing["id"], "comparison_id": existing["comparison_id"]}}
+        update = {"$set": {"charts.$": chart}}
+    else:
+        update = {"$push": {"charts": chart}}
+    updated = await db.comparison_workspaces.update_one(query, update)
+    if not updated.matched_count:
+        raise HTTPException(409, "La gráfica cambió durante el guardado. Recarga la comparativa; el cálculo se conserva en el histórico.")
+    return {**saved, "chart": chart}
 
 
 async def _comparison_option_rows(db, page, fields):

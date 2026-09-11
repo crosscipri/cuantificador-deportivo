@@ -1,0 +1,30 @@
+<div class="page">
+  <div class="heading"><div><p class="eyebrow">EVIDENCIA POR DISPOSITIVO</p><h1>{{active?.name || 'Comparativas'}}</h1><p>Crea una comparativa y añade las gráficas que quieras, cada una con sus dispositivos y entrenamientos.</p></div><a *ngIf="active" routerLink="/comparisons" (click)="editorBusy && $event.preventDefault()">Todas las comparativas</a></div>
+  <p class="error" role="alert" *ngIf="error">{{error}}</p>
+  <p role="status" *ngIf="loading">Cargando comparativa…</p>
+  <ng-container *ngIf="!active&&!loading">
+    <div class="actions"><button [class.primary]="tab==='training'" (click)="tab='training'">Entrenamientos FC / GPS</button><button [class.primary]="tab==='archive'" (click)="tab='archive'">Histórico GPS y noches</button><button [class.primary]="tab==='sleep'" (click)="tab='sleep'">Sueño por épocas</button></div>
+    <app-comparison-archive *ngIf="tab==='archive'" [devices]="devices"></app-comparison-archive>
+    <app-comparison-sleep *ngIf="tab==='sleep'" [devices]="devices"></app-comparison-sleep>
+    <ng-container *ngIf="tab==='training'">
+      <form class="panel" (ngSubmit)="create()"><h2>Nueva comparativa</h2><div class="fields"><label>Nombre de la comparativa<input name="workspaceName" [(ngModel)]="name" placeholder="Por ejemplo: relojes para correr" maxlength="160" required [disabled]="busy"></label><button type="submit" class="primary" [disabled]="busy||!name.trim()">{{busy?'Creando…':'Crear comparativa'}}</button></div><p class="hint">Puedes crearla sin seleccionar entrenamientos y añadir las gráficas después.</p></form>
+      <section class="panel"><h2>Mis comparativas</h2><p *ngIf="!items.length">Todavía no has creado ninguna comparativa.</p><div class="saved"><a *ngFor="let item of items" [routerLink]="['/comparisons/workspaces',item.id]">{{item.name}}<small>{{item.charts.length}} gráficas · {{item.created_at|date:'shortDate'}}</small></a></div><button *ngIf="more" (click)="loadList(true)">Cargar más comparativas</button></section>
+      <details class="panel" *ngIf="legacy.length"><summary>Cálculos guardados anteriores</summary><div class="saved"><a *ngFor="let item of legacy" [routerLink]="['/comparisons',item.id]">{{item.configuration.name}}<small>{{item.created_at|date:'shortDate'}}</small></a></div></details>
+    </ng-container>
+  </ng-container>
+  <ng-container *ngIf="active as item">
+    <div class="heading"><h2>Gráficas ({{item.charts.length}})</h2><button class="primary" [disabled]="editorBusy" (click)="addChart()">Añadir gráfica</button></div>
+    <p class="hint" *ngIf="!item.charts.length">La comparativa está creada. Configura y guarda su primera gráfica.</p>
+    <section *ngFor="let editor of editors" class="panel">
+      <div class="heading"><h2>{{editor.chartId?'Editar gráfica':'Nueva gráfica'}}</h2><button [disabled]="editorBusy" (click)="editors=[]">Cerrar editor</button></div>
+      <app-comparisons [workspaceId]="item.id" [initialComparisonId]="editor.comparisonId" [workspaceChartId]="editor.chartId" (chartSaved)="saved($event)" (busyChange)="editorBusy=$event"></app-comparisons>
+    </section>
+    <article class="panel" *ngFor="let chart of item.charts">
+      <div class="heading"><h2>{{chart.name}}</h2><button [disabled]="editorBusy" (click)="editChart(chart)">Editar gráfica</button></div>
+      <p class="hint">{{chart.mode==='DIRECT'?'Mismo entrenamiento':'Entrenamientos distintos'}}</p>
+      <app-comparison-card *ngIf="results[chart.id] as result" [result]="result"></app-comparison-card>
+      <p role="status" *ngIf="!results[chart.id]&&!chartErrors[chart.id]">Cargando gráfica…</p>
+      <div *ngIf="chartErrors[chart.id]" class="error" role="alert">{{chartErrors[chart.id]}} <button (click)="loadChart(chart)">Reintentar</button> <a [href]="'/api/comparisons/'+chart.comparison_id+'/evidence'" target="_blank" rel="noopener">Consultar evidencia guardada</a></div>
+    </article>
+  </ng-container>
+</div>

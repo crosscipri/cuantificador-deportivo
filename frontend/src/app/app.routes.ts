@@ -2,7 +2,9 @@ import { Routes } from '@angular/router';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'devices', pathMatch: 'full' },
-  { path: 'comparisons', loadComponent: () => import('./pages/comparisons/comparisons.component').then(m => m.ComparisonsComponent) },
+  { path: 'comparisons', loadComponent: () => import('./pages/comparisons/comparison-workspace.component').then(m => m.ComparisonWorkspaceComponent) },
+  { path: 'comparisons/workspaces/:workspaceId', loadComponent: () => import('./pages/comparisons/comparison-workspace.component').then(m => m.ComparisonWorkspaceComponent) },
+  { path: 'comparisons/calculate', loadComponent: () => import('./pages/comparisons/comparisons.component').then(m => m.ComparisonsComponent) },
   { path: 'comparisons/:comparisonId', loadComponent: () => import('./pages/comparisons/comparisons.component').then(m => m.ComparisonsComponent) },
   {
     path: 'devices',

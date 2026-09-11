@@ -73,6 +73,7 @@ class Visualization(BaseModel):
     layout: Literal["OVERLAY", "SMALL_MULTIPLES"] = "OVERLAY"
     diagnostic: Literal["scatter", "bland_altman", "ecdf"] = "scatter"
     error_view:Literal["SIGNED","ABSOLUTE"]="SIGNED"
+    chart_type: Literal["hr", "error", "gps", "metric", "scatter", "bland_altman", "ecdf"] = "hr"
 
     @model_validator(mode="after")
     def validate_metric(self):
@@ -138,6 +139,17 @@ class Selection(BaseModel):
         if self.aggregation == "MANUAL" and set(self.manual_weights) != set(self.session_ids):
             raise ValueError("Indica un peso explícito para cada sesión.")
         return self
+
+
+class ComparisonWorkspaceInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    name: str = Field(min_length=1, max_length=160)
+
+
+class WorkspaceChartInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    chart_id: str | None = None
+    selection: Selection
 
 
 class ExperimentInput(BaseModel):

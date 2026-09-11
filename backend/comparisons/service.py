@@ -469,6 +469,7 @@ async def create_indexes(db):
     await db.analysis_revisions.create_index("source_session_id")
     await db.analysis_revisions.create_index("cache_key")
     await db.comparisons.create_index([("created_at", -1)])
+    await db.comparison_workspaces.create_index([("created_at", -1)])
     await db.comparisons.create_index("configuration.session_ids")
     await db.comparisons.create_index("evidence.configuration.session_ids")
     await db.comparisons.create_index("root_comparison_id")

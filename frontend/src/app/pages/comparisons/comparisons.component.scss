@@ -6,7 +6,7 @@ h1{font-family:var(--font-display);font-size:2.6rem;margin:.3rem 0}h2{font-famil
 .fields,.actions{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;align-items:end}.fields>label{flex:1;min-width:180px}
 label{display:flex;flex-direction:column;gap:.4rem;font-size:.9rem}input,select,button{font:inherit;color:var(--ink)}
 input:not([type=checkbox]):not([type=radio]),select{border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--surface);padding:.65rem;max-width:100%}
-button{border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--surface);padding:.65rem .85rem;cursor:pointer}button:disabled{opacity:.5;cursor:wait}.primary{background:var(--accent);color:white;border-color:var(--accent)}
+button{border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--surface);padding:.65rem .85rem;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.primary{background:var(--accent);color:white;border-color:var(--accent)}
 .modes{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.modes label{padding:1rem;border:1px solid var(--line);border-radius:var(--r-md);cursor:pointer}.modes label.active{border-color:var(--accent);background:var(--accent-soft)}.modes input{align-self:start}.modes span,.hint,small{color:var(--ink-3)}
 .session-list{max-height:360px;overflow:auto;border:1px solid var(--line);margin:1rem 0}.session{display:flex;flex-direction:row;align-items:center;padding:.75rem;gap:.8rem;border-bottom:1px solid var(--line);cursor:pointer}.session.selected{background:var(--accent-soft)}small{display:block;margin-top:.25rem}.check{flex-direction:row;align-items:center}
 .selected-list{display:flex;flex-wrap:wrap;gap:.5rem}.selected-list>span{background:var(--bg-sunk);padding:.3rem .6rem;border-radius:var(--r-sm)}.selected-list button{border:0;background:transparent;padding:.2rem}
@@ -15,3 +15,5 @@ button{border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(-
 .badge{display:inline-block;background:var(--accent-soft);padding:.35rem .6rem;border-radius:var(--r-sm);font-size:.75rem;margin-right:.5rem}.dot-chart{height:350px}.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem}.metric-grid>div{display:flex;flex-direction:column;gap:.3rem;padding:.7rem;background:var(--bg-sunk)}article{padding-bottom:1rem;border-bottom:1px solid var(--line)}.saved{display:flex;gap:1rem;flex-wrap:wrap}.saved a{padding:.7rem;border:1px solid var(--line)}app-comparison-chart{display:block;margin:1rem 0}
 @media(max-width:650px){.page{padding:.75rem}.heading{align-items:start;flex-direction:column}.modes{grid-template-columns:1fr}.fields>label{min-width:100%}.actions{gap:.5rem}}
 .independent-panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:1rem;margin-top:1rem}
+
+.page.embedded{padding:0;max-width:none}

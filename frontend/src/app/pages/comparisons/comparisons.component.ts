@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, DestroyRef, EventEmitter, Input, OnInit, Output, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -7,7 +8,7 @@ import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { ComparisonService } from '../../services/comparison.service';
 import { ApiService } from '../../services/api.service';
-import { ComparisonResult, ComparisonSelection, ComparisonSeries, ComparisonSession, Experiment, SavedComparison, StatisticDefinition, deviceColor } from '../../models/comparison.model';
+import { ComparisonChartType, ComparisonResult, ComparisonSelection, ComparisonSeries, ComparisonSession, Experiment, SavedComparison, StatisticDefinition, WorkspaceChart, deviceColor } from '../../models/comparison.model';
 import { ComparisonChartComponent } from '../../shared/comparison-charts/comparison-chart.component';
 import { ComparisonMapComponent } from '../../shared/comparison-charts/comparison-map.component';
 import { ComparisonDiagnosticsComponent } from '../../shared/comparison-charts/comparison-diagnostics.component';
@@ -19,12 +20,23 @@ import { ComparisonSleepComponent } from '../../shared/comparison-charts/compari
   imports:[CommonModule,FormsModule,RouterModule,BaseChartDirective,ComparisonChartComponent,ComparisonMapComponent,ComparisonDiagnosticsComponent,ComparisonContextComponent,ComparisonArchiveComponent,ComparisonSleepComponent],
   templateUrl:'./comparisons.component.html',styleUrls:['./comparisons.component.scss']})
 export class ComparisonsComponent implements OnInit {
+  @Input() workspaceId='';
+  @Input() initialComparisonId='';
+  @Input() workspaceChartId:string|null=null;
+  @Output() chartSaved=new EventEmitter<{chart:WorkspaceChart;result:ComparisonResult}>();
+  @Output() busyChange=new EventEmitter<boolean>(true);
+  private destroyRef=inject(DestroyRef);
+  chartType:ComparisonChartType='hr';
+  private processing=false;
+  get busy():boolean{return this.processing;}
+  set busy(value:boolean){this.processing=value;this.busyChange.emit(value);}
   selection:ComparisonSelection=this.defaults();
   devices:{id:string;name:string}[]=[];
   sessions:ComparisonSession[]=[];saved:SavedComparison[]=[];experiments:Experiment[]=[];
   definitions:StatisticDefinition[]=[];protocols:{id:string;name:string;version:number}[]=[];
-  result:ComparisonResult|null=null;busy=false;loading=false;errorMessage='';notice='';savedId='';
+  result:ComparisonResult|null=null;loading=false;errorMessage='';notice='';savedId='';
   deviceFilter='';sportFilter='';difficultyFilter='';hasMore=false;offset=0;
+  private sessionRequest=0;
   hidden:string[]=[];tab:'hr'|'gps'='hr';metric='mae';band:0|3|5|10=0;experimentName='';experimentProtocol='';
   gpsErrorSeries:ComparisonSeries[]=[];cursorSec:number|null=null;
   layout:'OVERLAY'|'SMALL_MULTIPLES'='OVERLAY';diagnostic:'scatter'|'bland_altman'|'ecdf'='scatter';
@@ -64,12 +76,17 @@ export class ComparisonsComponent implements OnInit {
   ngOnInit():void {
     this.legacy.listDevices().subscribe({next:d=>this.devices=d,error:e=>this.fail(e)});
     this.api.definitions().subscribe({next:d=>{this.definitions=d.statistics;if(!this.protocols.length)this.protocols=d.protocols;},error:e=>this.fail(e)});
-    this.loadSessions();this.refreshLists();
-    this.route.paramMap.subscribe(p=>{const id=p.get('comparisonId');if(id)this.open(id);});
+    if(this.workspaceId){
+      this.selection.name='Nueva gráfica';this.loadSessions();this.refreshLists();
+      if(this.initialComparisonId)this.open(this.initialComparisonId);
+      return;
+    }
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(p=>{const id=p.get('comparisonId');if(id)this.open(id);});
     const sid=this.route.snapshot.queryParamMap.get('session');
     if(sid){this.selection.session_ids=[sid];this.selection.reference_session_id=sid;this.loadSelectedSessions();}
     const dev=this.route.snapshot.queryParamMap.get('device');
-    if(dev){this.selection.mode='BENCHMARK';this.deviceFilter=dev;}
+    if(dev){this.selection.mode='BENCHMARK';this.chartType='metric';this.deviceFilter=dev;}
+    this.loadSessions();this.refreshLists();
   }
   refreshLists():void {
     this.api.protocols().subscribe({next:p=>this.protocols=p,error:e=>this.fail(e)});
@@ -77,10 +94,14 @@ export class ComparisonsComponent implements OnInit {
     this.api.experiments().subscribe({next:e=>this.experiments=e,error:e=>this.fail(e)});
   }
   loadSessions():void {
-    this.loading=true;this.api.sessions(this.offset).subscribe({next:r=>{
+    const request=++this.sessionRequest;
+    const filter=this.deviceFilter;
+    this.loading=true;this.api.sessions(this.offset,filter||undefined).subscribe({next:r=>{
+      if(request!==this.sessionRequest)return;
       this.sessions=[...new Map([...this.sessions,...r.items].map(s=>[s.id,s])).values()];this.offset+=r.items.length;this.hasMore=r.has_more;this.loading=false;
-    },error:e=>{this.loading=false;this.fail(e);}});
+    },error:e=>{if(request===this.sessionRequest){this.loading=false;this.fail(e);}}});
   }
+  deviceFilterChanged():void{this.offset=0;this.hasMore=false;this.loadSessions();}
   get visibleSessions():ComparisonSession[]{return this.sessions.filter(s=>(!this.deviceFilter||s.device_id===this.deviceFilter)&&
     (!this.sportFilter||s.sport_type===this.sportFilter)&&(!this.difficultyFilter||s.session_difficulty===this.difficultyFilter)&&
     (!this.selection.protocol_id||s.protocol_id===this.selection.protocol_id)&&(!this.selection.protocol_version||s.protocol_version===this.selection.protocol_version)&&
@@ -104,7 +125,7 @@ export class ComparisonsComponent implements OnInit {
     else{
       if(this.selection.mode==='DIRECT'){
         const existing=this.sessions.find(x=>x.device_id===s.device_id&&ids.includes(x.id));
-        if(existing){this.selection.session_ids=ids.filter(id=>id!==existing.id);delete this.selection.offsets[existing.id];}
+        if(existing){this.selection.mode='BENCHMARK';this.modeChanged();}
       }
       this.selection.session_ids=[...this.selection.session_ids,s.id];
       this.selection.manual_weights[s.id]=1;
@@ -112,12 +133,39 @@ export class ComparisonsComponent implements OnInit {
     if(!this.selection.reference_session_id||!this.selection.session_ids.includes(this.selection.reference_session_id))this.selection.reference_session_id=this.selection.session_ids[0]||null;
     if(this.selection.gps_reference_session_id&&!this.selection.session_ids.includes(this.selection.gps_reference_session_id))this.selection.gps_reference_session_id=null;
     this.invalidate();
+    if(this.selection.mode==='BENCHMARK'&&ids.some(id=>this.sessions.find(x=>x.id===id)?.device_id===s.device_id)&&!ids.includes(s.id))
+      this.notice='Se conservan todos los entrenamientos seleccionados. Se compararán los resultados de cada sesión en Entrenamientos distintos.';
   }
-  modeChanged():void {this.selection.session_ids=[];this.selection.offsets={};this.selection.start_sec=null;this.selection.end_sec=null;
+  modeChanged():void {this.selection.offsets={};this.selection.start_sec=null;this.selection.end_sec=null;
     this.selectedExperimentId='';
-    this.selection.exclusions=[];this.selection.intervals=[];this.selection.manual_weights={};
+    this.selection.exclusions=[];this.selection.intervals=[];
     this.selection.selection_policy='EXPLICIT';
-    this.selection.reference_session_id=null;this.selection.gps_reference_session_id=null;this.invalidate();}
+    this.selection.reference_session_id=this.selection.session_ids[0]||null;this.selection.gps_reference_session_id=null;
+    this.chartType=this.selection.mode==='BENCHMARK'?'metric':'hr';this.tab='hr';this.invalidate();}
+  chartTypeChanged():void {
+    const type=this.chartType;
+    const mode=type==='metric'?'BENCHMARK':'DIRECT';
+    if(this.selection.mode!==mode){this.selection.mode=mode;this.modeChanged();this.chartType=type;}
+    this.tab=type==='gps'?'gps':'hr';
+    if(type==='scatter'||type==='bland_altman'||type==='ecdf'){this.selection.advanced.enabled=true;this.diagnostic=type;}
+    this.invalidate();
+  }
+  get calculationIssue():string {
+    if(!this.selection.name.trim())return 'Escribe un nombre para la gráfica.';
+    if(this.selection.selection_policy==='ALL_COMPATIBLE'){
+      if(this.selection.filters.device_ids.length<2)return 'Selecciona al menos dos dispositivos en el histórico compatible.';
+      if(!this.selection.filters.sport_type||!this.selection.filters.session_difficulty)return 'Elige deporte e intensidad para buscar entrenamientos compatibles.';
+      return '';
+    }
+    if(this.selection.session_ids.length<2)return 'Marca al menos dos entrenamientos de dispositivos diferentes. Puedes cambiar el filtro de dispositivo sin perder la selección.';
+    if(this.selectedSessions.length!==this.selection.session_ids.length)return 'No se han cargado todas las sesiones seleccionadas. Recarga los entrenamientos o vuelve a seleccionarlos.';
+    const devices=new Set(this.selectedSessions.map(s=>s.device_id));
+    if(devices.size<2)return 'Añade un entrenamiento de otro dispositivo para comparar sus resultados.';
+    if(this.selection.mode==='DIRECT'&&devices.size<this.selectedSessions.length)return 'Para el mismo entrenamiento elige una sesión por dispositivo, o cambia a Entrenamientos distintos para conservar varias.';
+    if(this.selection.mode==='DIRECT'&&this.selectedSessions.length>8)return 'Selecciona como máximo ocho dispositivos para el mismo entrenamiento.';
+    if(this.selection.session_ids.length>100)return 'Selecciona como máximo cien entrenamientos.';
+    return '';
+  }
   invalidate():void{this.result=null;this.savedId='';this.notice='';this.hidden=this.hidden.filter(id=>this.selection.session_ids.includes(id)||id==='reference'||id==='gps-reference');}
   selectAllVisible():void {for(const s of this.visibleSessions)if(!this.selection.session_ids.includes(s.id))this.toggle(s);}
   chooseExperiment(id:string):void {
@@ -140,11 +188,20 @@ export class ComparisonsComponent implements OnInit {
       },error:e=>{this.busy=false;this.fail(e);}});
   }
   calculate(save=false):void {
+    if(this.busy)return;
+    if(this.calculationIssue){this.errorMessage=this.calculationIssue;return;}
     this.busy=true;this.errorMessage='';this.notice='';
     this.selection.filters.date_from||=null;this.selection.filters.date_to||=null;
     if(this.tab==='gps'||this.selection.advanced.gps_geometry)this.selection.gps_enabled=true;
+    if(this.chartType==='scatter'||this.chartType==='bland_altman'||this.chartType==='ecdf')this.selection.advanced.enabled=true;
     this.captureVisualization();
     if(this.selection.mode==='BENCHMARK')this.selection.offsets={};
+    if(save&&this.workspaceId){
+      this.api.saveWorkspaceChart(this.workspaceId,this.workspaceChartId,this.selection).subscribe({next:r=>{
+        this.savedId=r.id;this.revisionParent=r.id;this.workspaceChartId=r.chart.id;this.accept(r.result);
+        this.notice='Gráfica guardada en la comparativa.';this.chartSaved.emit({chart:r.chart,result:r.result});
+      },error:e=>{this.busy=false;this.fail(e);}});return;
+    }
     if(save)(this.revisionParent?this.api.revise(this.revisionParent,this.selection):this.api.save(this.selection)).subscribe({next:r=>{this.savedId=r.id;this.revisionParent=r.id;this.accept(r.result);this.notice=`Comparativa ${this.selection.storage_mode} guardada; versiones anteriores conservadas.`;this.refreshLists();},error:e=>{this.busy=false;this.fail(e);}});
     else this.api.preview(this.selection).subscribe({next:r=>this.accept(r),error:e=>{this.busy=false;this.fail(e);}});
   }
@@ -152,6 +209,7 @@ export class ComparisonsComponent implements OnInit {
     const view=result.configuration.visualization;
     this.hidden=[...(view?.hidden||[])];this.tab=view?.tab||'hr';this.band=view?.error_band||0;this.metric=view?.benchmark_metric||'mae';
     this.layout=view?.layout||'OVERLAY';this.diagnostic=view?.diagnostic||'scatter';this.errorView=view?.error_view||'SIGNED';this.sidePanels=[];
+    this.chartType=result.mode==='BENCHMARK'?'metric':view?.chart_type||'hr';
     let min=Infinity,max=-Infinity;for(const s of result.series||[])for(const v of s.values)if(v!=null){min=Math.min(min,v);max=Math.max(max,v);}
     this.yMin=Number.isFinite(min)?Math.floor(min/10)*10:0;this.yMax=Number.isFinite(max)?Math.ceil(max/10)*10+10:200;
     this.result=result;this.busy=false;this.cursorSec=null;this.buildDots();
@@ -163,7 +221,7 @@ export class ComparisonsComponent implements OnInit {
     this.selectedExperimentId='';this.channelInfo=null;this.revisions=[];this.heatmapSources=[];
     this.busy=true;this.errorMessage='';this.api.get(id).subscribe({next:r=>{this.selection={...this.defaults(),...(r.selection_request||r.result.configuration)};this.selection.session_ids=r.result.rows.map(row=>row.session_id);this.savedId=id;this.revisionParent=id;this.accept(r.result);this.loadSelectedSessions();this.api.revisions(id).subscribe({next:items=>this.revisions=items,error:e=>this.fail(e)});},error:e=>{this.busy=false;this.fail(e);}});
   }
-  newComparison():void {this.selection=this.defaults();this.hidden=[];this.tab='hr';this.band=0;this.metric='mae';this.revisionParent='';this.revisions=[];this.selectedExperimentId='';this.channelInfo=null;this.sidePanels=[];this.invalidate();this.router.navigate(['/comparisons']);}
+  newComparison():void {this.selection=this.defaults();this.chartType='hr';this.hidden=[];this.tab='hr';this.band=0;this.metric='mae';this.revisionParent='';this.revisions=[];this.selectedExperimentId='';this.channelInfo=null;this.sidePanels=[];this.invalidate();this.router.navigate(['/comparisons']);}
   toggleSeries(id:string):void {this.hidden=this.hidden.includes(id)?this.hidden.filter(x=>x!==id):[...this.hidden,id];}
   buildDots():void {
     this.dots={datasets:(this.result?.groups||[]).map((group,index)=>({label:group.device_name,backgroundColor:deviceColor(group.device_id),pointRadius:6,
@@ -172,7 +230,7 @@ export class ComparisonsComponent implements OnInit {
   }
   number(value:unknown):string{return typeof value==='number'&&Number.isFinite(value)?value.toLocaleString('es-ES',{maximumFractionDigits:1}):'NO DATA';}
   private captureVisualization():void {
-    this.selection.visualization={hidden:[...this.hidden],tab:this.tab,error_band:this.band,benchmark_metric:this.metric,layout:this.layout,diagnostic:this.diagnostic,error_view:this.errorView};
+    this.selection.visualization={hidden:[...this.hidden],tab:this.tab,error_band:this.band,benchmark_metric:this.metric,layout:this.layout,diagnostic:this.diagnostic,error_view:this.errorView,chart_type:this.chartType};
   }
   addInterval(exclude=false):void {
     if(!this.intervalName.trim()||!Number.isFinite(this.intervalStart)||!Number.isFinite(this.intervalEnd)||this.intervalStart<0||this.intervalEnd<=this.intervalStart){this.errorMessage='Introduce un nombre y un intervalo válido.';return;}
@@ -239,5 +297,5 @@ export class ComparisonsComponent implements OnInit {
     return `"${text.replace(/"/g,'""')}"`;
   }
   download(data:string,type:string,name:string):void{const url=URL.createObjectURL(new Blob([data],{type}));const link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-  fail(error:HttpErrorResponse):void{const detail=error.error?.detail;this.errorMessage=typeof detail==='string'?detail:detail?JSON.stringify(detail):'No se ha podido conectar con la API.';}
+  fail(error:HttpErrorResponse):void{const detail=error.error?.detail;this.errorMessage=typeof detail==='string'?detail:Array.isArray(detail)?detail.map(d=>d.msg).join(' '):'No se ha podido conectar con la API.';}
 }
