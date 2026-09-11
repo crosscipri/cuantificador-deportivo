@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ComparisonService } from '../../services/comparison.service';
 import { ApiService } from '../../services/api.service';
-import { ComparisonResult, ComparisonWorkspace, SavedComparison, WorkspaceChart } from '../../models/comparison.model';
+import { ComparisonAnalysisMode, ComparisonResult, ComparisonWorkspace, SavedComparison, WorkspaceChart } from '../../models/comparison.model';
 import { ComparisonsComponent } from './comparisons.component';
 import { ComparisonCardComponent } from './comparison-card.component';
 import { ComparisonArchiveComponent } from '../../shared/comparison-charts/comparison-archive.component';
@@ -21,6 +21,7 @@ export class ComparisonWorkspaceComponent implements OnInit {
   private destroyRef=inject(DestroyRef);
   name='';items:ComparisonWorkspace[]=[];active:ComparisonWorkspace|null=null;
   deviceIds:string[]=[];
+  analysisMode:ComparisonAnalysisMode='ALL';
   reports:{devices:{id:string;name:string}[]}[]=[];
   legacy:SavedComparison[]=[];devices:{id:string;name:string}[]=[];
   tab:'training'|'archive'|'sleep'='training';
@@ -36,7 +37,7 @@ export class ComparisonWorkspaceComponent implements OnInit {
     this.api.list().subscribe({next:items=>this.legacy=items,error:e=>this.error=this.message(e)});
     this.deviceApi.listDevices().subscribe({next:items=>{this.devices=items;this.updateReport();},error:e=>this.error=this.message(e)});
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params=>{
-      this.active=null;this.deviceIds=[];this.reports=[];this.editors=[];this.results={};this.chartErrors={};this.error='';
+      this.active=null;this.deviceIds=[];this.analysisMode='ALL';this.reports=[];this.editors=[];this.results={};this.chartErrors={};this.error='';
       const id=params.get('workspaceId');
       if(id)this.open(id);
     });
@@ -49,7 +50,7 @@ export class ComparisonWorkspaceComponent implements OnInit {
   create():void {
     if(this.busy||!this.name.trim()||this.deviceIds.length<2)return;
     this.busy=true;this.error='';
-    this.api.createWorkspace(this.name.trim(),this.deviceIds).subscribe({next:item=>{
+    this.api.createWorkspace(this.name.trim(),this.deviceIds,this.analysisMode).subscribe({next:item=>{
       this.busy=false;this.name='';this.loadList();this.router.navigate(['/comparisons/workspaces',item.id]);
     },error:e=>{this.busy=false;this.error=this.message(e);}});
   }
@@ -58,6 +59,8 @@ export class ComparisonWorkspaceComponent implements OnInit {
     this.api.workspace(id).subscribe({next:item=>{
       if(this.route.snapshot.paramMap.get('workspaceId')!==id)return;
       item.session_pairs ||= {};
+      item.sport_selections ||= {};
+      this.analysisMode=item.analysis_mode||'ALL';
       this.active=item;this.loading=false;
       this.deviceIds=[...(item.device_ids||[])];this.updateReport();
       for(const chart of item.charts)this.loadChart(chart,item.id);
@@ -75,8 +78,9 @@ export class ComparisonWorkspaceComponent implements OnInit {
   saveDevices():void {
     if(!this.active||this.busy||this.deviceIds.length<2)return;
     this.busy=true;this.error='';
-    this.api.setWorkspaceDevices(this.active.id,this.deviceIds).subscribe({next:item=>{
+    this.api.setWorkspaceDevices(this.active.id,this.deviceIds,this.analysisMode).subscribe({next:item=>{
       item.session_pairs ||= {};
+      item.sport_selections ||= {};
       this.active=item;this.busy=false;this.updateReport();this.loadList();
     },error:e=>{this.busy=false;this.error=this.message(e);}});
   }

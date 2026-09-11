@@ -7,14 +7,14 @@
     <app-comparison-archive *ngIf="tab==='archive'" [devices]="devices"></app-comparison-archive>
     <app-comparison-sleep *ngIf="tab==='sleep'" [devices]="devices"></app-comparison-sleep>
     <ng-container *ngIf="tab==='training'">
-      <form class="panel" (ngSubmit)="create()"><h2>Nueva comparativa</h2><div class="fields"><label>Nombre de la comparativa<input name="workspaceName" [(ngModel)]="name" placeholder="Por ejemplo: relojes para correr" maxlength="160" required [disabled]="busy"></label><button type="submit" class="primary" [disabled]="busy||!name.trim()||deviceIds.length<2">{{busy?'Creando…':'Crear comparativa'}}</button></div><fieldset [disabled]="busy"><legend>Dispositivos que quieres comparar</legend><div class="device-choices"><label *ngFor="let device of devices" class="check"><input type="checkbox" [checked]="deviceIds.includes(device.id)" (change)="toggleDevice(device.id)">{{device.name}}</label></div></fieldset><p class="hint">Elige entre 2 y 8 dispositivos. Sus entrenamientos analizados se organizarán automáticamente por deporte.</p></form>
+      <form class="panel" (ngSubmit)="create()"><h2>Nueva comparativa</h2><div class="fields"><label>Nombre de la comparativa<input name="workspaceName" [(ngModel)]="name" placeholder="Por ejemplo: relojes para correr" maxlength="160" required [disabled]="busy"></label><button type="submit" class="primary" [disabled]="busy||!name.trim()||deviceIds.length<2">{{busy?'Creando…':'Crear comparativa'}}</button></div><fieldset [disabled]="busy"><legend>Dispositivos que quieres comparar</legend><div class="device-choices"><label *ngFor="let device of devices" class="check"><input type="checkbox" [checked]="deviceIds.includes(device.id)" (change)="toggleDevice(device.id)">{{device.name}}</label></div><ng-container *ngTemplateOutlet="analysisOptions"></ng-container></fieldset><p class="hint">Elige entre 2 y 8 dispositivos. Sus entrenamientos analizados se organizarán automáticamente por deporte.</p></form>
       <section class="panel"><h2>Mis comparativas</h2><p *ngIf="!items.length">Todavía no has creado ninguna comparativa.</p><div class="saved"><a *ngFor="let item of items" [routerLink]="['/comparisons/workspaces',item.id]">{{item.name}}<small>{{item.device_ids?.length || 0}} dispositivos · {{item.charts.length}} gráficas personalizadas · {{item.created_at|date:'shortDate'}}</small></a></div><button *ngIf="more" (click)="loadList(true)">Cargar más comparativas</button></section>
       <details class="panel" *ngIf="legacy.length"><summary>Cálculos guardados anteriores</summary><div class="saved"><a *ngFor="let item of legacy" [routerLink]="['/comparisons',item.id]">{{item.configuration.name}}<small>{{item.created_at|date:'shortDate'}}</small></a></div></details>
     </ng-container>
   </ng-container>
   <ng-container *ngIf="active as item">
-    <section class="panel"><h2>Dispositivos de la comparativa</h2><fieldset [disabled]="busy||editorBusy"><div class="device-choices"><label *ngFor="let device of devices" class="check"><input type="checkbox" [checked]="deviceIds.includes(device.id)" (change)="toggleDevice(device.id)">{{device.name}}</label></div><div class="actions"><button class="primary" [disabled]="deviceIds.length<2" (click)="saveDevices()">{{busy?'Cargando…':'Mostrar comparativa por deportes'}}</button></div></fieldset><p class="hint" *ngIf="deviceIds.length<2">Selecciona al menos dos dispositivos ya analizados.</p></section>
-    <app-comparison-sports *ngFor="let report of reports" [devices]="report.devices" [workspaceId]="item.id" [pairs]="item.session_pairs||{}"></app-comparison-sports>
+    <section class="panel"><h2>Dispositivos de la comparativa</h2><fieldset [disabled]="busy||editorBusy"><div class="device-choices"><label *ngFor="let device of devices" class="check"><input type="checkbox" [checked]="deviceIds.includes(device.id)" (change)="toggleDevice(device.id)">{{device.name}}</label></div><ng-container *ngTemplateOutlet="analysisOptions"></ng-container><div class="actions"><button class="primary" [disabled]="deviceIds.length<2" (click)="saveDevices()">{{busy?'Cargando…':'Analizar comparativa'}}</button></div></fieldset><p class="hint" *ngIf="deviceIds.length<2">Selecciona al menos dos dispositivos ya analizados.</p></section>
+    <app-comparison-sports *ngFor="let report of reports" [devices]="report.devices" [workspaceId]="item.id" [pairs]="item.session_pairs||{}" [mode]="item.analysis_mode||'ALL'" [selections]="item.sport_selections||{}"></app-comparison-sports>
     <details class="panel"><summary>Gráficas personalizadas ({{item.charts.length}})</summary>
     <div class="heading"><h2>Gráficas ({{item.charts.length}})</h2><button class="primary" [disabled]="editorBusy" (click)="addChart()">Añadir gráfica</button></div>
     <p class="hint" *ngIf="!item.charts.length">La comparativa está creada. Aquí puedes añadir gráficas adicionales con una selección personalizada.</p>
@@ -32,3 +32,11 @@
     </details>
   </ng-container>
 </div>
+
+<ng-template #analysisOptions>
+  <h3>Cómo quieres comparar</h3>
+  <div class="modes">
+    <label [class.active]="analysisMode==='ALL'"><input type="radio" name="analysisMode" value="ALL" [(ngModel)]="analysisMode" [ngModelOptions]="{standalone:true}"><strong>Todos los entrenamientos</strong><span>Sesiones y correlación global de cada dispositivo, agrupadas por deporte.</span></label>
+    <label [class.active]="analysisMode==='SELECTED'"><input type="radio" name="analysisMode" value="SELECTED" [(ngModel)]="analysisMode" [ngModelOptions]="{standalone:true}"><strong>Una sesión por dispositivo</strong><span>Elige las sesiones de cada deporte que comparten referencia. Una gráfica con la referencia común y los dispositivos.</span></label>
+  </div>
+</ng-template>

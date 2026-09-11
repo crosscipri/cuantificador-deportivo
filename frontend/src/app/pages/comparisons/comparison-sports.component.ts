@@ -6,18 +6,22 @@ import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { EMPTY, catchError, expand, forkJoin, map, of, reduce } from 'rxjs';
 import { ComparisonService } from '../../services/comparison.service';
 import { ApiService } from '../../services/api.service';
-import { ComparisonSession, deviceColor } from '../../models/comparison.model';
+import { ComparisonAnalysisMode, ComparisonSession, SportSelection, deviceColor } from '../../models/comparison.model';
 import { SportAggregateCharts } from '../../models/session.model';
 import { ComparisonSessionComponent } from './comparison-session.component';
+import { ComparisonSelectedSportComponent } from './comparison-selected-sport.component';
 
 interface SportSection {id:string;name:string;sessions:ComparisonSession[];opened:Set<string>;loading:boolean;loaded:boolean;aggregates:{id:string;name:string;data:SportAggregateCharts|null;error:string}[];correlation:ChartConfiguration<'scatter'>['data'];}
 
-@Component({selector:'app-comparison-sports',standalone:true,imports:[CommonModule,BaseChartDirective,ComparisonSessionComponent],
+@Component({selector:'app-comparison-sports',standalone:true,imports:[CommonModule,BaseChartDirective,ComparisonSessionComponent,ComparisonSelectedSportComponent],
   templateUrl:'./comparison-sports.component.html',styleUrls:['./comparisons.component.scss']})
 export class ComparisonSportsComponent implements OnInit {
   @Input() devices:{id:string;name:string}[]=[];
   @Input() workspaceId='';
   @Input() pairs:Record<string,string[]>={};
+  @Input() mode:ComparisonAnalysisMode='ALL';
+  @Input() selections:Record<string,SportSelection>={};
+  visited=new Set<string>();
   private destroyRef=inject(DestroyRef);
   sports:SportSection[]=[];active:SportSection|null=null;loading=false;error='';
   options:ChartOptions<'scatter'>={responsive:true,maintainAspectRatio:false,animation:false,scales:{x:{title:{display:true,text:'FC de referencia (bpm)'}},y:{title:{display:true,text:'FC del dispositivo (bpm)'}}},plugins:{tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: referencia ${ctx.parsed.x}, dispositivo ${ctx.parsed.y} bpm`}}}};
@@ -39,7 +43,7 @@ export class ComparisonSportsComponent implements OnInit {
       this.loading=false;if(this.sports.length)this.choose(this.sports[0]);
     },error:e=>{this.loading=false;this.error=typeof e.error?.detail==='string'?e.error.detail:'No se han podido cargar los entrenamientos analizados.';}});
   }
-  choose(sport:SportSection):void{this.active=sport;if(!sport.loaded&&!sport.loading)this.aggregate(sport);}
+  choose(sport:SportSection):void{this.active=sport;this.visited.add(sport.id);if(this.mode==='ALL'&&!sport.loaded&&!sport.loading)this.aggregate(sport);}
   aggregate(sport:SportSection):void {
     if(!['running','cycling','gym'].includes(sport.id)){sport.loaded=true;return;}
     sport.loading=true;

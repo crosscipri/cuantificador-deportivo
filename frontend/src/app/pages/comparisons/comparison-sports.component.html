@@ -2,6 +2,12 @@
 <p class="error" role="alert" *ngIf="error">{{error}} <button (click)="load()">Reintentar</button></p>
 <p *ngIf="!loading&&!error&&!sports.length">Estos dispositivos todavía no tienen entrenamientos analizados.</p>
 <div class="actions" aria-label="Deportes"><button *ngFor="let sport of sports" [class.primary]="active===sport" (click)="choose(sport)">{{sport.name}} · {{sport.sessions.length}} sesiones</button></div>
+<ng-container *ngIf="mode==='SELECTED'">
+  <ng-container *ngFor="let sport of sports">
+    <app-comparison-selected-sport *ngIf="visited.has(sport.id)" [hidden]="active!==sport" [devices]="devices" [sessions]="sport.sessions" [workspaceId]="workspaceId" [sport]="sport.id" [sportName]="sport.name" [selections]="selections"></app-comparison-selected-sport>
+  </ng-container>
+</ng-container>
+<ng-container *ngIf="mode==='ALL'">
 <ng-container *ngIf="active as sport">
   <h2>{{sport.name}} · Entrenamientos</h2>
   <p class="hint">Todas las sesiones analizadas de los dispositivos seleccionados. Abre un entrenamiento para ver su gráfica y elegir la sesión del otro dispositivo que quieres comparar.</p>
@@ -17,4 +23,5 @@
     <p class="hint">Cada dispositivo se compara con la referencia de sus propios análisis. La correlación equilibrada usa la transformación de Fisher con igual peso por sesión; la correlación de puntos puede dar más peso a las sesiones largas.</p>
     <button *ngIf="sport.loaded&&sport.id!=='unknown'" [disabled]="sport.loading" (click)="aggregate(sport)">Actualizar correlación global</button>
   </section>
+</ng-container>
 </ng-container>

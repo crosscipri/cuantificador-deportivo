@@ -9,7 +9,7 @@ from .service import (build, public, oid, sessions_for, ensure_recordings, read_
 from starlette.concurrency import run_in_threadpool
 from pymongo.errors import DuplicateKeyError
 from bson import ObjectId
-from .models import ComparisonWorkspaceInput, WorkspaceChartInput, WorkspaceDevicesInput, WorkspaceSessionPairInput
+from .models import ComparisonWorkspaceInput, WorkspaceChartInput, WorkspaceDevicesInput, WorkspaceSessionPairInput, WorkspaceSportSelection
 from .channels import read_channels
 
 router = APIRouter(prefix="/api", tags=["comparisons"])
@@ -27,7 +27,7 @@ COMPARISON_OPTION_CONCURRENCY = 5
 async def create_workspace(request: Request, body: ComparisonWorkspaceInput):
     if body.device_ids:
         await validate_workspace_devices(request, WorkspaceDevicesInput(device_ids=body.device_ids))
-    doc = {"name": body.name, "device_ids": body.device_ids, "charts": [], "created_at": datetime.now(timezone.utc)}
+    doc = {"name": body.name, "device_ids": body.device_ids, "analysis_mode": body.analysis_mode, "charts": [], "created_at": datetime.now(timezone.utc)}
     result = await request.app.state.db.comparison_workspaces.insert_one(doc)
     doc["_id"] = result.inserted_id
     return public(doc)
@@ -43,7 +43,7 @@ async def validate_workspace_devices(request: Request, body: WorkspaceDevicesInp
 async def set_workspace_devices(request: Request, workspace_id: str, body: WorkspaceDevicesInput):
     await validate_workspace_devices(request, body)
     updated = await request.app.state.db.comparison_workspaces.update_one(
-        {"_id": oid(workspace_id)}, {"$set": {"device_ids": body.device_ids}})
+        {"_id": oid(workspace_id)}, {"$set": {"device_ids": body.device_ids, "analysis_mode": body.analysis_mode}})
     if not updated.matched_count:
         raise HTTPException(404, "Comparativa no encontrada.")
     return await workspace(request, workspace_id)
@@ -53,6 +53,26 @@ async def set_workspace_devices(request: Request, workspace_id: str, body: Works
 async def workspaces(request: Request, offset: int = Query(default=0, ge=0)):
     docs = await request.app.state.db.comparison_workspaces.find().sort("created_at", -1).skip(offset).limit(50).to_list(length=50)
     return public(docs)
+
+
+@router.put("/comparison-workspaces/{workspace_id}/sports/{sport_type}")
+async def save_sport_selection(request: Request, workspace_id: str, sport_type: str, body: WorkspaceSportSelection):
+    if not sport_type or any(c in sport_type for c in '.$\x00') or len(sport_type) > 50:
+        raise HTTPException(422, "Deporte inválido.")
+    doc = await workspace(request, workspace_id)
+    sessions = await sessions_for(request.app.state.db, body.session_ids)
+    devices = [str(s["device_id"]) for s in sessions]
+    if len(set(devices)) != len(devices) or set(devices) != set(doc.get("device_ids", [])):
+        raise HTTPException(422, "Selecciona una sesión de cada dispositivo de la comparativa.")
+    if any((s.get("sport_type") or "unknown") != sport_type for s in sessions):
+        raise HTTPException(422, "Todas las sesiones deben ser del deporte seleccionado.")
+    saved = body.model_dump()
+    updated = await request.app.state.db.comparison_workspaces.update_one(
+        {"_id": oid(workspace_id), "device_ids": doc["device_ids"]},
+        {"$set": {f"sport_selections.{sport_type}": saved}})
+    if not updated.matched_count:
+        raise HTTPException(409, "Los dispositivos han cambiado. Vuelve a abrir la comparativa.")
+    return saved
 
 
 @router.get("/comparison-workspaces/{workspace_id}")
