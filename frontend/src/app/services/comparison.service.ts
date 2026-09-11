@@ -6,7 +6,9 @@ import { ComparisonResult, ComparisonSelection, ComparisonSession, ComparisonSer
 export class ComparisonService {
   constructor(private http: HttpClient) {}
   workspaces(offset=0) { return this.http.get<ComparisonWorkspace[]>('/api/comparison-workspaces', {params:{offset}}); }
-  createWorkspace(name:string) { return this.http.post<ComparisonWorkspace>('/api/comparison-workspaces', {name}); }
+  createWorkspace(name:string,deviceIds:string[]=[]) { return this.http.post<ComparisonWorkspace>('/api/comparison-workspaces', {name,device_ids:deviceIds}); }
+  setWorkspaceDevices(id:string,deviceIds:string[]) { return this.http.put<ComparisonWorkspace>(`/api/comparison-workspaces/${id}/devices`,{device_ids:deviceIds}); }
+  saveWorkspacePair(id:string,sessionId:string,sessionIds:string[]) { return this.http.put<{session_ids:string[]}>(`/api/comparison-workspaces/${id}/sessions/${sessionId}`,{session_ids:sessionIds}); }
   workspace(id:string) { return this.http.get<ComparisonWorkspace>(`/api/comparison-workspaces/${id}`); }
   saveWorkspaceChart(id:string,chartId:string|null,selection:ComparisonSelection) {
     return this.http.post<{id:string;result:ComparisonResult;chart:WorkspaceChart}>(`/api/comparison-workspaces/${id}/charts`, {chart_id:chartId,selection});

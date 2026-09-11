@@ -1,0 +1,20 @@
+<p role="status" *ngIf="loading">Cargando todos los entrenamientos de los dispositivos…</p>
+<p class="error" role="alert" *ngIf="error">{{error}} <button (click)="load()">Reintentar</button></p>
+<p *ngIf="!loading&&!error&&!sports.length">Estos dispositivos todavía no tienen entrenamientos analizados.</p>
+<div class="actions" aria-label="Deportes"><button *ngFor="let sport of sports" [class.primary]="active===sport" (click)="choose(sport)">{{sport.name}} · {{sport.sessions.length}} sesiones</button></div>
+<ng-container *ngIf="active as sport">
+  <h2>{{sport.name}} · Entrenamientos</h2>
+  <p class="hint">Todas las sesiones analizadas de los dispositivos seleccionados. Abre un entrenamiento para ver su gráfica y elegir la sesión del otro dispositivo que quieres comparar.</p>
+  <details class="panel" *ngFor="let session of sport.sessions" (toggle)="toggle(sport,session.id,$any($event.target).open)">
+    <summary>{{session.device_name}} · {{session.session_name}} <small>{{session.activity_date|date:'medium'}} · {{session.training_type||session.session_difficulty||'Sin categoría'}}</small></summary>
+    <app-comparison-session *ngIf="sport.opened.has(session.id)" [session]="session" [sessions]="sport.sessions" [devices]="devices" [workspaceId]="workspaceId" [pairs]="pairs"></app-comparison-session>
+  </details>
+  <section class="panel"><h2>{{sport.name}} · Correlación global</h2>
+    <p class="hint">La misma agregación del análisis normal, comparando los dispositivos con un color para cada uno. Incluye todos los entrenamientos analizados de este deporte; elegir sesiones en una gráfica individual no cambia este conjunto.</p>
+    <p role="status" *ngIf="sport.loading">Cargando correlación global…</p>
+    <div class="dot-chart" *ngIf="sport.correlation.datasets.length"><canvas baseChart [type]="'scatter'" [data]="sport.correlation" [options]="options"></canvas></div>
+    <div class="table-wrap" *ngIf="sport.aggregates.length"><table><thead><tr><th>Dispositivo</th><th>Sesiones con curvas / total</th><th>r global (puntos)</th><th>r equilibrada por sesión</th><th>MAE (bpm)</th><th>RMSE (bpm)</th><th>Bias (bpm)</th></tr></thead><tbody><tr *ngFor="let row of sport.aggregates"><td>{{row.name}}<small *ngIf="row.error">{{row.error}}</small></td><td>{{row.data?.sessions_with_data ?? 0}} / {{row.data?.session_count ?? 0}}</td><td>{{number(row.data?.global_stats?.pearson_r)}}</td><td>{{number(row.data?.balanced_by_session?.pearson_fisher)}}</td><td>{{number(row.data?.balanced_by_session?.mae)}}</td><td>{{number(row.data?.balanced_by_session?.rmse)}}</td><td>{{number(row.data?.balanced_by_session?.bias)}}</td></tr></tbody></table></div>
+    <p class="hint">Cada dispositivo se compara con la referencia de sus propios análisis. La correlación equilibrada usa la transformación de Fisher con igual peso por sesión; la correlación de puntos puede dar más peso a las sesiones largas.</p>
+    <button *ngIf="sport.loaded&&sport.id!=='unknown'" [disabled]="sport.loading" (click)="aggregate(sport)">Actualizar correlación global</button>
+  </section>
+</ng-container>

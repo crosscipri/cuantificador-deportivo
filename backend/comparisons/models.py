@@ -144,12 +144,35 @@ class Selection(BaseModel):
 class ComparisonWorkspaceInput(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     name: str = Field(min_length=1, max_length=160)
+    device_ids: list[str] = Field(default_factory=list, max_length=8)
+
+    @model_validator(mode="after")
+    def valid_devices(self):
+        if self.device_ids and (len(self.device_ids) < 2 or len(set(self.device_ids)) != len(self.device_ids)):
+            raise ValueError("Selecciona al menos dos dispositivos diferentes.")
+        return self
+
+
+class WorkspaceDevicesInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    device_ids: list[str] = Field(min_length=2, max_length=8)
+
+    @model_validator(mode="after")
+    def unique_devices(self):
+        if len(set(self.device_ids)) != len(self.device_ids):
+            raise ValueError("Selecciona dispositivos diferentes.")
+        return self
 
 
 class WorkspaceChartInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     chart_id: str | None = None
     selection: Selection
+
+
+class WorkspaceSessionPairInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    session_ids: list[str] = Field(default_factory=list, max_length=8)
 
 
 class ExperimentInput(BaseModel):

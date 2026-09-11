@@ -1,7 +1,7 @@
 export type ComparisonMode = 'DIRECT' | 'BENCHMARK';
 export type ComparisonChartType = 'hr' | 'error' | 'gps' | 'metric' | 'scatter' | 'bland_altman' | 'ecdf';
 export interface WorkspaceChart {id:string;comparison_id:string;name:string;mode:ComparisonMode;chart_type:ComparisonChartType;}
-export interface ComparisonWorkspace {id:string;name:string;charts:WorkspaceChart[];created_at:string;}
+export interface ComparisonWorkspace {id:string;name:string;device_ids?:string[];session_pairs?:Record<string,string[]>;charts:WorkspaceChart[];created_at:string;}
 export interface ComparisonVisualization {
   chart_type?: ComparisonChartType;
   hidden: string[]; tab: 'hr' | 'gps'; error_band: 0 | 3 | 5 | 10; benchmark_metric: string;
