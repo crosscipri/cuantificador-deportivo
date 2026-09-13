@@ -244,8 +244,9 @@ export class ApiService {
 
   // ── Nocturnal HRV ─────────────────────────────────────────────────────────
 
-  getAggregatedHrvData(deviceId: string): Observable<NocturnalHrvAggregated> {
-    return this.http.get<NocturnalHrvAggregated>(`${this.base}/devices/${deviceId}/nocturnal-hrv/aggregated`);
+  getAggregatedHrvData(deviceId: string, sportType?: 'running' | 'cycling' | 'gym'): Observable<NocturnalHrvAggregated> {
+    const params = sportType ? { params: { sport_type: sportType } } : {};
+    return this.http.get<NocturnalHrvAggregated>(`${this.base}/devices/${deviceId}/nocturnal-hrv/aggregated`, params);
   }
 
   getGlobalHrvAiAnalysis(deviceId: string): Observable<NocturnalHrvGlobalAiAnalysis> {
@@ -266,6 +267,10 @@ export class ApiService {
 
   getNocturnalHrvSession(id: string): Observable<NocturnalHrvDetail> {
     return this.http.get<NocturnalHrvDetail>(`${this.base}/nocturnal-hrv/${id}`);
+  }
+
+  updateNocturnalHrvSport(id: string, sportType: 'running' | 'cycling' | 'gym' | null): Observable<NocturnalHrvSummary> {
+    return this.http.patch<NocturnalHrvSummary>(`${this.base}/nocturnal-hrv/${id}`, { sport_type: sportType });
   }
 
   deleteNocturnalHrvSession(id: string): Observable<{ deleted: boolean }> {

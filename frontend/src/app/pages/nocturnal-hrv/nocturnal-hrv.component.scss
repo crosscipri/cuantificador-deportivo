@@ -160,6 +160,17 @@
   &:focus { border-color: var(--accent); }
 }
 
+.session-sport-input {
+  height: 34px;
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
 .saved-chip {
   display: inline-flex;
   align-items: center;

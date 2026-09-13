@@ -25,8 +25,6 @@
           <ng-container *ngFor="let view of visible"><path [attr.d]="view.pathD" fill="none" stroke="#fff" [attr.stroke-width]="selectedId === view.id ? 0.9 : 0.65" stroke-opacity=".45" stroke-linejoin="round"/><path [attr.d]="view.pathD" fill="none" [attr.stroke]="view.color" [attr.stroke-width]="selectedId === view.id ? 0.58 : 0.38" [attr.stroke-opacity]="selectedId === view.id ? 1 : 0.78" stroke-linejoin="round" stroke-linecap="round"/></ng-container>
         </g>
       </svg>
-      <div class="track-overlay-info"><span>Pista</span><span class="v">IAAF 400 m · 8 carriles</span><span>Vista</span><span class="v">Ambos dispositivos</span></div>
-      <div class="track-legend"><div class="tleg-row"><span class="tleg-swatch tleg-swatch-dashed"></span><span>Carril 1 (verdad)</span></div><div class="tleg-row" *ngFor="let view of visible" [style.color]="view.color"><span class="tleg-swatch"></span><span>{{view.name}}</span></div></div>
       <div class="track-zoom-controls"><button class="tool-btn" (click)="$event.stopPropagation();zoom(1.25)">+</button><button class="tool-btn" (click)="$event.stopPropagation();zoom(.8)">−</button><button class="tool-btn" (click)="$event.stopPropagation();reset()">⤺</button></div>
     </div>
   </main>

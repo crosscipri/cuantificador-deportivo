@@ -1,12 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, Input, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
-import { BaseChartDirective } from 'ng2-charts';
-import { ChartConfiguration, ChartOptions } from 'chart.js';
-import { ComparisonGpsTrack, deviceColor } from '../../models/comparison.model';
+import { ComparisonGpsTrack } from '../../models/comparison.model';
 import { ComparisonGpsTrackViewComponent } from './comparison-gps-track-view.component';
 import { ComparisonGpsUrbanViewComponent } from './comparison-gps-urban-view.component';
 
@@ -21,21 +18,17 @@ interface GpsArchiveResult {
 
 @Component({
   selector:'app-comparison-gps',standalone:true,
-  imports:[CommonModule,FormsModule,RouterModule,BaseChartDirective,ComparisonGpsTrackViewComponent,ComparisonGpsUrbanViewComponent],
+  imports:[CommonModule,RouterModule,ComparisonGpsTrackViewComponent,ComparisonGpsUrbanViewComponent],
   templateUrl:'./comparison-gps.component.html',styleUrls:['./comparisons.component.scss'],
 })
 export class ComparisonGpsComponent implements OnInit {
   @Input() devices:{id:string;name:string}[]=[];
   private destroyRef=inject(DestroyRef);
-  domain:GpsDomain='GPS_TRACK';result:GpsArchiveResult|null=null;loading=false;error='';metric='distance_error_percent';truncated=false;
-  dots:ChartConfiguration<'scatter'>['data']={datasets:[]};
-  options:ChartOptions<'scatter'>={responsive:true,maintainAspectRatio:false,animation:false,
-    scales:{x:{title:{display:true,text:'Diferencia de distancia (%)'}},y:{ticks:{stepSize:1,callback:value=>this.result?.groups[Number(value)]?.device_name||''}}},
-    plugins:{tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${this.number(ctx.parsed.x)} ${this.unit(this.metric)}`}}}};
+  domain:GpsDomain='GPS_TRACK';result:GpsArchiveResult|null=null;loading=false;error='';truncated=false;
   constructor(private http:HttpClient){}
   ngOnInit():void{this.load();}
-  select(domain:GpsDomain):void{if(this.domain===domain)return;this.domain=domain;this.metric=domain==='GPS_TRACK'?'distance_error_percent':'cross_track_p95_m';this.load();}
-  load():void{this.loading=true;this.error='';this.result=null;this.dots={datasets:[]};this.truncated=false;this.loadPage(0,[]);}
+  select(domain:GpsDomain):void{if(this.domain===domain)return;this.domain=domain;this.load();}
+  load():void{this.loading=true;this.error='';this.result=null;this.truncated=false;this.loadPage(0,[]);}
   private loadPage(offset:number,collected:GpsSource[]):void{
     this.http.get<{items:GpsSource[];has_more:boolean;next_offset:number}>('/api/comparison-archive/options',{params:{domain:this.domain,offset}})
       .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next:page=>{
@@ -52,23 +45,12 @@ export class ComparisonGpsComponent implements OnInit {
     const body={name:this.domain==='GPS_TRACK'?'GPS de pista · análisis conjunto':'GPS urbano · análisis conjunto',domain:this.domain,mode:'BENCHMARK',source_ids:sourceIds,reference_source_id:null,assume_same_event:false,confirm_legacy_definition:false};
     this.http.post<GpsArchiveResult>('/api/comparison-archive/preview',body).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next:result=>{
       this.result=result;this.loading=false;
-      if(!this.availableMetrics.includes(this.metric))this.metric=this.availableMetrics[0]||result.metric_keys[0];
-      this.buildDots();
     },error:e=>this.fail(e)});
   }
-  get availableMetrics():string[]{return (this.result?.metric_keys||[]).filter(key=>this.result!.rows.some(row=>row.metrics[key]!=null));}
-  buildDots():void{
-    if(!this.result)return;
-    this.dots={datasets:this.result.groups.map((group,index)=>({
-      label:group.device_name,backgroundColor:deviceColor(group.device_id),borderColor:deviceColor(group.device_id),pointRadius:6,
-      data:this.result!.rows.filter(row=>row.device_id===group.device_id&&row.metrics[this.metric]!=null).map(row=>({x:row.metrics[this.metric]!,y:index})),
-    }))};
-    this.options={...this.options,scales:{x:{title:{display:true,text:`${this.label(this.metric)} ${this.unit(this.metric)}`}},y:{ticks:{stepSize:1,callback:value=>this.result?.groups[Number(value)]?.device_name||''}}}};
-  }
-  label(key:string):string{return this.result?.statistics.find(item=>item.id===key)?.name||key;}
-  unit(key:string):string{return this.result?.statistics.find(item=>item.id===key)?.unit||'';}
-  aggregate(group:GpsArchiveResult['groups'][number],field:'mean'|'median'|'sd'|'min'|'max'):number|null{return group.metrics[this.metric]?.[field]??null;}
-  count(group:GpsArchiveResult['groups'][number]):number{return group.metrics[this.metric]?.n??0;}
+  metric(row:GpsArchiveResult['rows'][number], key:string):number|null{return row.metrics[key]??null;}
+  mape(row:GpsArchiveResult['rows'][number]):number|null{const value=this.metric(row,'distance_error_percent');return value==null?null:Math.abs(value);}
+  distance(row:GpsArchiveResult['rows'][number]):number|null{return row.metrics['legacy_derived_distance_m']??row.metrics['derived_distance_m']??null;}
+  distanceText(meters:number|null|undefined):string{return meters!=null&&Number.isFinite(meters)?`${(meters/1000).toLocaleString('es-ES',{maximumFractionDigits:2})} km`:'Sin datos';}
   number(value:number|null|undefined):string{return value!=null&&Number.isFinite(value)?value.toLocaleString('es-ES',{maximumFractionDigits:2}):'Sin datos';}
   query(url:string):Record<string,string>{return Object.fromEntries(new URLSearchParams(url.split('?')[1]||''));}
   private fail(error:any):void{this.loading=false;this.error=typeof error.error?.detail==='string'?error.error.detail:'No se ha podido generar el análisis GPS conjunto.';}
