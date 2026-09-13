@@ -91,6 +91,20 @@ def gps_points(raw):
             for p,t in zip(raw,stamps) if finite(p.get('lat')) and finite(p.get('lon')) and abs(float(p['lat']))<=90 and abs(float(p['lon']))<=180]
 
 
+def display_track_segments(segments,max_points=1200):
+    """Reduce map payload without changing the full-resolution metric input."""
+    total=sum(len(segment) for segment in segments)
+    if total<=max_points:return segments
+    step=max(2,int(np.ceil(total/max_points)))
+    reduced=[]
+    for segment in segments:
+        if len(segment)<=2:reduced.append(segment);continue
+        points=segment[::step]
+        if points[-1] is not segment[-1]:points=[*points,segment[-1]]
+        reduced.append(points)
+    return reduced
+
+
 def night_values(source,domain):
     refkey,devkey=("rmssdPolar","rmssdFitbit") if domain=="NIGHT_RMSSD" else ("hrPolar","hrFitbit")
     rows=source["data"]
@@ -118,6 +132,7 @@ def calculate(sources,config):
     if config.domain.startswith('GPS'):
         base['unit']='m'
         common=next((s for s in sources if s['id']==config.reference_source_id),sources[0])
+        mapped_references=set()
         for source_index,source in enumerate(sources):
             described=describe(gps_points(source['data'].get('points',[])),-np.inf,np.inf)
             stats={k:v for k,v in described.items() if k not in ('segments','timed')}
@@ -131,9 +146,11 @@ def calculate(sources,config):
                 reference_source=common if config.mode=='DIRECT' else source
                 reference=describe(gps_points(reference_source.get('ref_points',[])),-np.inf,np.inf)
                 stats.update(compare_geometry(reference['segments'],[p for seg in described['segments'] for p in seg]))
-                if config.mode!='DIRECT' or source_index==0:
-                    tracks.append({'id':reference_source['id']+'-reference','name':reference_source['name']+' · Referencia geométrica','role':'reference','segments':reference['segments']})
-            tracks.append({'id':source['id'],'device_id':source['device_id'],'name':source['device_name']+' · '+source['name'],'role':'device','segments':described['segments']})
+                reference_key=reference_source['source_document_id']
+                if reference_key not in mapped_references:
+                    mapped_references.add(reference_key)
+                    tracks.append({'id':reference_key+'-reference','name':reference_source['name']+' · Referencia geométrica','role':'reference','segments':display_track_segments(reference['segments'])})
+            tracks.append({'id':source['id'],'device_id':source['device_id'],'name':source['device_name']+' · '+source['name'],'role':'device','segments':display_track_segments(described['segments'])})
             rows.append({**{k:v for k,v in source.items() if k not in ('data','ref_points')},'metrics':stats})
         base['warnings'].append('Distancia histórica derivada de coordenadas. La geometría urbana no aporta por sí sola una referencia temporal.')
         # Benchmark keeps independent maps; only explicit Direct overlays them.

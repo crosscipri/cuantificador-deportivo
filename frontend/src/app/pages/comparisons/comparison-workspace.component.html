@@ -1,5 +1,5 @@
 <div class="page">
-  <div class="heading"><div><p class="eyebrow">EVIDENCIA POR DISPOSITIVO</p><h1>{{active?.name || 'Comparativas'}}</h1><p>Compara dispositivos ya analizados: entrenamientos y correlación global por deporte.</p></div><a *ngIf="active" routerLink="/comparisons" (click)="editorBusy && $event.preventDefault()">Todas las comparativas</a></div>
+  <div class="heading"><div><p class="eyebrow">EVIDENCIA POR DISPOSITIVO</p><h1>{{active?.name || 'Comparativas'}}</h1><p>Compara entrenamientos, HRV, frecuencia cardiaca en reposo y GPS de pista o urbano.</p></div><a *ngIf="active" routerLink="/comparisons" (click)="editorBusy && $event.preventDefault()">Todas las comparativas</a></div>
   <p class="error" role="alert" *ngIf="error">{{error}}</p>
   <p role="status" *ngIf="loading">Cargando comparativa…</p>
   <ng-container *ngIf="!active&&!loading">
@@ -14,7 +14,11 @@
   </ng-container>
   <ng-container *ngIf="active as item">
     <section class="panel"><h2>Dispositivos de la comparativa</h2><fieldset [disabled]="busy||editorBusy"><div class="device-choices"><label *ngFor="let device of devices" class="check"><input type="checkbox" [checked]="deviceIds.includes(device.id)" (change)="toggleDevice(device.id)">{{device.name}}</label></div><ng-container *ngTemplateOutlet="analysisOptions"></ng-container><div class="actions"><button class="primary" [disabled]="deviceIds.length<2" (click)="saveDevices()">{{busy?'Cargando…':'Analizar comparativa'}}</button></div></fieldset><p class="hint" *ngIf="deviceIds.length<2">Selecciona al menos dos dispositivos ya analizados.</p></section>
-    <app-comparison-sports *ngFor="let report of reports" [devices]="report.devices" [workspaceId]="item.id" [pairs]="item.session_pairs||{}" [mode]="item.analysis_mode||'ALL'" [selections]="item.sport_selections||{}"></app-comparison-sports>
+    <ng-container *ngFor="let report of reports">
+      <app-comparison-sports [devices]="report.devices" [workspaceId]="item.id" [pairs]="item.session_pairs||{}" [mode]="item.analysis_mode||'ALL'" [selections]="item.sport_selections||{}"></app-comparison-sports>
+      <app-comparison-nocturnal [devices]="report.devices"></app-comparison-nocturnal>
+      <app-comparison-gps [devices]="report.devices"></app-comparison-gps>
+    </ng-container>
     <details class="panel"><summary>Gráficas personalizadas ({{item.charts.length}})</summary>
     <div class="heading"><h2>Gráficas ({{item.charts.length}})</h2><button class="primary" [disabled]="editorBusy" (click)="addChart()">Añadir gráfica</button></div>
     <p class="hint" *ngIf="!item.charts.length">La comparativa está creada. Aquí puedes añadir gráficas adicionales con una selección personalizada.</p>

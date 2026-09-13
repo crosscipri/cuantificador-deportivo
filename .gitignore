@@ -9,6 +9,7 @@ frontend/coverage/
 # Python
 backend/venv/
 backend/.venv/
+.venv-whisper/
 backend/__pycache__/
 backend/*.pyc
 backend/**/__pycache__/

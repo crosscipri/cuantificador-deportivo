@@ -11,10 +11,12 @@ import { ComparisonCardComponent } from './comparison-card.component';
 import { ComparisonArchiveComponent } from '../../shared/comparison-charts/comparison-archive.component';
 import { ComparisonSleepComponent } from '../../shared/comparison-charts/comparison-sleep.component';
 import { ComparisonSportsComponent } from './comparison-sports.component';
+import { ComparisonNocturnalComponent } from './comparison-nocturnal.component';
+import { ComparisonGpsComponent } from './comparison-gps.component';
 
 @Component({
   selector:'app-comparison-workspace', standalone:true,
-  imports:[CommonModule,FormsModule,RouterModule,ComparisonsComponent,ComparisonCardComponent,ComparisonArchiveComponent,ComparisonSleepComponent,ComparisonSportsComponent],
+  imports:[CommonModule,FormsModule,RouterModule,ComparisonsComponent,ComparisonCardComponent,ComparisonArchiveComponent,ComparisonSleepComponent,ComparisonSportsComponent,ComparisonNocturnalComponent,ComparisonGpsComponent],
   templateUrl:'./comparison-workspace.component.html', styleUrls:['./comparisons.component.scss'],
 })
 export class ComparisonWorkspaceComponent implements OnInit {

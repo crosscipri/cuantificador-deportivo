@@ -1638,6 +1638,45 @@ def _ser_nocturnal_hrv(doc: dict, *, include_windows: bool = True) -> dict:
     return doc
 
 
+def _balanced_nocturnal_stats(by_session: list[dict]) -> dict | None:
+    """Aggregate nocturnal agreement giving every night the same weight."""
+    correlations: list[float] = []
+    maes: list[float] = []
+    rmses: list[float] = []
+    biases: list[float] = []
+    for session in by_session:
+        points = session.get("points") or []
+        if not points:
+            continue
+        diffs = [float(point["y"]) - float(point["x"]) for point in points]
+        biases.append(sum(diffs) / len(diffs))
+        maes.append(sum(abs(value) for value in diffs) / len(diffs))
+        rmses.append(math.sqrt(sum(value * value for value in diffs) / len(diffs)))
+        if len(points) >= 3:
+            xs = [float(point["x"]) for point in points]
+            ys = [float(point["y"]) for point in points]
+            mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+            covariance = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+            spread_x = math.sqrt(sum((x - mx) ** 2 for x in xs))
+            spread_y = math.sqrt(sum((y - my) ** 2 for y in ys))
+            if spread_x * spread_y > 0:
+                correlations.append(max(-0.9999, min(0.9999, covariance / (spread_x * spread_y))))
+    if not biases:
+        return None
+    fisher = None
+    if correlations:
+        z_mean = sum(math.atanh(value) for value in correlations) / len(correlations)
+        fisher = math.tanh(z_mean)
+    return {
+        "n_sessions": len(biases),
+        "n_correlation_sessions": len(correlations),
+        "pearson_fisher": round(fisher, 4) if fisher is not None else None,
+        "mae": round(sum(maes) / len(maes), 2),
+        "rmse": round(sum(rmses) / len(rmses), 2),
+        "bias": round(sum(biases) / len(biases), 2),
+    }
+
+
 @app.get("/api/devices/{device_id}/nocturnal-hrv/aggregated")
 async def get_nocturnal_hrv_aggregated(device_id: str) -> dict:
     """Aggregate RMSSD and HR windows from all sessions for one device."""
@@ -1701,8 +1740,8 @@ async def get_nocturnal_hrv_aggregated(device_id: str) -> dict:
 
     return {
         "n_sessions": len(sessions),
-        "rmssd": {"stats": _stats(rmssd_by_session), "by_session": rmssd_by_session},
-        "hr":    {"stats": _stats(hr_by_session),    "by_session": hr_by_session},
+        "rmssd": {"stats": _stats(rmssd_by_session), "balanced_by_session": _balanced_nocturnal_stats(rmssd_by_session), "by_session": rmssd_by_session},
+        "hr":    {"stats": _stats(hr_by_session),    "balanced_by_session": _balanced_nocturnal_stats(hr_by_session), "by_session": hr_by_session},
     }
 
 

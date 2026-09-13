@@ -55,8 +55,17 @@ export interface AggregatedHrvSession {
 
 export interface NocturnalHrvAggregated {
   n_sessions: number;
-  rmssd: { stats: AggregatedHrvStats | null; by_session: AggregatedHrvSession[] };
-  hr:    { stats: AggregatedHrvStats | null; by_session: AggregatedHrvSession[] };
+  rmssd: { stats: AggregatedHrvStats | null; balanced_by_session?: BalancedNocturnalStats | null; by_session: AggregatedHrvSession[] };
+  hr:    { stats: AggregatedHrvStats | null; balanced_by_session?: BalancedNocturnalStats | null; by_session: AggregatedHrvSession[] };
+}
+
+export interface BalancedNocturnalStats {
+  n_sessions: number;
+  n_correlation_sessions: number;
+  pearson_fisher: number | null;
+  mae: number;
+  rmse: number;
+  bias: number;
 }
 
 export interface NocturnalHrvGlobalAiReport {

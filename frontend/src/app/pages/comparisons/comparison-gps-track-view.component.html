@@ -1,0 +1,34 @@
+<div class="gps-individual-shell">
+  <aside class="gps-compare-sidebar">
+    <p class="section-eyebrow">DISPOSITIVOS Y PRUEBAS</p>
+    <button class="gps-source" *ngFor="let view of views" [class.selected]="selectedId===view.id" (click)="selectedId=view.id">
+      <input type="checkbox" [checked]="view.visible" (click)="$event.stopPropagation()" (change)="toggle(view)">
+      <span class="source-dot" [style.background]="view.color"></span><span>{{view.name}}</span>
+    </button>
+    <ng-container *ngIf="selected as item">
+      <div class="gps-side-metrics"><span>Error medio ⊥</span><strong>{{fmt(item.meanError)}} m</strong><span>P95 ⊥</span><strong>{{fmt(item.p95)}} m</strong><span>Muestras visibles</span><strong>{{item.samples}}</strong></div>
+    </ng-container>
+  </aside>
+  <main class="gps-map-main">
+    <div class="track-header"><div class="track-header-title"><span class="track-eyebrow">Vista geoespacial conjunta</span><h2>Superposición en pista IAAF</h2></div><div class="track-tools"><button class="tool-btn" [class.active]="trackStyle==='realista'" (click)="trackStyle='realista'">Realista</button><button class="tool-btn" [class.active]="trackStyle==='esquematica'" (click)="trackStyle='esquematica'">Esquema</button><button class="tool-btn" [class.active]="trackStyle==='blueprint'" (click)="trackStyle='blueprint'">Blueprint</button></div></div>
+    <div class="track-stage" [class.track-stage-realista]="trackStyle==='realista'" [class.track-stage-blueprint]="trackStyle==='blueprint'" (wheel)="wheel($event)" (pointerdown)="pointerDown($event)" (pointermove)="pointerMove($event)" (pointerup)="pointerUp()" (pointercancel)="pointerUp()">
+      <svg class="track-svg" width="100%" height="100%" [attr.viewBox]="trackViewBox" preserveAspectRatio="xMidYMid meet">
+        <defs><radialGradient id="cmp-surf"><stop offset="0" stop-color="#CC5A3A"/><stop offset="1" stop-color="#9C3E27"/></radialGradient><linearGradient id="cmp-field" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#84A56F"/><stop offset="1" stop-color="#638151"/></linearGradient><pattern id="cmp-grid" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M5 0L0 0 0 5" fill="none" stroke="#1E4878" stroke-width=".05"/></pattern></defs>
+        <g transform="scale(1,-1)">
+          <rect *ngIf="trackStyle==='blueprint'" x="-100" y="-70" width="200" height="140" fill="url(#cmp-grid)"/>
+          <path [attr.d]="innerKerb" [attr.fill]="trackStyle==='realista'?'url(#cmp-field)':'transparent'"/>
+          <path [attr.d]="trackRing" [attr.fill]="trackStyle==='realista'?'url(#cmp-surf)':trackStyle==='blueprint'?'#16406c':'#EDEBE3'" fill-rule="evenodd"/>
+          <path *ngFor="let lane of lanePaths" [attr.d]="lane" fill="none" [attr.stroke]="trackStyle==='blueprint'?'#6FA9E8':'#FAF9F4'" stroke-width=".12" opacity=".8"/>
+          <path [attr.d]="innerKerb" fill="none" [attr.stroke]="trackStyle==='blueprint'?'#6FA9E8':'#FAF9F4'" stroke-width=".2"/><path [attr.d]="outerKerb" fill="none" [attr.stroke]="trackStyle==='blueprint'?'#6FA9E8':'#FAF9F4'" stroke-width=".18"/>
+          <path [attr.d]="lane1Run" fill="none" [attr.stroke]="trackStyle==='blueprint'?'#BFE0FF':'#14130F'" stroke-width=".18" stroke-dasharray="1.08 .72"/>
+          <line [attr.x1]="finishLine.x" [attr.x2]="finishLine.x" [attr.y1]="finishLine.y0" [attr.y2]="finishLine.y1" stroke="#fff" stroke-width=".26"/>
+          <ng-container *ngFor="let view of visible"><path [attr.d]="view.pathD" fill="none" stroke="#fff" [attr.stroke-width]="selectedId === view.id ? 0.9 : 0.65" stroke-opacity=".45" stroke-linejoin="round"/><path [attr.d]="view.pathD" fill="none" [attr.stroke]="view.color" [attr.stroke-width]="selectedId === view.id ? 0.58 : 0.38" [attr.stroke-opacity]="selectedId === view.id ? 1 : 0.78" stroke-linejoin="round" stroke-linecap="round"/></ng-container>
+        </g>
+      </svg>
+      <div class="track-overlay-info"><span>Pista</span><span class="v">IAAF 400 m · 8 carriles</span><span>Vista</span><span class="v">Ambos dispositivos</span></div>
+      <div class="track-legend"><div class="tleg-row"><span class="tleg-swatch tleg-swatch-dashed"></span><span>Carril 1 (verdad)</span></div><div class="tleg-row" *ngFor="let view of visible" [style.color]="view.color"><span class="tleg-swatch"></span><span>{{view.name}}</span></div></div>
+      <div class="track-zoom-controls"><button class="tool-btn" (click)="$event.stopPropagation();zoom(1.25)">+</button><button class="tool-btn" (click)="$event.stopPropagation();zoom(.8)">−</button><button class="tool-btn" (click)="$event.stopPropagation();reset()">⤺</button></div>
+    </div>
+  </main>
+  <aside class="gps-compare-metrics"><p class="section-eyebrow">ANÁLISIS CONJUNTO</p><div *ngFor="let view of views" class="device-kpi" [class.muted]="!view.visible" [style.border-left-color]="view.color"><strong>{{view.name}}</strong><span><b>{{fmt(view.meanError)}}</b> m error medio</span><span><b>{{fmt(view.p95)}}</b> m P95</span><span><b>{{view.samples}}</b> puntos</span></div></aside>
+</div>
