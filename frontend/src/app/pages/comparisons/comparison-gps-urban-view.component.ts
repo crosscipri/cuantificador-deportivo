@@ -9,7 +9,7 @@ export class ComparisonGpsUrbanViewComponent implements AfterViewInit,OnChanges,
   @Input() tracks:ComparisonGpsTrack[]=[];@ViewChild('map') container!:ElementRef<HTMLDivElement>;
   views:UrbanView[]=[];references:ComparisonGpsTrack[]=[];selectedId='';private map?:L.Map;private layers?:L.LayerGroup;
   readonly chartW=780;readonly chartH=145;
-  ngAfterViewInit():void{this.map=L.map(this.container.nativeElement,{preferCanvas:true,zoomSnap:.5,zoomDelta:.5}).setView([40,-3],5);L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',attribution:'© OpenStreetMap © CARTO',maxZoom:20}).addTo(this.map);this.layers=L.layerGroup().addTo(this.map);this.draw();}
+  ngAfterViewInit():void{this.map=L.map(this.container.nativeElement,{preferCanvas:true,zoomSnap:.5,zoomDelta:.5}).setView([40,-3],5);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{subdomains:'abc',attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(this.map);this.layers=L.layerGroup().addTo(this.map);this.draw();}
   ngOnChanges(_:SimpleChanges):void{this.references=this.tracks.filter(t=>t.role==='reference');this.views=this.tracks.filter(t=>t.role!=='reference').map(t=>this.view(t));this.selectedId=this.views[0]?.id||'';this.draw();}
   ngOnDestroy():void{this.map?.remove();}
   get selected():UrbanView|undefined{return this.views.find(v=>v.id===this.selectedId)||this.views[0];}
