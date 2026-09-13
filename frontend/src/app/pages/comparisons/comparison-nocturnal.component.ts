@@ -9,7 +9,6 @@ import { NocturnalHrvAggregated } from '../../models/hrv-analysis.model';
 import { deviceColor } from '../../models/comparison.model';
 
 type NocturnalMetric = 'rmssd' | 'hr';
-type NocturnalSport = 'all' | 'running' | 'cycling' | 'gym';
 interface NocturnalDeviceRow { id:string; name:string; data:NocturnalHrvAggregated|null; error:string; }
 
 @Component({
@@ -20,7 +19,7 @@ interface NocturnalDeviceRow { id:string; name:string; data:NocturnalHrvAggregat
 export class ComparisonNocturnalComponent implements OnInit {
   @Input() devices:{id:string;name:string}[]=[];
   private destroyRef=inject(DestroyRef);
-  metric:NocturnalMetric='rmssd';sport:NocturnalSport='all';rows:NocturnalDeviceRow[]=[];loading=false;error='';
+  metric:NocturnalMetric='rmssd';rows:NocturnalDeviceRow[]=[];loading=false;error='';
   correlation:ChartConfiguration<'scatter'>['data']={datasets:[]};
   options:ChartOptions<'scatter'>={responsive:true,maintainAspectRatio:false,animation:false,
     scales:{x:{title:{display:true,text:'Referencia RMSSD (ms)'}},y:{title:{display:true,text:'Dispositivo RMSSD (ms)'}}},
@@ -31,15 +30,12 @@ export class ComparisonNocturnalComponent implements OnInit {
   get title():string{return this.metric==='rmssd'?'HRV · RMSSD nocturno':'Frecuencia cardiaca en reposo/nocturna';}
   load():void{
     this.loading=true;this.error='';
-    const sportType=this.sport==='all'?undefined:this.sport;
-    forkJoin(this.devices.map(device=>this.api.getAggregatedHrvData(device.id,sportType).pipe(
+    forkJoin(this.devices.map(device=>this.api.getAggregatedHrvData(device.id).pipe(
       map(data=>({id:device.id,name:device.name,data,error:''})),
       catchError(e=>of({id:device.id,name:device.name,data:null,error:typeof e.error?.detail==='string'?e.error.detail:'No se ha podido cargar el agregado nocturno.'}))
     ))).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(rows=>{this.rows=rows;this.loading=false;this.buildChart();});
   }
   select(metric:NocturnalMetric):void{this.metric=metric;this.buildChart();}
-  selectSport(sport:NocturnalSport):void { if(this.sport!==sport){this.sport=sport;this.load();} }
-  get sportLabel():string { return ({all:'todas las noches',running:'running',cycling:'ciclismo',gym:'gym'})[this.sport]; }
   data(row:NocturnalDeviceRow){return row.data?.[this.metric];}
   buildChart():void{
     const datasets:ChartConfiguration<'scatter'>['data']['datasets']=this.rows.filter(row=>this.data(row)?.by_session.length).map(row=>({

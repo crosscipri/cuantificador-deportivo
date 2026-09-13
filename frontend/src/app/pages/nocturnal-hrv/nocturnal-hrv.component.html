@@ -23,15 +23,6 @@
       <ng-container *ngIf="!currentSessionId">
         <input class="session-name-input" [(ngModel)]="sessionName"
                placeholder="Nombre de sesión…" maxlength="80">
-        <select class="session-sport-input" [(ngModel)]="sessionSport" aria-label="Deporte asociado a la noche">
-          <option value="">Sin deporte asociado</option>
-          <option value="running">Running</option>
-          <option value="cycling">Ciclismo</option>
-          <option value="gym">Gym</option>
-        </select>
-        <button *ngIf="currentSessionId" class="ec-btn sm" (click)="saveSessionSport()" [disabled]="savingSessionSport">
-          {{ savingSessionSport ? 'Guardando…' : 'Guardar deporte' }}
-        </button>
         <button class="ec-btn sm primary" (click)="saveCurrentSession()" [disabled]="savingSession">
           {{ savingSession ? 'Guardando…' : 'Guardar sesión' }}
         </button>

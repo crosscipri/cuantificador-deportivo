@@ -2,8 +2,6 @@ export interface NocturnalHrvSummary {
   id: string;
   device_id: string;
   session_name: string;
-  /** Training context associated with this night; unset for historic/global-only nights. */
-  sport_type?: 'running' | 'cycling' | 'gym' | null;
   created_at: string;
   polar_rr_filename?: string;
   polar_hr_filename?: string;

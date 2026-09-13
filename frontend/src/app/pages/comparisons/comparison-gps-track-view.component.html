@@ -25,7 +25,7 @@
           <ng-container *ngFor="let view of visible"><path [attr.d]="view.pathD" fill="none" stroke="#fff" [attr.stroke-width]="selectedId === view.id ? 0.9 : 0.65" stroke-opacity=".45" stroke-linejoin="round"/><path [attr.d]="view.pathD" fill="none" [attr.stroke]="view.color" [attr.stroke-width]="selectedId === view.id ? 0.58 : 0.38" [attr.stroke-opacity]="selectedId === view.id ? 1 : 0.78" stroke-linejoin="round" stroke-linecap="round"/></ng-container>
         </g>
       </svg>
-      <div class="track-zoom-controls"><button class="tool-btn" (click)="$event.stopPropagation();zoom(1.25)">+</button><button class="tool-btn" (click)="$event.stopPropagation();zoom(.8)">−</button><button class="tool-btn" (click)="$event.stopPropagation();reset()">⤺</button></div>
+      <div class="track-zoom-controls"><button class="tool-btn" (click)="$event.stopPropagation();zoom(1.1)">+</button><button class="tool-btn" (click)="$event.stopPropagation();zoom(1/1.1)">−</button><button class="tool-btn" (click)="$event.stopPropagation();reset()">⤺</button></div>
     </div>
   </main>
   <aside class="gps-compare-metrics"><p class="section-eyebrow">ANÁLISIS CONJUNTO</p><div *ngFor="let view of views" class="device-kpi" [class.muted]="!view.visible" [style.border-left-color]="view.color"><strong>{{view.name}}</strong><span><b>{{fmt(view.meanError)}}</b> m error medio</span><span><b>{{fmt(view.p95)}}</b> m P95</span><span><b>{{view.samples}}</b> puntos</span></div></aside>

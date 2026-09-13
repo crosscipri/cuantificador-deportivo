@@ -136,15 +136,23 @@ def calculate(sources,config):
         for source_index,source in enumerate(sources):
             described=describe(gps_points(source['data'].get('points',[])),-np.inf,np.inf)
             stats={k:v for k,v in described.items() if k not in ('segments','timed')}
-            ref=(common if config.mode=='DIRECT' else source).get('reference_distance')
+            reference_source=common if config.mode=='DIRECT' else source
+            # Urban tests store a reference polyline instead of a numeric
+            # reference distance. Derive its total length so distance error and
+            # MAPE use the same reference that is rendered on the map.
+            if config.domain=='GPS_URBAN':
+                reference_description=describe(gps_points(reference_source.get('ref_points',[])),-np.inf,np.inf)
+                ref=reference_description.get('derived_distance_m')
+            else:
+                ref=reference_source.get('reference_distance')
             distance=source['data'].get('distance_m')
             # Existing UI stored a coordinate-derived distance; never relabel native.
             stats['legacy_derived_distance_m']=distance if finite(distance) else None
+            stats['reference_distance_m']=ref if finite(ref) else None
             stats['distance_error_m']=distance-ref if finite(distance) and finite(ref) else None
             stats['distance_error_percent']=100*(distance-ref)/ref if finite(distance) and finite(ref) and ref>0 else None
             if config.domain=='GPS_URBAN':
-                reference_source=common if config.mode=='DIRECT' else source
-                reference=describe(gps_points(reference_source.get('ref_points',[])),-np.inf,np.inf)
+                reference=reference_description
                 stats.update(compare_geometry(reference['segments'],[p for seg in described['segments'] for p in seg]))
                 reference_key=reference_source['source_document_id']
                 if reference_key not in mapped_references:

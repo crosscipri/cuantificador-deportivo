@@ -78,7 +78,8 @@ def compare_geometry(reference_segments,points):
         ambiguous+=int(result["ambiguous"])
         if continuous_reference and not result["ambiguous"] and point.get("t") in path.progress_by_time:
             along.append(result["progress_m"]-path.progress_by_time[point["t"]])
-    return {"cross_track_mean_m":float(np.mean(distances)) if distances else None,
+    return {"cross_track_rmse_m":float(np.sqrt(np.mean(np.square(distances)))) if distances else None,
+            "cross_track_mean_m":float(np.mean(distances)) if distances else None,
             "cross_track_p95_m":float(np.percentile(distances,95)) if distances else None,
             "cross_track_max_m":max(distances) if distances else None,"geometry_n":len(distances),
             "along_track_bias_m":float(np.mean(along)) if along else None,

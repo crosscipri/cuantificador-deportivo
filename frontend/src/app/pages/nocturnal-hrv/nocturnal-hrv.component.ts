@@ -113,10 +113,8 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   savedSessions:       NocturnalHrvSummary[] = [];
   loadingSessions      = false;
   savingSession        = false;
-  savingSessionSport   = false;
   currentSessionId:    string | null = null;
   sessionName          = '';
-  sessionSport: 'running' | 'cycling' | 'gym' | '' = '';
 
   // ── AI analysis ────────────────────────────────────────────────────────────
   aiAnalysis:    NocturnalHrvAiAnalysis | null = null;
@@ -338,7 +336,6 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     if (forceReset || this.currentSessionId) {
       this.currentSessionId = null;
       this.sessionName = '';
-      this.sessionSport = '';
       this.windows = [];
       this.summary = null;
       this.overlapWarning = false;
@@ -361,7 +358,6 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
         this.activeHrvView = 'data';
         this.currentSessionId = id;
         this.sessionName = session.session_name;
-        this.sessionSport = session.sport_type ?? '';
         if (session.settings) {
           this.artifactThresholdPct = session.settings.artifact_threshold_pct ?? 20;
           this.minBeatsPerWindow    = session.settings.min_beats_per_window ?? 30;
@@ -741,7 +737,6 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
 
     fd.append('session_name', this.sessionName.trim() ||
       `HRV Nocturno ${new Date().toLocaleDateString('es-ES')}`);
-    if (this.sessionSport) fd.append('sport_type', this.sessionSport);
 
     const windowsForSave = this.windows.map(w => ({ ...w, tStart: w.tStart.toISOString() }));
     fd.append('windows_json',  JSON.stringify(windowsForSave));
@@ -755,7 +750,6 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       next: saved => {
         this.currentSessionId = saved.id;
         this.sessionName = saved.session_name;
-        this.sessionSport = saved.sport_type ?? '';
         this.savedSessions = [saved, ...this.savedSessions];
         this.savingSession = false;
         this.upsertGlobalSessionDetail({
@@ -766,20 +760,6 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
         this.loadGlobalData();
       },
       error: () => { this.savingSession = false; },
-    });
-  }
-
-  saveSessionSport(): void {
-    if (!this.currentSessionId || this.savingSessionSport) return;
-    this.savingSessionSport = true;
-    this.api.updateNocturnalHrvSport(this.currentSessionId, this.sessionSport || null).subscribe({
-      next: saved => {
-        this.savedSessions = this.savedSessions.map(session => session.id === saved.id ? saved : session);
-        this.sessionSport = saved.sport_type ?? '';
-        this.savingSessionSport = false;
-        this.loadGlobalData();
-      },
-      error: () => { this.savingSessionSport = false; },
     });
   }
 

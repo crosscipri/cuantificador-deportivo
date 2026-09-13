@@ -1678,19 +1678,14 @@ def _balanced_nocturnal_stats(by_session: list[dict]) -> dict | None:
 
 
 @app.get("/api/devices/{device_id}/nocturnal-hrv/aggregated")
-async def get_nocturnal_hrv_aggregated(device_id: str, sport_type: str | None = None) -> dict:
-    """Aggregate nocturnal RMSSD and HR windows, optionally by associated sport."""
+async def get_nocturnal_hrv_aggregated(device_id: str) -> dict:
+    """Aggregate RMSSD and HR windows from all sessions for one device."""
     if not await db().devices.find_one({"_id": _oid(device_id)}):
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
-    if sport_type is not None and sport_type not in VALID_SPORT_TYPES:
-        raise HTTPException(status_code=422, detail=f"sport_type debe ser uno de: {VALID_SPORT_TYPES}")
 
     projection = {"windows": 1, "session_name": 1, "created_at": 1}
-    query: dict[str, Any] = {"device_id": _oid(device_id)}
-    if sport_type is not None:
-        query["sport_type"] = sport_type
     sessions = await db().nocturnal_hrv_sessions.find(
-        query, projection
+        {"device_id": _oid(device_id)}, projection
     ).sort("created_at", 1).to_list(None)
 
     rmssd_by_session: list[dict] = []
@@ -1843,7 +1838,6 @@ async def create_nocturnal_hrv_session(
     huawei_file:      Optional[UploadFile] = File(default=None),
     secondary_source: str = Form(default="fitbit"),
     session_name:     str = Form(default=""),
-    sport_type:       str = Form(default=""),
     windows_json:     str = Form(default="[]"),
     summary_json:     str = Form(default="{}"),
     settings_json:    str = Form(default="{}"),
@@ -1856,15 +1850,10 @@ async def create_nocturnal_hrv_session(
         settings = json.loads(settings_json)
     except Exception:
         raise HTTPException(status_code=422, detail="JSON inválido en los metadatos")
-    if sport_type and sport_type not in VALID_SPORT_TYPES:
-        raise HTTPException(status_code=422, detail=f"sport_type debe ser uno de: {VALID_SPORT_TYPES}")
 
     doc: dict[str, Any] = {
         "device_id":        ObjectId(device_id),
         "session_name":     session_name.strip() or f"HRV Nocturno {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-        # The sport is the training context associated with this night (normally
-        # the following day's workout).  Empty keeps imported historic nights global.
-        "sport_type":       sport_type or None,
         "windows":          windows,
         "summary":          summary,
         "settings":         settings,
@@ -1916,22 +1905,6 @@ async def get_nocturnal_hrv_session(session_id: str) -> dict:
     if not doc:
         raise HTTPException(status_code=404, detail="Sesión HRV no encontrada")
     return _ser_nocturnal_hrv(doc, include_windows=True)
-
-
-@app.patch("/api/nocturnal-hrv/{session_id}")
-async def update_nocturnal_hrv_session(session_id: str, body: dict) -> dict:
-    """Update the training context of an already saved nocturnal measurement."""
-    if set(body) != {"sport_type"}:
-        raise HTTPException(status_code=422, detail="Solo se puede actualizar sport_type")
-    sport_type = body["sport_type"]
-    if sport_type is not None and sport_type not in VALID_SPORT_TYPES:
-        raise HTTPException(status_code=422, detail=f"sport_type debe ser uno de: {VALID_SPORT_TYPES}")
-    result = await db().nocturnal_hrv_sessions.find_one_and_update(
-        {"_id": _oid(session_id)}, {"$set": {"sport_type": sport_type}}, return_document=True,
-    )
-    if not result:
-        raise HTTPException(status_code=404, detail="Sesión HRV nocturna no encontrada")
-    return _ser_nocturnal_hrv(result, include_windows=False)
 
 
 @app.delete("/api/nocturnal-hrv/{session_id}")

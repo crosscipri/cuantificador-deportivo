@@ -4,8 +4,10 @@ from .statistics import METRICS
 GPS_METRICS={
     'derived_distance_m':('Distancia derivada actual','m'),
     'legacy_derived_distance_m':('Distancia derivada histórica','m'),
+    'reference_distance_m':('Distancia de referencia','m'),
     'distance_error_m':('Diferencia de distancia respecto a referencia','m'),
     'distance_error_percent':('Diferencia de distancia','%'),
+    'cross_track_rmse_m':('RMSE de separación a la polilínea','m'),
     'cross_track_mean_m':('Separación media a la polilínea','m'),
     'cross_track_p95_m':('P95 de separación a la polilínea','m'),
     'cross_track_max_m':('Máxima separación a la polilínea','m'),

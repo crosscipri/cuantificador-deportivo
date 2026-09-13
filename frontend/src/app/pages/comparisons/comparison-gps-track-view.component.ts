@@ -32,7 +32,7 @@ export class ComparisonGpsTrackViewComponent implements OnChanges {
   toggle(view:TrackView):void{view.visible=!view.visible;if(view.visible)this.selectedId=view.id;}
   zoom(factor:number):void{this.trackZoom=Math.max(1,Math.min(8,this.trackZoom*factor));}
   reset():void{this.trackZoom=1;this.trackPanX=0;this.trackPanY=0;}
-  wheel(event:WheelEvent):void{event.preventDefault();this.zoom(event.deltaY<0?1.18:1/1.18);}
+  wheel(event:WheelEvent):void{event.preventDefault();this.zoom(event.deltaY<0?1.06:1/1.06);}
   pointerDown(event:PointerEvent):void{this.drag={x:event.clientX,y:event.clientY,panX:this.trackPanX,panY:this.trackPanY};(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);}
   pointerMove(event:PointerEvent):void{if(!this.drag)return;const scale=1.2/this.trackZoom;this.trackPanX=this.drag.panX-(event.clientX-this.drag.x)*scale;this.trackPanY=this.drag.panY-(event.clientY-this.drag.y)*scale;}
   pointerUp():void{this.drag=null;}
