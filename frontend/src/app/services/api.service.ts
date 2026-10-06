@@ -105,9 +105,10 @@ export class ApiService {
 
   // ── Sport aggregate charts (per device + sport) ──────────────────────────
 
-  getSportAggregateCharts(deviceId: string, sportType: string): Observable<SportAggregateCharts> {
+  getSportAggregateCharts(deviceId: string, sportType: string, sessionIds?: string[]): Observable<SportAggregateCharts> {
     return this.http.get<SportAggregateCharts>(
-      `${this.base}/devices/${deviceId}/sport-aggregate/${sportType}`
+      `${this.base}/devices/${deviceId}/sport-aggregate/${sportType}`,
+      { params: sessionIds === undefined ? {} : { session_ids: sessionIds.join(',') } }
     );
   }
 
@@ -244,8 +245,9 @@ export class ApiService {
 
   // ── Nocturnal HRV ─────────────────────────────────────────────────────────
 
-  getAggregatedHrvData(deviceId: string): Observable<NocturnalHrvAggregated> {
-    return this.http.get<NocturnalHrvAggregated>(`${this.base}/devices/${deviceId}/nocturnal-hrv/aggregated`);
+  getAggregatedHrvData(deviceId: string, sessionIds?: string[]): Observable<NocturnalHrvAggregated> {
+    return this.http.get<NocturnalHrvAggregated>(`${this.base}/devices/${deviceId}/nocturnal-hrv/aggregated`,
+      { params: sessionIds === undefined ? {} : { session_ids: sessionIds.join(',') } });
   }
 
   getGlobalHrvAiAnalysis(deviceId: string): Observable<NocturnalHrvGlobalAiAnalysis> {

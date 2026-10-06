@@ -179,13 +179,24 @@ class WorkspaceSessionPairInput(BaseModel):
 
 class WorkspaceSportSelection(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    session_ids: list[str] = Field(min_length=2, max_length=8)
-    reference_session_id: str
+    session_ids: list[str] = Field(min_length=2, max_length=1000)
+    reference_session_id: str | None = None
 
     @model_validator(mode="after")
     def valid_reference(self):
-        if len(set(self.session_ids)) != len(self.session_ids) or self.reference_session_id not in self.session_ids:
+        if len(set(self.session_ids)) != len(self.session_ids) or (self.reference_session_id is not None and self.reference_session_id not in self.session_ids):
             raise ValueError("Elige sesiones diferentes y una referencia de esas sesiones.")
+        return self
+
+
+class WorkspaceNocturnalSelection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    session_ids: list[str] = Field(default_factory=list, max_length=1000)
+
+    @model_validator(mode="after")
+    def unique_sessions(self):
+        if len(set(self.session_ids)) != len(self.session_ids):
+            raise ValueError("Selecciona sesiones diferentes.")
         return self
 
 

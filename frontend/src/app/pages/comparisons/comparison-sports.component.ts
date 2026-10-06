@@ -11,7 +11,7 @@ import { SportAggregateCharts } from '../../models/session.model';
 import { ComparisonSessionComponent } from './comparison-session.component';
 import { ComparisonSelectedSportComponent } from './comparison-selected-sport.component';
 
-interface SportSection {id:string;name:string;sessions:ComparisonSession[];opened:Set<string>;loading:boolean;loaded:boolean;aggregates:{id:string;name:string;data:SportAggregateCharts|null;error:string}[];correlation:ChartConfiguration<'scatter'>['data'];}
+interface SportSection {generation:number;selectedIds?:string[];id:string;name:string;sessions:ComparisonSession[];opened:Set<string>;loading:boolean;loaded:boolean;aggregates:{id:string;name:string;data:SportAggregateCharts|null;error:string}[];correlation:ChartConfiguration<'scatter'>['data'];}
 
 @Component({selector:'app-comparison-sports',standalone:true,imports:[CommonModule,BaseChartDirective,ComparisonSessionComponent,ComparisonSelectedSportComponent],
   templateUrl:'./comparison-sports.component.html',styleUrls:['./comparisons.component.scss']})
@@ -39,18 +39,27 @@ export class ComparisonSportsComponent implements OnInit {
       const ids=[...new Set(sessions.map(s=>s.sport_type||'unknown'))].sort((a,b)=>{
         const order=['running','cycling','gym'];return (order.includes(a)?order.indexOf(a):3)-(order.includes(b)?order.indexOf(b):3);
       });
-      this.sports=ids.map(id=>({id,name:names[id]||id,sessions:sessions.filter(s=>(s.sport_type||'unknown')===id),opened:new Set<string>(),loading:false,loaded:false,aggregates:[],correlation:{datasets:[]}}));
+      this.sports=ids.map(id=>({generation:0,id,name:names[id]||id,sessions:sessions.filter(s=>(s.sport_type||'unknown')===id),opened:new Set<string>(),loading:false,loaded:false,aggregates:[],correlation:{datasets:[]}}));
       this.loading=false;if(this.sports.length)this.choose(this.sports[0]);
     },error:e=>{this.loading=false;this.error=typeof e.error?.detail==='string'?e.error.detail:'No se han podido cargar los entrenamientos analizados.';}});
   }
   choose(sport:SportSection):void{this.active=sport;this.visited.add(sport.id);if(this.mode==='ALL'&&!sport.loaded&&!sport.loading)this.aggregate(sport);}
+  selectSessions(sport:SportSection,ids:string[]):void {
+    sport.selectedIds=ids;
+    this.aggregate(sport);
+  }
   aggregate(sport:SportSection):void {
     if(!['running','cycling','gym'].includes(sport.id)){sport.loaded=true;return;}
-    sport.loading=true;
-    forkJoin(this.devices.map(device=>this.legacy.getSportAggregateCharts(device.id,sport.id).pipe(
+    sport.loading=true;sport.correlation={datasets:[]};sport.aggregates=[];
+    const generation=++sport.generation;
+    forkJoin(this.devices.map(device=>{
+      const ids=this.mode==='SELECTED'?sport.sessions.filter(s=>s.device_id===device.id&&sport.selectedIds?.includes(s.id)).map(s=>s.id):undefined;
+      if(ids&&!ids.length)return of({id:device.id,name:device.name,data:null,error:''});
+      return this.legacy.getSportAggregateCharts(device.id,sport.id,ids).pipe(
       map(data=>({id:device.id,name:device.name,data,error:''})),
       catchError(e=>of({id:device.id,name:device.name,data:null,error:typeof e.error?.detail==='string'?e.error.detail:'No se ha podido cargar el agregado.'}))
-    ))).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(rows=>{
+    );})).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(rows=>{
+      if(generation!==sport.generation)return;
       sport.aggregates=rows;sport.loading=false;sport.loaded=true;
       const datasets:ChartConfiguration<'scatter'>['data']['datasets']=rows.filter(row=>row.data).map(row=>({
         label:row.name,data:row.data!.sessions.flatMap(s=>s.points),backgroundColor:deviceColor(row.id)+'80',borderColor:deviceColor(row.id),pointRadius:2,

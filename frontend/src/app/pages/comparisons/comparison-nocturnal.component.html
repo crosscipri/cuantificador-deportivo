@@ -1,12 +1,21 @@
 <section class="panel">
-  <div class="heading"><div><p class="eyebrow">RECUPERACIÓN NOCTURNA</p><h2>HRV y frecuencia cardiaca en reposo</h2><p class="hint">Todas las noches analizadas de los dispositivos seleccionados, reunidas en una única gráfica de correlación.</p></div><button [disabled]="loading" (click)="load()">Actualizar</button></div>
+  <div class="heading"><div><p class="eyebrow">RECUPERACIÓN NOCTURNA</p><h2>HRV y frecuencia cardiaca en reposo</h2><p class="hint">{{mode==='SELECTED'?'Marca una o varias noches por dispositivo. La correlación total de HRV y de FC en reposo usa únicamente las noches seleccionadas.':'Todas las noches analizadas de los dispositivos seleccionados, reunidas en una única gráfica de correlación.'}}</p></div><button [disabled]="loading||saving" (click)="load()">Actualizar</button></div>
+  <fieldset *ngIf="mode==='SELECTED'" [disabled]="saving">
+    <legend>Noches incluidas en HRV y FC en reposo</legend>
+    <div class="fields"><div class="session-choices" *ngFor="let device of devices"><h3>{{device.name}}</h3>
+      <label class="check" *ngFor="let session of choices[device.id]"><input type="checkbox" [checked]="selected.includes(session.id)" (change)="toggle(session.id)"><span>{{session.session_name}} · {{session.activity_date ? (session.activity_date|date:'dd/MM/yyyy') : 'Fecha desconocida'}}</span></label>
+      <p *ngIf="choices[device.id]&&!choices[device.id].length">Sin noches analizadas.</p>
+    </div></div>
+    <button *ngIf="workspaceId" [disabled]="loading||!!error" (click)="save()">{{saving?'Guardando…':'Guardar selección de noches'}}</button>
+  </fieldset>
+  <p role="status" *ngIf="notice">{{notice}}</p>
   <div class="actions" aria-label="Métrica nocturna"><button [class.primary]="metric==='rmssd'" (click)="select('rmssd')">HRV · RMSSD</button><button [class.primary]="metric==='hr'" (click)="select('hr')">FC en reposo</button></div>
   <p role="status" *ngIf="loading">Cargando análisis nocturnos…</p>
   <p class="error" role="alert" *ngIf="error">{{error}}</p>
   <ng-container *ngIf="!loading">
-    <h3>{{title}} · Correlación global</h3>
+    <h3>{{title}} · Correlación total{{mode==='SELECTED'?' de las noches seleccionadas':''}}</h3>
     <div class="dot-chart" *ngIf="correlation.datasets.length"><canvas baseChart [type]="'scatter'" [data]="correlation" [options]="options"></canvas></div>
-    <p *ngIf="!correlation.datasets.length">Los dispositivos seleccionados todavía no tienen ventanas nocturnas comparables para esta métrica.</p>
+    <p *ngIf="!correlation.datasets.length">{{mode==='SELECTED'?'No hay datos comparables en la selección actual. Marca las noches que quieres incluir.':'Los dispositivos seleccionados todavía no tienen ventanas nocturnas comparables para esta métrica.'}}</p>
     <div class="table-wrap" *ngIf="rows.length"><table><thead><tr><th>Dispositivo</th><th>Noches con datos / total</th><th>Ventanas</th><th>r global (puntos)</th><th>r equilibrada por noche</th><th>MAE ({{unit}})</th><th>RMSE ({{unit}})</th><th>Bias ({{unit}})</th></tr></thead><tbody><tr *ngFor="let row of rows"><td>{{row.name}}<small *ngIf="row.error">{{row.error}}</small></td><td>{{data(row)?.balanced_by_session?.n_sessions ?? 0}} / {{row.data?.n_sessions ?? 0}}</td><td>{{data(row)?.stats?.n ?? 0}}</td><td>{{number(data(row)?.stats?.pearsonR)}}</td><td>{{number(data(row)?.balanced_by_session?.pearson_fisher)}}</td><td>{{number(data(row)?.balanced_by_session?.mae)}}</td><td>{{number(data(row)?.balanced_by_session?.rmse)}}</td><td>{{number(data(row)?.balanced_by_session?.bias)}}</td></tr></tbody></table></div>
     <p class="hint">Cada color representa un dispositivo frente a su referencia. La correlación equilibrada aplica Fisher y da el mismo peso a cada noche; la correlación global de puntos puede dar más peso a noches con más ventanas válidas.</p>
   </ng-container>

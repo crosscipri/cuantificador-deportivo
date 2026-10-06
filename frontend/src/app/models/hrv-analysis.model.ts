@@ -2,6 +2,7 @@ export interface NocturnalHrvSummary {
   id: string;
   device_id: string;
   session_name: string;
+  activity_date?: string | null;
   created_at: string;
   polar_rr_filename?: string;
   polar_hr_filename?: string;
@@ -50,6 +51,7 @@ export interface AggregatedHrvStats {
 export interface AggregatedHrvSession {
   session_id: string;
   session_name: string;
+  activity_date?: string | null;
   points: { x: number; y: number }[];
 }
 

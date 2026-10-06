@@ -32,6 +32,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from motor.motor_asyncio import AsyncIOMotorClient
+from nocturnal_dates import nocturnal_activity_date, nocturnal_session_name
 
 from analyzer import (analyze_session, generate_aggregate_analysis,
                       generate_overview_chart, generate_sport_aggregate,
@@ -1074,7 +1075,7 @@ async def get_overview_data(sport_type: str = "running") -> list[dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.get("/api/devices/{device_id}/sport-aggregate/{sport_type}")
-async def get_sport_aggregate_charts(device_id: str, sport_type: str) -> dict:
+async def get_sport_aggregate_charts(device_id: str, sport_type: str, session_ids: str | None = None) -> dict:
     """
     Returns balanced metrics + two independent charts for all sessions of a
     given device and sport:
@@ -1089,9 +1090,12 @@ async def get_sport_aggregate_charts(device_id: str, sport_type: str) -> dict:
     if not dev_doc:
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
 
+    query = {"device_id": _oid(device_id), "sport_type": sport_type}
+    if session_ids is not None:
+        query["_id"] = {"$in": [_oid(s) for s in session_ids.split(",") if s]}
     sessions = [
         s async for s in db().sessions.find(
-            {"device_id": _oid(device_id), "sport_type": sport_type},
+            query,
             {"fc_data": 1, "metrics": 1, "session_difficulty": 1,
              "lag": 1, "duration_seconds": 1, "training_type": 1,
              "session_name": 1},
@@ -1623,6 +1627,8 @@ async def create_device_ai_verdict(device_id: str) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _ser_nocturnal_hrv(doc: dict, *, include_windows: bool = True) -> dict:
+    doc["activity_date"] = nocturnal_activity_date(doc)
+    doc["session_name"] = nocturnal_session_name(doc)
     doc["id"] = str(doc.pop("_id"))
     if "device_id" in doc:
         doc["device_id"] = str(doc["device_id"])
@@ -1678,21 +1684,24 @@ def _balanced_nocturnal_stats(by_session: list[dict]) -> dict | None:
 
 
 @app.get("/api/devices/{device_id}/nocturnal-hrv/aggregated")
-async def get_nocturnal_hrv_aggregated(device_id: str) -> dict:
-    """Aggregate RMSSD and HR windows from all sessions for one device."""
+async def get_nocturnal_hrv_aggregated(device_id: str, session_ids: str | None = None) -> dict:
+    """Aggregate selected nights, or all nights when no filter is supplied."""
     if not await db().devices.find_one({"_id": _oid(device_id)}):
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
 
-    projection = {"windows": 1, "session_name": 1, "created_at": 1}
+    projection = {"windows": 1, "session_name": 1, "created_at": 1, "activity_date": 1}
+    query = {"device_id": _oid(device_id)}
+    if session_ids is not None:
+        query["_id"] = {"$in": [_oid(s) for s in session_ids.split(",") if s]}
     sessions = await db().nocturnal_hrv_sessions.find(
-        {"device_id": _oid(device_id)}, projection
+        query, projection
     ).sort("created_at", 1).to_list(None)
 
     rmssd_by_session: list[dict] = []
     hr_by_session:    list[dict] = []
 
     for s in sessions:
-        s_name = s.get("session_name", "")
+        s_name = nocturnal_session_name(s)
         s_id   = str(s["_id"])
         rpts, hpts = [], []
         for w in (s.get("windows") or []):
@@ -1703,9 +1712,9 @@ async def get_nocturnal_hrv_aggregated(device_id: str) -> dict:
             if hp is not None and hf is not None:
                 hpts.append({"x": hp, "y": hf})
         if rpts:
-            rmssd_by_session.append({"session_id": s_id, "session_name": s_name, "points": rpts})
+            rmssd_by_session.append({"session_id": s_id, "session_name": s_name, "activity_date": nocturnal_activity_date(s), "points": rpts})
         if hpts:
-            hr_by_session.append({"session_id": s_id, "session_name": s_name, "points": hpts})
+            hr_by_session.append({"session_id": s_id, "session_name": s_name, "activity_date": nocturnal_activity_date(s), "points": hpts})
 
     def _stats(by_session: list[dict]) -> dict | None:
         all_pts = [p for s in by_session for p in s["points"]]
@@ -1841,6 +1850,7 @@ async def create_nocturnal_hrv_session(
     windows_json:     str = Form(default="[]"),
     summary_json:     str = Form(default="{}"),
     settings_json:    str = Form(default="{}"),
+    activity_date:    str = Form(default=""),
 ) -> dict:
     if not await db().devices.find_one({"_id": _oid(device_id)}):
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
@@ -1853,13 +1863,16 @@ async def create_nocturnal_hrv_session(
 
     doc: dict[str, Any] = {
         "device_id":        ObjectId(device_id),
-        "session_name":     session_name.strip() or f"HRV Nocturno {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        "session_name":     session_name.strip(),
+        "activity_date":    activity_date,
         "windows":          windows,
         "summary":          summary,
         "settings":         settings,
         "secondary_source": secondary_source if secondary_source in ("fitbit", "huawei") else "fitbit",
         "created_at":       datetime.utcnow(),
     }
+    doc["activity_date"] = nocturnal_activity_date(doc)
+    doc["session_name"] = nocturnal_session_name(doc)
 
     for f, bkey, nkey in [
         (polar_rr_file,   "polar_rr_bytes",   "polar_rr_filename"),
@@ -1881,10 +1894,10 @@ async def create_nocturnal_hrv_session(
 @app.get("/api/devices/{device_id}/nocturnal-hrv")
 async def list_nocturnal_hrv_sessions(device_id: str) -> list[dict]:
     projection = {
-        "polar_rr_bytes": 0, "polar_hr_bytes": 0,
-        "fitbit_hrv_bytes": 0, "fitbit_hr_bytes": 0,
-        "huawei_bytes": 0,
-        "windows": 0,
+        "device_id": 1, "session_name": 1, "created_at": 1, "activity_date": 1,
+        "polar_rr_filename": 1, "polar_hr_filename": 1, "fitbit_hrv_filename": 1,
+        "fitbit_hr_filename": 1, "huawei_filename": 1, "secondary_source": 1,
+        "summary": 1, "settings": 1, "windows.tStart": 1, "windows.tsMs": 1,
     }
     return [
         _ser_nocturnal_hrv(d, include_windows=False)

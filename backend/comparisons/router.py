@@ -9,7 +9,7 @@ from .service import (build, public, oid, sessions_for, ensure_recordings, read_
 from starlette.concurrency import run_in_threadpool
 from pymongo.errors import DuplicateKeyError
 from bson import ObjectId
-from .models import ComparisonWorkspaceInput, WorkspaceChartInput, WorkspaceDevicesInput, WorkspaceSessionPairInput, WorkspaceSportSelection
+from .models import ComparisonWorkspaceInput, WorkspaceChartInput, WorkspaceDevicesInput, WorkspaceSessionPairInput, WorkspaceSportSelection, WorkspaceNocturnalSelection
 from .channels import read_channels
 
 router = APIRouter(prefix="/api", tags=["comparisons"])
@@ -62,14 +62,33 @@ async def save_sport_selection(request: Request, workspace_id: str, sport_type: 
     doc = await workspace(request, workspace_id)
     sessions = await sessions_for(request.app.state.db, body.session_ids)
     devices = [str(s["device_id"]) for s in sessions]
-    if len(set(devices)) != len(devices) or set(devices) != set(doc.get("device_ids", [])):
-        raise HTTPException(422, "Selecciona una sesión de cada dispositivo de la comparativa.")
+    if set(devices) != set(doc.get("device_ids", [])):
+        raise HTTPException(422, "Selecciona al menos una sesión de cada dispositivo de la comparativa.")
     if any((s.get("sport_type") or "unknown") != sport_type for s in sessions):
         raise HTTPException(422, "Todas las sesiones deben ser del deporte seleccionado.")
     saved = body.model_dump()
     updated = await request.app.state.db.comparison_workspaces.update_one(
         {"_id": oid(workspace_id), "device_ids": doc["device_ids"]},
         {"$set": {f"sport_selections.{sport_type}": saved}})
+    if not updated.matched_count:
+        raise HTTPException(409, "Los dispositivos han cambiado. Vuelve a abrir la comparativa.")
+    return saved
+
+
+@router.put("/comparison-workspaces/{workspace_id}/nocturnal")
+async def save_nocturnal_selection(request: Request, workspace_id: str, body: WorkspaceNocturnalSelection):
+    doc = await workspace(request, workspace_id)
+    sessions = await request.app.state.db.nocturnal_hrv_sessions.find(
+        {"_id": {"$in": [oid(s) for s in body.session_ids]}}, {"device_id": 1}
+    ).to_list(length=None)
+    if len(sessions) != len(body.session_ids):
+        raise HTTPException(404, "Una sesión nocturna ya no está disponible.")
+    if any(str(s["device_id"]) not in doc.get("device_ids", []) for s in sessions):
+        raise HTTPException(422, "Las noches deben pertenecer a los dispositivos de la comparativa.")
+    saved = body.model_dump()
+    updated = await request.app.state.db.comparison_workspaces.update_one(
+        {"_id": oid(workspace_id), "device_ids": doc["device_ids"]},
+        {"$set": {"nocturnal_selection": saved}})
     if not updated.matched_count:
         raise HTTPException(409, "Los dispositivos han cambiado. Vuelve a abrir la comparativa.")
     return saved

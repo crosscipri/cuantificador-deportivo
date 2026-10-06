@@ -735,8 +735,13 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     if (this.rawFileObjects.fitbitHR)       fd.append('fitbit_hr_file',  this.rawFileObjects.fitbitHR);
     fd.append('secondary_source', 'fitbit');
 
-    fd.append('session_name', this.sessionName.trim() ||
-      `HRV Nocturno ${new Date().toLocaleDateString('es-ES')}`);
+    fd.append('session_name', this.sessionName.trim());
+    const sessionStart = this.windows.reduce<Date | null>((first, w) =>
+      Number.isFinite(w.tStart.getTime()) && (!first || w.tStart < first) ? w.tStart : first, null);
+    if (sessionStart) {
+      const day = `${sessionStart.getFullYear()}-${String(sessionStart.getMonth() + 1).padStart(2, '0')}-${String(sessionStart.getDate()).padStart(2, '0')}`;
+      fd.append('activity_date', day);
+    }
 
     const windowsForSave = this.windows.map(w => ({ ...w, tStart: w.tStart.toISOString() }));
     fd.append('windows_json',  JSON.stringify(windowsForSave));

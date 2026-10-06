@@ -94,7 +94,7 @@
                   (ngModelChange)="onSessionSelectorChange($event)">
             <option [ngValue]="null" disabled>Selecciona una sesión</option>
             <option *ngFor="let s of savedSessions" [ngValue]="s.id">
-              {{ s.session_name }} · {{ s.created_at | date:'dd/MM/yy HH:mm' }}
+              {{ s.session_name }} · {{ s.activity_date | date:'dd/MM/yyyy' }}
             </option>
           </select>
 
@@ -107,7 +107,7 @@
         </div>
 
         <div class="session-nav-meta" *ngIf="selectedSession as s">
-          <span>{{ s.created_at | date:'dd/MM/yyyy HH:mm' }}</span>
+          <span>{{ s.activity_date ? (s.activity_date | date:'dd/MM/yyyy') : 'Fecha de sesión desconocida' }}</span>
           <span *ngIf="s.summary?.pearsonR != null">r RMSSD {{ fmt(s.summary!.pearsonR, 3) }}</span>
           <span *ngIf="s.summary?.hrMAE != null">MAE FC {{ fmt(s.summary!.hrMAE, 1) }} bpm</span>
         </div>

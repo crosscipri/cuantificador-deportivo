@@ -9,6 +9,7 @@ export class ComparisonService {
   createWorkspace(name:string,deviceIds:string[]=[],analysisMode:ComparisonAnalysisMode='ALL') { return this.http.post<ComparisonWorkspace>('/api/comparison-workspaces', {name,device_ids:deviceIds,analysis_mode:analysisMode}); }
   setWorkspaceDevices(id:string,deviceIds:string[],analysisMode:ComparisonAnalysisMode='ALL') { return this.http.put<ComparisonWorkspace>(`/api/comparison-workspaces/${id}/devices`,{device_ids:deviceIds,analysis_mode:analysisMode}); }
   saveSportSelection(id:string,sport:string,selection:SportSelection) { return this.http.put<SportSelection>(`/api/comparison-workspaces/${id}/sports/${encodeURIComponent(sport)}`,selection); }
+  saveNocturnalSelection(id:string,sessionIds:string[]) { return this.http.put<{session_ids:string[]}>(`/api/comparison-workspaces/${id}/nocturnal`,{session_ids:sessionIds}); }
   saveWorkspacePair(id:string,sessionId:string,sessionIds:string[]) { return this.http.put<{session_ids:string[]}>(`/api/comparison-workspaces/${id}/sessions/${sessionId}`,{session_ids:sessionIds}); }
   workspace(id:string) { return this.http.get<ComparisonWorkspace>(`/api/comparison-workspaces/${id}`); }
   saveWorkspaceChart(id:string,chartId:string|null,selection:ComparisonSelection) {
