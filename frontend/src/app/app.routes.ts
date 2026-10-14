@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
+  { path: 'devices/:deviceId/publication', loadComponent: () => import('./pages/review/review-editor.component').then(m => m.ReviewEditorComponent), canDeactivate: [(component: any) => component.canLeave()] },
   { path: '', redirectTo: 'devices', pathMatch: 'full' },
   { path: 'comparisons', loadComponent: () => import('./pages/comparisons/comparison-workspace.component').then(m => m.ComparisonWorkspaceComponent) },
   { path: 'comparisons/workspaces/:workspaceId', loadComponent: () => import('./pages/comparisons/comparison-workspace.component').then(m => m.ComparisonWorkspaceComponent) },

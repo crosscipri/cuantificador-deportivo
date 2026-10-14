@@ -14,6 +14,8 @@ backend/__pycache__/
 backend/*.pyc
 backend/**/__pycache__/
 backend/**/*.pyc
+scripts/__pycache__/
+scripts/**/*.pyc
 
 # Environment files
 .env

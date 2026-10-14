@@ -17,3 +17,12 @@ backend/__pycache__
 backend/*.pyc
 
 *.log
+
+public-web/node_modules
+public-web/dist
+public-web/.angular
+public-web/test-results
+public-web/playwright-report
+**/__pycache__
+**/.env
+**/.env.*

@@ -8,6 +8,7 @@ import { ApiService } from '../../services/api.service';
 import { Device, OverviewEntry } from '../../models/session.model';
 import { GpsOverviewEntry } from '../../models/gps-analysis.model';
 import { HrvOverviewEntry } from '../../models/hrv-analysis.model';
+import { deviceReviewScores, reviewScoreSummary } from '@cuantificador/review-renderer/scores';
 
 export interface DeviceScoreRow {
   deviceId:   string;
@@ -116,21 +117,9 @@ export class GlobalScoresComponent implements OnInit {
       const gpsEntry = gps.find(e => e.device_id === devId);
       const hrvEntry = hrv.find(e => e.device_id === devId);
 
-      // FC Global: average of available sport ccc_global values × 100
-      const cccVals = [rEntry?.ccc_global, cEntry?.ccc_global, gEntry?.ccc_global]
-        .filter((v): v is number => v != null && v > 0);
-      const fcScore = cccVals.length > 0
-        ? Math.round(cccVals.reduce((a, b) => a + b, 0) / cccVals.length * 1000) / 10
-        : null;
-
-      const gpsScore = gpsEntry?.global_score ?? null;
-      const hrvScore = hrvEntry?.hrv_score    ?? null;
-      const hrScore  = hrvEntry?.hr_score     ?? null;
-
-      const scores = [fcScore, gpsScore, hrvScore, hrScore].filter((v): v is number => v != null);
-      const totalScore = scores.length > 0
-        ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10
-        : null;
+      const scores = deviceReviewScores(devId,running,cycling,gym,gps,hrv);
+      const fcScore=scores.fc,gpsScore=scores.gps,hrvScore=scores.hrv,hrScore=scores.rest_hr;
+      const totalScore=reviewScoreSummary(scores).total;
 
       const name = rEntry?.name ?? cEntry?.name ?? gEntry?.name ?? gpsEntry?.name ?? hrvEntry?.name ?? devId;
 

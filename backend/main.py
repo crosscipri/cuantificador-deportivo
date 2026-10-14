@@ -47,6 +47,8 @@ from comparisons.protocols import router as comparison_protocols_router
 from comparisons.archive import router as comparison_archive_router, protect_archive, ensure_archive_recordings
 from comparisons.sleep import router as comparison_sleep_router
 
+from reviews.router import router as reviews_router, media_router as review_media_router, public_router as public_reviews_router, create_indexes as create_review_indexes
+
 load_dotenv()
 
 app = FastAPI(title="HR Analyzer API", version="2.0.0")
@@ -55,8 +57,14 @@ app.include_router(comparison_protocols_router)
 app.include_router(comparison_archive_router)
 app.include_router(comparison_sleep_router)
 
+app.include_router(reviews_router)
+app.include_router(review_media_router)
+app.include_router(public_reviews_router)
+
 APP_USERNAME = os.getenv("APP_USERNAME", "cuantificador")
 APP_PASSWORD = os.getenv("APP_PASSWORD", "")
+
+app.state.review_auth_configured = bool(APP_PASSWORD)
 
 cors_origins = [
     "http://localhost:4200",
@@ -101,6 +109,10 @@ async def optional_basic_auth(request: Request, call_next):
     if (
         not APP_PASSWORD
         or request.url.path == "/api/health"
+        or request.url.path == "/api/public/reviews"
+        or request.url.path == "/api/public/comparisons"
+        or request.url.path == "/api/public/rankings"
+        or request.url.path.startswith("/api/public/reviews/")
         or _valid_basic_auth(request.headers.get("Authorization", ""))
     ):
         return await call_next(request)
@@ -139,6 +151,7 @@ async def startup() -> None:
     await app.state.db.nocturnal_hrv_sessions.create_index("device_id")
     await app.state.db.nocturnal_hrv_sessions.create_index([("created_at", -1)])
     await create_comparison_indexes(app.state.db)
+    await create_review_indexes(app.state.db)
 
 
 @app.on_event("shutdown")
@@ -365,6 +378,8 @@ async def get_device(device_id: str) -> dict:
 async def delete_device(device_id: str) -> dict:
     """Delete a device and ALL its sessions."""
     oid = _oid(device_id)
+    if await db().reviews.find_one({"_id": device_id}):
+        raise HTTPException(409, "El dispositivo tiene una review; conserva sus fuentes editoriales")
     source_ids = [str(d["_id"]) async for d in db().sessions.find({"device_id": oid}, {"_id": 1})]
     await protect_sources(db(), source_ids)
     if await db().sleep_recordings.find_one({'device_id':device_id},{'_id':1}):

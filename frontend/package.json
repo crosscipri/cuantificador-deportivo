@@ -5,7 +5,8 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development"
+    "watch": "ng build --watch --configuration development",
+    "test:reviews": "node tests/run-review-tests.mjs"
   },
   "private": true,
   "dependencies": {
@@ -19,12 +20,15 @@
     "@angular/platform-browser": "^17.3.0",
     "@angular/platform-browser-dynamic": "^17.3.0",
     "@angular/router": "^17.3.0",
+    "@cuantificador/review-renderer": "file:../packages/review-renderer",
     "@swimlane/ngx-charts": "22.0.0",
     "@types/leaflet": "^1.9.21",
     "chart.js": "^4.5.1",
     "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
+    "maplibre-gl": "6.11.2",
     "ng2-charts": "6.0.1",
+    "quill": "2.0.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.3"
@@ -34,6 +38,7 @@
     "@angular/cli": "^17.3.0",
     "@angular/compiler-cli": "^17.3.0",
     "@types/node": "^18.18.0",
+    "esbuild": "0.20.1",
     "typescript": "~5.3.2"
   }
 }

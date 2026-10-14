@@ -1,0 +1,18 @@
+{
+  "name": "@cuantificador/review-renderer",
+  "version": "1.0.0",
+  "private": true,
+  "exports": {
+    ".": "./review-renderer.component.ts",
+    "./evidence": "./review-evidence.component.ts",
+    "./scores": "./review-scores.ts"
+  },
+  "peerDependencies": {
+    "@angular/core": ">=17 <23",
+    "@angular/common": ">=17 <23",
+    "@angular/platform-browser": ">=17 <23",
+    "chart.js": "^4.5.1",
+    "leaflet": "^1.9.4",
+    "maplibre-gl": "6.11.2"
+  }
+}

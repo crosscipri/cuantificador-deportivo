@@ -13,3 +13,6 @@ python-dotenv==1.0.1
 certifi>=2024.8.30
 anthropic>=0.40.0
 json-repair>=0.30.0
+
+# Review image validation and metadata removal
+Pillow>=10.4,<12

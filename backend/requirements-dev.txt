@@ -1,0 +1,3 @@
+-r requirements.txt
+# ASGI integration tests and local demo fixture creation
+httpx>=0.27,<1
