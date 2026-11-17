@@ -423,6 +423,7 @@
          (dragleave)="onDragLeave($event)"
          (drop)="onDrop($event, key)">
 
+      <div class="upload-dropzone">
       <label class="upload-label" [for]="'file-' + key">
         <div class="upload-icon">
           <svg *ngIf="!card(key).loaded && !card(key).error" width="22" height="22" viewBox="0 0 24 24"
@@ -473,8 +474,17 @@
           </ng-container>
         </div>
       </label>
+      <input type="file" [id]="'file-' + key" [accept]="card(key).accept"
+             class="file-input" (change)="onFileSelected($event, key)">
+      </div>
 
-      <div class="tz-row" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+      <div class="upload-meta"
+           (click)="stopFilePicker($event)"
+           (mousedown)="stopFilePicker($event)"
+           (keydown)="stopFilePicker($event)"
+           (change)="stopFilePicker($event)"
+           (pointerdown)="stopFilePicker($event)">
+      <div class="tz-row">
         <label class="tz-label" [for]="'tz-' + key">Zona horaria</label>
         <select class="tz-select" [id]="'tz-' + key"
                 [(ngModel)]="card(key).timeZoneMode"
@@ -499,9 +509,7 @@
       <div class="file-quality-warn" *ngIf="card(key).loaded && card(key).precomputedWarning">
         Este fichero trae un RMSSD ya calculado; el método puede no coincidir con el de la referencia.
       </div>
-
-      <input type="file" [id]="'file-' + key" [accept]="card(key).accept"
-             class="file-input" (change)="onFileSelected($event, key)">
+      </div>
     </div>
   </ng-template>
 

@@ -876,6 +876,10 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     (e.currentTarget as HTMLElement).classList.remove('drag-over');
   }
 
+  stopFilePicker(event: Event): void {
+    event.stopPropagation();
+  }
+
   onTimeZoneChange(key: FileKey | string): void {
     const fileKey = key as FileKey;
     const text = this.rawFileTexts[fileKey];

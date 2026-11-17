@@ -209,4 +209,27 @@ test('pearson of a perfect line is 1', () => {
   almost(pearson([1, 2, 3, 4], [2, 4, 6, 8]), 1, 1e-9);
 });
 
+test('re-parsing a naive ISO file under a new zone shifts timestamps and the windows', () => {
+  const rows = [
+    'timestamp,rmssd_ms',
+    '2026-11-16T22:00:00,40',
+    '2026-11-16T22:05:00,45',
+    '2026-11-16T22:10:00,50',
+  ];
+  const parse = (tz: { mode: 'utc' | 'other'; other?: string }) =>
+    rows.slice(1).map(line => {
+      const [ts, v] = line.split(',');
+      return { t: parseTimestamp(ts, tz).getTime(), v: Number(v) };
+    });
+  const utc = parse({ mode: 'utc' });
+  const madrid = parse({ mode: 'other', other: 'Europe/Madrid' });
+  assert(utc.every((p, i) => p.t - madrid[i].t === 3600000), 'Madrid is 1 h behind UTC in November');
+  assert(utc[0].t === Date.UTC(2026, 10, 16, 22, 0, 0), 'UTC parse');
+  assert(madrid[0].t === Date.UTC(2026, 10, 16, 21, 0, 0), 're-parse shifts the series');
+  // A 60 min lag between the two readings of the same file is exactly the zone change.
+  const lag = findBestLag(utc, madrid);
+  assert(lag.bestLagMin === 60, 'lag ' + lag.bestLagMin);
+  almost(lag.bestR, 1, 1e-9);
+});
+
 console.log(`\n${passed} tests passed`);

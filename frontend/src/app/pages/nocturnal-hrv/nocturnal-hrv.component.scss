@@ -422,6 +422,8 @@
 
 .upload-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   border: 1.5px dashed var(--line-2);
   border-radius: var(--r-md);
   background: var(--surface);
@@ -501,6 +503,10 @@
   &.good   { color: var(--good-ink); }
 }
 
+.upload-dropzone {
+  position: relative;
+}
+
 .file-input {
   position: absolute;
   inset: 0;
@@ -508,6 +514,12 @@
   height: 100%;
   opacity: 0;
   cursor: pointer;
+}
+
+.upload-meta {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 
 .format-help {
@@ -1071,6 +1083,9 @@
   padding: 0 12px 8px;
   font-size: 11px;
   color: var(--ink-3, #6b7280);
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 .tz-label { font-weight: 550; }
 .tz-select, .tz-other {
