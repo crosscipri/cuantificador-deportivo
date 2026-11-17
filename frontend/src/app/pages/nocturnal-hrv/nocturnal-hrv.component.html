@@ -371,7 +371,7 @@
                  min="5" max="50" step="1" (change)="processAll()">
           <span class="setting-unit">%</span>
         </div>
-        <span class="setting-hint">Latidos eliminados si |RR − mediana local| &gt; X% de la mediana</span>
+        <span class="setting-hint">Latidos sustituidos por la mediana móvil (2 pases) si |RR − mediana de 11 latidos| &gt; X%. No se borran.</span>
       </label>
       <label class="setting-item">
         <span class="setting-label">Mínimo de latidos por ventana</span>
@@ -457,12 +457,15 @@
           <ng-container [ngSwitch]="key">
             <ng-container *ngSwitchCase="'polarRR'">
               <span class="qb-item">{{ card(key).validWindows }} ventanas</span>
-              <span class="qb-item" [class.bad]="card(key).rejectedPct > 10">
-                {{ card(key).rejectedPct | number:'1.1-1' }}% artefactos
+              <span class="qb-item" [class.bad]="card(key).lowQuality">
+                {{ card(key).rejectedPct | number:'1.1-1' }}% corregidos
               </span>
             </ng-container>
             <ng-container *ngSwitchCase="'fitbitHrv'">
               <span class="qb-item">{{ card(key).validWindows }} ventanas</span>
+              <span class="qb-item" *ngIf="card(key).rejectedPct > 0" [class.bad]="card(key).lowQuality">
+                {{ card(key).rejectedPct | number:'1.1-1' }}% corregidos
+              </span>
             </ng-container>
             <ng-container *ngSwitchDefault>
               <span class="qb-item good">Cargado</span>
@@ -470,6 +473,32 @@
           </ng-container>
         </div>
       </label>
+
+      <div class="tz-row" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+        <label class="tz-label" [for]="'tz-' + key">Zona horaria</label>
+        <select class="tz-select" [id]="'tz-' + key"
+                [(ngModel)]="card(key).timeZoneMode"
+                (ngModelChange)="onTimeZoneChange(key)">
+          <option value="utc">UTC</option>
+          <option value="local">Local</option>
+          <option value="other">Otra</option>
+        </select>
+        <input *ngIf="card(key).timeZoneMode === 'other'"
+               class="tz-other"
+               type="text"
+               [(ngModel)]="card(key).timeZoneOther"
+               (change)="onTimeZoneChange(key)"
+               placeholder="Europe/Madrid o +01:00">
+      </div>
+      <div class="file-range" *ngIf="card(key).loaded && card(key).rangeStartUtc">
+        {{ card(key).rangeStartUtc }} — {{ card(key).rangeEndUtc }}
+      </div>
+      <div class="file-quality-warn" *ngIf="card(key).loaded && card(key).lowQuality">
+        Calidad baja: más del 5 % de los latidos han sido corregidos.
+      </div>
+      <div class="file-quality-warn" *ngIf="card(key).loaded && card(key).precomputedWarning">
+        Este fichero trae un RMSSD ya calculado; el método puede no coincidir con el de la referencia.
+      </div>
 
       <input type="file" [id]="'file-' + key" [accept]="card(key).accept"
              class="file-input" (change)="onFileSelected($event, key)">
@@ -485,7 +514,7 @@
     <div>
       <span class="format-label">Dispositivo RMSSD</span>
       <code>timestamp,hrv_ms</code><code>timestamp,rmssd_ms</code>
-      <span>Valor RMSSD en ms. Los CSV hrv_status de Garmin se sincronizan automáticamente desde UTC.</span>
+      <span>Valor RMSSD en ms, o intervalos RR (ms o s). Si hay RR, el RMSSD se calcula aquí con las mismas ventanas que la referencia. Un ISO sin zona se interpreta como UTC por defecto.</span>
     </div>
     <div>
       <span class="format-label">Dispositivo FC</span>
@@ -497,6 +526,16 @@
       <code>,</code><code>;</code><code>tab</code>
       <span>Fechas ISO recomendadas: 2026-07-30T23:45:00.</span>
     </div>
+  </div>
+
+  <div class="overlap-warning lag-warning" *ngIf="activeHrvView === 'data' && lagWarning">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <span>{{ lagWarning }}. No se ha corregido automáticamente.</span>
   </div>
 
   <!-- ── Overlap warning ─────────────────────────────────────────────── -->
@@ -545,7 +584,7 @@
       <div class="stat-eyebrow">Correlación (r)</div>
       <div class="stat-value num">{{ fmt(summary.pearsonR, 3) }}</div>
       <div class="stat-unit">Pearson</div>
-      <div class="stat-sub">RMSSD referencia vs {{ secondaryLabel }}</div>
+      <div class="stat-sub">{{ summary.pairCount }} pares solapados</div>
     </div>
 
     <!-- MAE RMSSD -->
@@ -553,7 +592,7 @@
       <div class="stat-eyebrow">MAE RMSSD</div>
       <div class="stat-value num">{{ fmt(summary.rmssdMAE) }}</div>
       <div class="stat-unit">ms</div>
-      <div class="stat-sub">Error absoluto medio</div>
+      <div class="stat-sub">{{ summary.pairCount }} pares solapados</div>
     </div>
 
     <!-- LOA -->
@@ -631,7 +670,7 @@
           <div class="chart-title">Comparativa RMSSD</div>
           <div class="chart-header-right">
             <div class="chart-sub" *ngIf="summary?.pearsonR != null">
-              r = {{ fmt(summary!.pearsonR, 3) }}&nbsp;·&nbsp;MAE = {{ fmt(summary!.rmssdMAE) }} ms
+              r = {{ fmt(summary!.pearsonR, 3) }}&nbsp;·&nbsp;MAE = {{ fmt(summary!.rmssdMAE) }} ms&nbsp;·&nbsp;{{ summary!.pairCount }} pares
             </div>
             <button class="chart-export-btn" (click)="exportChart(c1Ref, '1-rmssd')" title="Exportar PNG">
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>

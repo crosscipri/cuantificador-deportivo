@@ -1061,3 +1061,38 @@
   text-align: center;
   margin: 0;
 }
+
+
+.tz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 0 12px 8px;
+  font-size: 11px;
+  color: var(--ink-3, #6b7280);
+}
+.tz-label { font-weight: 550; }
+.tz-select, .tz-other {
+  font: inherit;
+  font-size: 11px;
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 6px;
+  padding: 3px 6px;
+  background: var(--surface, #fff);
+  color: inherit;
+}
+.tz-other { min-width: 12rem; flex: 1; }
+.file-range {
+  padding: 0 12px 8px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--ink-3, #6b7280);
+  font-variant-numeric: tabular-nums;
+}
+.file-quality-warn {
+  padding: 0 12px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #b45309;
+}

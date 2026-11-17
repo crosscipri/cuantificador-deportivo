@@ -13,6 +13,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { BaseChartDirective } from 'ng2-charts';
 import { forkJoin } from 'rxjs';
 import { downloadCanvasPng, withHighResolutionChartExport } from '../../shared/chart-export';
+import {
+  parseTimestamp, cleanRrIntervals, pairNearest, findBestLag,
+  formatUtcRange, columnLooksLikeRr, columnLooksLikeRmssd, valuesLookLikeRr,
+  FIVE_MIN_MS, MIN_BEATS_PER_WINDOW, LOW_QUALITY_PCT, rmssdOf,
+  type TimeZoneSetting, type TimeZoneMode,
+} from './rmssd-comparison';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -53,6 +59,8 @@ interface Summary {
   blandSd:         number | null;
   upperLoa:        number | null;
   lowerLoa:        number | null;
+  pairCount:       number;
+  lagWarning:      string | null;
 }
 
 interface FileCard {
@@ -64,6 +72,12 @@ interface FileCard {
   error:        string;
   validWindows: number;
   rejectedPct:  number;
+  timeZoneMode: TimeZoneMode;
+  timeZoneOther: string;
+  rangeStartUtc: string;
+  rangeEndUtc: string;
+  lowQuality: boolean;
+  precomputedWarning: boolean;
 }
 
 type FileKey = 'polarRR' | 'polarHR' | 'fitbitHrv' | 'fitbitHR';
@@ -144,7 +158,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
 
   // ── Settings ───────────────────────────────────────────────────────────────
   artifactThresholdPct = 20;
-  minBeatsPerWindow    = 30;
+  minBeatsPerWindow    = MIN_BEATS_PER_WINDOW;
   showSettings         = false;
   activeHrvView: 'upload' | 'data' = 'upload';
 
@@ -164,10 +178,10 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   readonly deviceFileKeys: FileKey[] = ['fitbitHrv', 'fitbitHR'];
 
   files: Record<FileKey, FileCard> = {
-    polarRR:   { label: 'Referencia — RR',       sublabel: '.csv/.txt · epoch,value[s] o timestamp;RR[ms]',           accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
-    polarHR:   { label: 'Referencia — FC',       sublabel: '.csv/.txt · epoch,value[bpm] o timestamp;HR;HRV;Breathing', accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
-    fitbitHrv: { label: 'Dispositivo — RMSSD',   sublabel: '.csv/.txt · timestamp,hrv_ms o rmssd_ms',      accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
-    fitbitHR:  { label: 'Dispositivo — FC',      sublabel: '.csv/.txt · timestamp,fc_ppm / heart_rate / bpm', accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0 },
+    polarRR:   { label: 'Referencia — RR',       sublabel: '.csv/.txt · epoch,value[s] o timestamp;RR[ms]',           accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0, timeZoneMode: 'utc', timeZoneOther: '', rangeStartUtc: '', rangeEndUtc: '', lowQuality: false, precomputedWarning: false },
+    polarHR:   { label: 'Referencia — FC',       sublabel: '.csv/.txt · epoch,value[bpm] o timestamp;HR;HRV;Breathing', accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0, timeZoneMode: 'utc', timeZoneOther: '', rangeStartUtc: '', rangeEndUtc: '', lowQuality: false, precomputedWarning: false },
+    fitbitHrv: { label: 'Dispositivo — RMSSD',   sublabel: '.csv/.txt · timestamp,hrv_ms / rmssd_ms o intervalos RR',      accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0, timeZoneMode: 'utc', timeZoneOther: '', rangeStartUtc: '', rangeEndUtc: '', lowQuality: false, precomputedWarning: false },
+    fitbitHR:  { label: 'Dispositivo — FC',      sublabel: '.csv/.txt · timestamp,fc_ppm / heart_rate / bpm', accept: '.csv,.txt', loaded: false, name: '', error: '', validWindows: 0, rejectedPct: 0, timeZoneMode: 'utc', timeZoneOther: '', rangeStartUtc: '', rangeEndUtc: '', lowQuality: false, precomputedWarning: false },
   };
 
   card(key: FileKey | string): FileCard {
@@ -196,6 +210,11 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   private rawHR:         RawHRRow[]     = [];
   private fitbitHrvRows: DeviceHrvRow[] = [];
   private fitbitHrRows:  DeviceHRRow[]  = [];
+  private rawDeviceRR:   RawRR[]        = [];
+  private cleanDeviceRR: RawRR[]        = [];
+  private rawFileTexts:  Partial<Record<FileKey, string>> = {};
+  lagWarning = '';
+  precomputedRmssdWarning = false;
 
   // ── Computed output ────────────────────────────────────────────────────────
   windows:        HrvWindow[] = [];
@@ -346,7 +365,12 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       this.rawHR = [];
       this.fitbitHrvRows = [];
       this.fitbitHrRows = [];
+      this.rawDeviceRR = [];
+      this.cleanDeviceRR = [];
       this.rawFileObjects = {};
+      this.rawFileTexts = {};
+      this.lagWarning = '';
+      this.precomputedRmssdWarning = false;
       this.resetFileCards();
     }
     this.activeHrvView = 'upload';
@@ -360,7 +384,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
         this.sessionName = session.session_name;
         if (session.settings) {
           this.artifactThresholdPct = session.settings.artifact_threshold_pct ?? 20;
-          this.minBeatsPerWindow    = session.settings.min_beats_per_window ?? 30;
+          this.minBeatsPerWindow    = session.settings.min_beats_per_window ?? MIN_BEATS_PER_WINDOW;
         }
 
         this.windows = (session.windows ?? []).map((w: any) => ({
@@ -379,7 +403,11 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
 
         this.rawRR = []; this.cleanRR = []; this.rawHR = [];
         this.fitbitHrvRows = []; this.fitbitHrRows = [];
+        this.rawDeviceRR = []; this.cleanDeviceRR = [];
         this.rawFileObjects = {};
+        this.rawFileTexts = {};
+        this.lagWarning = '';
+        this.precomputedRmssdWarning = false;
 
         const FIVE = 5 * 60 * 1000;
         this.xDataMin = this.windows[0]?.tsMs ?? 0;
@@ -775,6 +803,10 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       this.files[key].error = '';
       this.files[key].validWindows = 0;
       this.files[key].rejectedPct = 0;
+      this.files[key].rangeStartUtc = '';
+      this.files[key].rangeEndUtc = '';
+      this.files[key].lowQuality = false;
+      this.files[key].precomputedWarning = false;
     }
     this.secondarySource = 'generic';
   }
@@ -793,6 +825,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target!.result as string;
+      this.rawFileTexts[fileKey] = text;
       try {
         this.parseFile(text, fileKey);
         this.files[fileKey].loaded = true;
@@ -821,6 +854,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target!.result as string;
+      this.rawFileTexts[fileKey] = text;
       try {
         this.parseFile(text, fileKey);
         this.files[fileKey].loaded = true;
@@ -840,6 +874,50 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   }
   onDragLeave(e: DragEvent): void {
     (e.currentTarget as HTMLElement).classList.remove('drag-over');
+  }
+
+  onTimeZoneChange(key: FileKey | string): void {
+    const fileKey = key as FileKey;
+    const text = this.rawFileTexts[fileKey];
+    if (!text) return;
+    this.currentSessionId = null;
+    try {
+      this.parseFile(text, fileKey);
+      this.files[fileKey].error = '';
+      this.files[fileKey].loaded = true;
+    } catch (err: any) {
+      this.files[fileKey].error = err?.message ?? 'Error al leer el fichero';
+      this.files[fileKey].loaded = false;
+    }
+    this.processAll();
+    this.cdRef.markForCheck();
+  }
+
+  private zoneFor(key: FileKey): TimeZoneSetting {
+    const card = this.files[key];
+    return { mode: card.timeZoneMode || 'utc', other: card.timeZoneOther };
+  }
+
+  private setFileRange(key: FileKey, times: number[]): void {
+    if (!times.length) {
+      this.files[key].rangeStartUtc = '';
+      this.files[key].rangeEndUtc = '';
+      return;
+    }
+    const range = formatUtcRange(Math.min(...times), Math.max(...times));
+    this.files[key].rangeStartUtc = range.start;
+    this.files[key].rangeEndUtc = range.end;
+  }
+
+  private applyRrCleaning(key: FileKey, raw: RawRR[], artifactPct = this.artifactThresholdPct): RawRR[] {
+    const cleaned = cleanRrIntervals(
+      raw.map(r => ({ t: r.ts.getTime(), rr: r.rr })),
+      artifactPct / 100,
+    );
+    this.files[key].rejectedPct = +cleaned.correctedPct.toFixed(1);
+    this.files[key].lowQuality = cleaned.correctedPct > LOW_QUALITY_PCT;
+    this.setFileRange(key, cleaned.beats.map(b => b.t));
+    return cleaned.beats.map(b => ({ ts: new Date(b.t), rr: b.rr }));
   }
 
   // ── Parsers ────────────────────────────────────────────────────────────────
@@ -864,33 +942,20 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     for (let i = cols.length ? 1 : 0; i < lines.length; i++) {
       const p = lines[i].split(sep);
       if (p.length < 2) continue;
-      const ts    = this.parseTs(p[tsIdx]);
+      const ts    = this.parseTs(p[tsIdx], 'polarRR');
       const value = this.parseNumber(p[rrIdx]);
       if (!isFinite(value) || isNaN(ts.getTime())) continue;
 
       // RR_CsvData exports intervals in seconds (e.g. 0.921875). The legacy
       // reference format already uses milliseconds, so support both units.
       const rrMs = value > 0 && value < 10 ? value * 1000 : value;
-      if (rrMs < 300 || rrMs > 2000) continue; // physiological bounds: 30–200 bpm
       raw.push({ ts, rr: rrMs });
     }
     if (!raw.length) throw new Error('Sin intervalos RR válidos (0,3–2 s o 300–2000 ms)');
     raw.sort((a, b) => a.ts.getTime() - b.ts.getTime());
     this.rawRR = raw;
-
-    // Ectopic filter: remove beats where |RR - local_median| > threshold
-    const rrVals = raw.map(r => r.rr);
-    const thr    = this.artifactThresholdPct / 100;
-    const HALF   = 5;
-    let rejected = 0;
-    this.cleanRR = raw.filter((_, i) => {
-      const lo  = Math.max(0, i - HALF);
-      const hi  = Math.min(rrVals.length - 1, i + HALF);
-      const med = this.median(rrVals.slice(lo, hi + 1));
-      if (Math.abs(rrVals[i] - med) > thr * med) { rejected++; return false; }
-      return true;
-    });
-    this.files.polarRR.rejectedPct = raw.length ? +(rejected / raw.length * 100).toFixed(1) : 0;
+    this.cleanRR = this.applyRrCleaning('polarRR', raw);
+    if (!this.cleanRR.length) throw new Error('Sin intervalos RR válidos (0,3–2 s o 300–2000 ms)');
   }
 
   private parsePolarHR(text: string): void {
@@ -906,7 +971,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     for (let i = cols.length ? 1 : 0; i < lines.length; i++) {
       const p  = lines[i].split(sep);
       if (p.length < 2) continue;
-      const ts = this.parseTs(p[tsIdx]);
+      const ts = this.parseTs(p[tsIdx], 'polarHR');
       const hr = this.parseNumber(p[hrIdx]);
       if (!isFinite(hr) || hr < 20 || hr > 250 || isNaN(ts.getTime())) continue;
       const hrv = p[hrvIdx]?.trim() ? this.parseNumber(p[hrvIdx]) : null;
@@ -920,6 +985,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     if (!rows.length) throw new Error('Sin datos de FC válidos');
     rows.sort((a, b) => a.ts.getTime() - b.ts.getTime());
     this.rawHR = rows;
+    this.setFileRange('polarHR', rows.map(r => r.ts.getTime()));
   }
 
   private parseDeviceHrv(text: string): void {
@@ -927,26 +993,49 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     if (lines.length < 2) throw new Error('Fichero sin datos');
     const sep  = this.detectDelimiter(lines[0]);
     const cols = this.parseHeaderColumns(lines[0], sep);
-    const tsIdx = this.findColumn(cols, ['timestamp', 'time', 'datetime', 'date', 'fecha', 'hora'], 0);
-    const valueIdx = this.findColumn(cols, ['rmssd_ms', 'hrv_ms', 'rmssd', 'hrv', 'vfc', 'valor', 'value'], 1);
-    // Garmin HRV_STATUS FIT timestamps are UTC. Common CSV converters preserve
-    // the clock value but omit the timezone suffix, so recognize this export by
-    // filename and restore UTC before comparing it with epoch-based reference RR.
-    const timestampsAreUtc = this.files.fitbitHrv.name.toLowerCase().includes('hrv_status');
-    const rows: DeviceHrvRow[] = [];
+    const tsIdx = this.findColumn(cols, ['epoch', 'timestamp', 'time', 'datetime', 'date', 'fecha', 'hora'], 0);
+    const rrIdx = this.findColumn(cols, ['rr_ms', 'rr', 'r-r', 'interval', 'intervalo'], 1);
+    const rmssdIdx = this.findColumn(cols, ['rmssd_ms', 'hrv_ms', 'rmssd', 'hrv', 'vfc', 'valor', 'value'], 1);
+
+    const parsedRows: { ts: Date; value: number }[] = [];
     for (let i = cols.length ? 1 : 0; i < lines.length; i++) {
-      const p     = lines[i].split(sep);
+      const p = lines[i].split(sep);
       if (p.length < 2) continue;
-      const ts    = this.parseTs(p[tsIdx], timestampsAreUtc ? 'utc' : 'local');
-      const rmssd = this.parseNumber(p[valueIdx]);
-      if (!isFinite(rmssd) || isNaN(ts.getTime())) continue;
-      rows.push({ ts, rmssd });
+      const ts = this.parseTs(p[tsIdx], 'fitbitHrv');
+      const valueCol = columnLooksLikeRr(cols) ? rrIdx : rmssdIdx;
+      const value = this.parseNumber(p[valueCol]);
+      if (!isFinite(value) || isNaN(ts.getTime())) continue;
+      parsedRows.push({ ts, value });
     }
-    if (!rows.length) throw new Error('Sin datos HRV válidos');
-    rows.sort((a, b) => a.ts.getTime() - b.ts.getTime());
-    this.fitbitHrvRows = rows;
-    this.files.fitbitHrv.validWindows = rows.length;
+    if (!parsedRows.length) throw new Error('Sin datos HRV o RR válidos');
+    parsedRows.sort((a, b) => a.ts.getTime() - b.ts.getTime());
+
+    const asRr = columnLooksLikeRr(cols)
+      || (!columnLooksLikeRmssd(cols) && valuesLookLikeRr(parsedRows.map(r => r.value)));
+
+    this.files.fitbitHrv.precomputedWarning = !asRr;
+    this.precomputedRmssdWarning = !asRr;
     this.secondarySource = 'generic';
+
+    if (asRr) {
+      const raw: RawRR[] = parsedRows.map(r => ({
+        ts: r.ts,
+        rr: r.value > 0 && r.value < 10 ? r.value * 1000 : r.value,
+      }));
+      this.rawDeviceRR = raw;
+      this.cleanDeviceRR = this.applyRrCleaning('fitbitHrv', raw);
+      this.fitbitHrvRows = [];
+      if (!this.cleanDeviceRR.length) throw new Error('Sin intervalos RR válidos (0,3–2 s o 300–2000 ms)');
+    } else {
+      this.rawDeviceRR = [];
+      this.cleanDeviceRR = [];
+      const rows: DeviceHrvRow[] = parsedRows.map(r => ({ ts: r.ts, rmssd: r.value }));
+      this.fitbitHrvRows = rows;
+      this.files.fitbitHrv.rejectedPct = 0;
+      this.files.fitbitHrv.lowQuality = false;
+      this.files.fitbitHrv.validWindows = rows.length;
+      this.setFileRange('fitbitHrv', rows.map(r => r.ts.getTime()));
+    }
   }
 
   private parseDeviceHR(text: string): void {
@@ -960,7 +1049,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     for (let i = cols.length ? 1 : 0; i < lines.length; i++) {
       const p   = lines[i].split(sep);
       if (p.length < 2) continue;
-      const ts  = this.parseTs(p[tsIdx]);
+      const ts  = this.parseTs(p[tsIdx], 'fitbitHR');
       const bpm = this.parseNumber(p[valueIdx]);
       if (!isFinite(bpm) || bpm < 20 || bpm > 250 || isNaN(ts.getTime())) continue;
       rows.push({ ts, bpm });
@@ -968,6 +1057,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     if (!rows.length) throw new Error('Sin datos de FC válidos');
     rows.sort((a, b) => a.ts.getTime() - b.ts.getTime());
     this.fitbitHrRows = rows;
+    this.setFileRange('fitbitHR', rows.map(r => r.ts.getTime()));
     this.secondarySource = 'generic';
   }
 
@@ -981,17 +1071,19 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       this.windows = [];
       this.summary = null;
       this.overlapWarning = false;
+      this.lagWarning = '';
       this.activeHrvView = 'upload';
       return;
     }
 
-    const hasPolarRR   = this.rawRR.length > 0;
-    const hasFitbitHrv = this.fitbitHrvRows.length > 0;
+    const hasPolarRR    = this.cleanRR.length > 0;
+    const hasDeviceRR   = this.cleanDeviceRR.length > 0;
+    const hasFitbitHrv  = this.fitbitHrvRows.length > 0 || hasDeviceRR;
     if (!hasPolarRR && !hasFitbitHrv) { this.windows = []; this.summary = null; return; }
 
-    // Time grid: 5-minute windows covering only the overlap between both devices.
+    // Time grid: 5-minute windows on a common UTC axis, aligned to whole minutes.
     // When only one device is loaded, use its full range.
-    const FIVE = 5 * 60 * 1000;
+    const FIVE = FIVE_MIN_MS;
 
     // Polar range: from RR file (primary) extended by HR file if loaded
     const polarTs = [
@@ -1005,7 +1097,8 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     // This way if Fitbit HR covers all day, the Fitbit range is wider and the
     // intersection = full Polar recording, making HR data available all night.
     const fitbitTs = [
-      ...(hasFitbitHrv ? this.fitbitHrvRows.map(r => r.ts.getTime()) : []),
+      ...(hasDeviceRR ? this.cleanDeviceRR.map(r => r.ts.getTime()) : []),
+      ...(this.fitbitHrvRows.length ? this.fitbitHrvRows.map(r => r.ts.getTime()) : []),
       ...(this.fitbitHrRows.length ? this.fitbitHrRows.map(r => r.ts.getTime()) : []),
     ];
     const fitbitMin = fitbitTs.length ? Math.min(...fitbitTs) : null;
@@ -1034,7 +1127,7 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
 
     // No intersection — nothing to show
     if (gMin >= gMax) {
-      this.windows = []; this.summary = null; this.overlapWarning = true; return;
+      this.windows = []; this.summary = null; this.overlapWarning = true; this.lagWarning = ''; return;
     }
 
     const gridStarts: number[] = [];
@@ -1060,16 +1153,24 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
         beatsInWindow = beats.length;
         if (beats.length >= this.minBeatsPerWindow) {
           const rr  = beats.map(b => b.rr);
-          rmssdPolar = this.calcRMSSD(rr);
+          rmssdPolar = rmssdOf(rr);
           hrPolar    = 60000 / (rr.reduce((s, v) => s + v, 0) / rr.length);
           sdnnPolar  = this.stdDev(rr);
           pnn50Polar = this.calcPNN50(rr);
         }
       }
 
-      // ── Fitbit HRV (nearest window within 2.5 min) ────────────────────
+      // ── Device RMSSD: same windows and code when RR is available ─────
       let rmssdFitbit: number | null = null;
-      if (hasFitbitHrv) {
+      if (hasDeviceRR) {
+        const beats = this.cleanDeviceRR.filter(r => {
+          const t = r.ts.getTime();
+          return t >= tMs && t < tEnd;
+        });
+        if (beats.length >= this.minBeatsPerWindow) {
+          rmssdFitbit = rmssdOf(beats.map(b => b.rr));
+        }
+      } else if (this.fitbitHrvRows.length) {
         const nb = this.nearest(this.fitbitHrvRows, tMs, 2.5 * 60 * 1000);
         if (nb != null) rmssdFitbit = nb.rmssd;
       }
@@ -1100,8 +1201,10 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       };
     });
 
-    // Update quality badge for Polar RR
     this.files.polarRR.validWindows = this.windows.filter(w => w.rmssdPolar != null).length;
+    if (hasDeviceRR) {
+      this.files.fitbitHrv.validWindows = this.windows.filter(w => w.rmssdFitbit != null).length;
+    }
 
     // Overlap warning: fires when both devices are loaded but their ranges don't intersect at all.
     if (polarMin != null && hasFitbitAny) {
@@ -1125,9 +1228,12 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
   private computeSummary(): void {
     const pRMSSDs = this.windows.map(w => w.rmssdPolar).filter((v): v is number => v != null);
     const fRMSSDs = this.windows.map(w => w.rmssdFitbit).filter((v): v is number => v != null);
-    const pairs   = this.windows
-      .filter(w => w.rmssdPolar != null && w.rmssdFitbit != null)
-      .map(w => [w.rmssdPolar!, w.rmssdFitbit!] as [number, number]);
+    const refSeries = this.windows.filter(w => w.rmssdPolar != null).map(w => ({ t: w.tsMs, v: w.rmssdPolar! }));
+    const devSeries = this.windows.filter(w => w.rmssdFitbit != null).map(w => ({ t: w.tsMs, v: w.rmssdFitbit! }));
+    const paired = pairNearest(refSeries, devSeries);
+    const pairs  = paired.map(p => [p.ref, p.dev] as [number, number]);
+    const lag = findBestLag(refSeries, devSeries);
+    this.lagWarning = lag.message ?? '';
 
     const pHRs   = this.windows.map(w => w.hrPolar).filter((v): v is number => v != null);
     const fHRs   = this.windows.map(w => w.hrFitbit).filter((v): v is number => v != null);
@@ -1157,6 +1263,8 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
       blandSd,
       upperLoa: biasMean != null && blandSd != null ? biasMean + 1.96 * blandSd : null,
       lowerLoa: biasMean != null && blandSd != null ? biasMean - 1.96 * blandSd : null,
+      pairCount: pairs.length,
+      lagWarning: lag.message,
     };
   }
 
@@ -1830,40 +1938,9 @@ export class NocturnalHrvComponent implements OnInit, OnDestroy {
     return parseFloat((value ?? '').trim().replace(',', '.'));
   }
 
-  private parseTs(s: string | undefined, naiveTimeZone: 'local' | 'utc' = 'local'): Date {
-    const raw = (s ?? '').trim();
-    if (/^\d+(?:\.\d+)?$/.test(raw)) {
-      const n = Number(raw);
-      if (isFinite(n)) {
-        // Garmin/Excel serial date: integer part = days since 1899-12-30,
-        // decimal part = local time of day (e.g. 46237.99653).
-        if (n >= 20_000 && n < 100_000) {
-          const serialUtc = new Date(Date.UTC(1899, 11, 30) + n * 86_400_000);
-          return new Date(
-            serialUtc.getUTCFullYear(),
-            serialUtc.getUTCMonth(),
-            serialUtc.getUTCDate(),
-            serialUtc.getUTCHours(),
-            serialUtc.getUTCMinutes(),
-            serialUtc.getUTCSeconds(),
-            serialUtc.getUTCMilliseconds(),
-          );
-        }
-        // Unix epoch: 10 digits = seconds, 13 digits = milliseconds.
-        return new Date(n < 1e12 ? n * 1000 : n);
-      }
-    }
-    // Normalize the common CSV form "YYYY-MM-DD HH:mm:ss" to ISO local time.
-    // Parsing the version with a space is implementation-dependent in browsers.
-    const normalized = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(raw)
-      ? raw.replace(/\s+/, 'T')
-      : raw;
-    const isNaiveDateTime = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(normalized);
-    if (naiveTimeZone === 'utc' && isNaiveDateTime) {
-      return new Date(`${normalized}Z`);
-    }
-    // Handles ISO with Z (UTC) or without Z (local).
-    return new Date(normalized);
+  private parseTs(s: string | undefined, key?: FileKey): Date {
+    const tz = key ? this.zoneFor(key) : { mode: 'utc' as const };
+    return parseTimestamp(s ?? '', tz);
   }
 
   private hhMM(d: Date): string {
