@@ -1,11 +1,11 @@
 .total-corr { margin: 0.4rem 0 0; }
-.charts { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+.charts { display: grid; grid-template-columns: minmax(0, 640px); gap: 1rem; }
 .chart-card h3, .timeseries h3, .sport-card h3 {
   margin: 0 0 0.45rem;
   font-size: 0.95rem;
   font-weight: 600;
 }
-.chart-frame { height: 280px; }
+.chart-frame { width: 100%; aspect-ratio: 1 / 1; height: auto; min-height: 420px; max-width: 640px; }
 .timeseries-frame { height: 240px; }
 .table-wrap { overflow-x: auto; margin: 1rem 0 0; border: 1px solid var(--line); border-radius: var(--r-md, 8px); }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 0.88rem; }

@@ -103,3 +103,12 @@ export function deviceColor(id: string): string {
 export function devicePointStyle(id: string): (typeof DEVICE_POINT_STYLES)[number] {
   return DEVICE_POINT_STYLES[deviceHash(id) % DEVICE_POINT_STYLES.length];
 }
+/** Palette index by first-seen order, so neighbouring devices get high-contrast colors (blue, vermillion, green, purple…). */
+export function orderedDeviceColor(id: string, orderedIds: string[]): string {
+  const index = orderedIds.indexOf(id);
+  return DEVICE_COLORS[(index < 0 ? 0 : index) % DEVICE_COLORS.length];
+}
+export function orderedDevicePointStyle(id: string, orderedIds: string[]): (typeof DEVICE_POINT_STYLES)[number] {
+  const index = orderedIds.indexOf(id);
+  return DEVICE_POINT_STYLES[(index < 0 ? 0 : index) % DEVICE_POINT_STYLES.length];
+}

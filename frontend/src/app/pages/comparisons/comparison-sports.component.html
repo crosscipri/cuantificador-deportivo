@@ -17,7 +17,7 @@
   </details>
   </ng-container>
   <section class="panel"><h2>{{sport.name}} · Correlación total{{mode==='SELECTED'?' de las sesiones seleccionadas':''}}</h2>
-    <p class="hint" *ngIf="mode==='ALL'">La misma agregación del análisis normal, comparando los dispositivos con un color para cada uno. Incluye todos los entrenamientos analizados de este deporte; elegir sesiones en una gráfica individual no cambia este conjunto.</p>
+    <p class="hint" *ngIf="mode==='ALL'">La misma agregación del análisis normal, con un color para cada dispositivo y todos los entrenamientos analizados de este deporte.</p>
     <p class="hint" *ngIf="mode==='SELECTED'">Solo se incluyen las {{sport.selectedIds?.length||0}} sesiones marcadas. Cada dispositivo conserva la referencia de sus propios análisis.</p>
     <p role="status" *ngIf="sport.loading">Cargando correlación global…</p>
     <app-comparison-total-charts *ngIf="sport.aggregates.length || sportProfiles.length" [rows]="chartRows(sport)" unit="bpm"

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { boxPlotStats, formatEs, mergeStats, percentAtLeast, statsFromPoints, usableCorrelation } from '../src/app/shared/comparison-total-charts/comparison-total-charts';
-import { DEVICE_COLORS, deviceColor, devicePointStyle } from '../src/app/models/comparison.model';
+import { DEVICE_COLORS, deviceColor, devicePointStyle, orderedDeviceColor, orderedDevicePointStyle } from '../src/app/models/comparison.model';
 
 {
   assert.deepEqual(DEVICE_COLORS, ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#56B4E9', '#E69F00']);
@@ -9,6 +9,22 @@ import { DEVICE_COLORS, deviceColor, devicePointStyle } from '../src/app/models/
   const styles = ['a', 'b', 'c', 'd'].map(devicePointStyle);
   assert.equal(new Set(styles).size, 4);
 }
+
+{
+  const ids=['fitbit-air','garmin-cirqa','whoop'];
+  assert.equal(orderedDeviceColor('fitbit-air', ids), '#0072B2');
+  assert.equal(orderedDeviceColor('garmin-cirqa', ids), '#D55E00');
+  assert.equal(orderedDeviceColor('whoop', ids), '#009E73');
+  assert.equal(orderedDevicePointStyle('fitbit-air', ids), 'circle');
+  assert.equal(orderedDevicePointStyle('garmin-cirqa', ids), 'triangle');
+  // A fourth device skips sky-blue next to green and goes to reddish purple.
+  assert.equal(DEVICE_COLORS[0], '#0072B2');
+  assert.equal(DEVICE_COLORS[1], '#D55E00');
+  assert.equal(DEVICE_COLORS[2], '#009E73');
+  assert.equal(DEVICE_COLORS[3], '#CC79A7');
+}
+
+
 
 {
   const points = [

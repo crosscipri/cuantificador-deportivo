@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { ComparisonService } from '../../services/comparison.service';
-import { deviceColor, devicePointStyle } from '../../models/comparison.model';
+import { orderedDeviceColor, orderedDevicePointStyle } from '../../models/comparison.model';
 import {
   SportCorrDevice, TotalCorrPoint, TotalCorrRow, TotalCorrStats,
   boxPlotStats, formatEs, mergeStats, percentAtLeast,
@@ -68,6 +68,7 @@ export class ComparisonTotalChartsComponent implements OnChanges {
     },
   };
 
+  private deviceOrder: string[] = [];
   private api = inject(ComparisonService, { optional: true });
 
   readonly plot = { left: 48, right: 16, top: 28, bottom: 28, width: 640, height: 320, yMin: 0, yMax: 1.08 };
@@ -77,7 +78,8 @@ export class ComparisonTotalChartsComponent implements OnChanges {
 
   formatR(v: number | null | undefined): string { return formatEs(v, 3); }
   formatVal(v: number | null | undefined): string { return formatEs(v, 1); }
-  color(id: string): string { return deviceColor(id); }
+  color(id: string): string { return orderedDeviceColor(id, this.deviceOrder); }
+  pointStyle(id: string) { return orderedDevicePointStyle(id, this.deviceOrder); }
   tickLabel(tick: number): string { return formatEs(tick, 1); }
   corrCaption(col: BoxColumn): string {
     return `Corr: ${formatEs(col.r, 2)}  ·  Perc: ${formatEs(col.perc, 0)} %`;
@@ -116,12 +118,22 @@ export class ComparisonTotalChartsComponent implements OnChanges {
   }
   isCircle(shape: string): boolean { return shape === 'circle' || !['triangle', 'rect', 'rectRot'].includes(shape); }
 
+  private refreshDeviceOrder(): void {
+    const ids: string[] = [];
+    const add = (id?: string) => { if (id && !ids.includes(id)) ids.push(id); };
+    for (const row of this.rows || []) add(row.id);
+    for (const device of this.sportDevices || []) add(device.id);
+    for (const session of this.timeSessions || []) add(session.deviceId);
+    this.deviceOrder = ids;
+  }
+
   private rebuild(): void {
+    this.refreshDeviceOrder();
     this.tableRows = (this.rows || []).map((row) => ({
       id: row.id,
       name: row.name,
       error: row.error,
-      color: deviceColor(row.id),
+      color: this.color(row.id),
       stats: mergeStats(row.points || [], row.stats),
     }));
     this.buildScatter();
@@ -145,34 +157,42 @@ export class ComparisonTotalChartsComponent implements OnChanges {
 
   private buildScatter(): void {
     const datasets: ChartConfiguration<'scatter'>['data']['datasets'] = [];
+    const series: {row: TotalCorrRow; points: TotalCorrPoint[]; color: string}[] = [];
     let min = Infinity, max = -Infinity;
     for (const row of this.rows || []) {
       const points = (row.points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
       if (!points.length) continue;
-      const color = deviceColor(row.id);
-      datasets.push({
-        label: row.name,
-        data: points,
-        backgroundColor: color + '73',
-        borderColor: 'transparent',
-        pointBackgroundColor: color + '73',
-        pointBorderColor: 'transparent',
-        pointRadius: 2.4,
-        pointHoverRadius: 5,
-        pointStyle: devicePointStyle(row.id),
-      });
+      const color = this.color(row.id);
+      series.push({row, points, color});
       for (const p of points) { min = Math.min(min, p.x, p.y); max = Math.max(max, p.x, p.y); }
-      const stats = mergeStats(points, row.stats);
+    }
+    // Draw the smaller cloud last so it is not buried under the larger one.
+    series.sort((a, b) => b.points.length - a.points.length);
+    for (const item of series) {
+      datasets.push({
+        label: item.row.name,
+        data: item.points,
+        backgroundColor: item.color + '61',
+        borderColor: 'transparent',
+        pointBackgroundColor: item.color + '61',
+        pointBorderColor: 'transparent',
+        pointRadius: 3,
+        pointHoverRadius: 5.5,
+        pointStyle: this.pointStyle(item.row.id),
+      });
+    }
+    for (const item of series) {
+      const stats = mergeStats(item.points, item.row.stats);
       if (stats.slope != null && stats.intercept != null && Number.isFinite(min) && Number.isFinite(max)) {
         datasets.push({
-          label: `Regresión · ${row.name}`,
+          label: `Regresión · ${item.row.name}`,
           data: [
             { x: min, y: stats.slope * min + stats.intercept },
             { x: max, y: stats.slope * max + stats.intercept },
           ],
           showLine: true,
           pointRadius: 0,
-          borderColor: color,
+          borderColor: item.color,
           borderWidth: 1.5,
           backgroundColor: 'transparent',
         } as any);
@@ -217,8 +237,8 @@ export class ComparisonTotalChartsComponent implements OnChanges {
       return {
         id: device.id,
         name: device.name,
-        color: deviceColor(device.id),
-        shape: devicePointStyle(device.id),
+        color: this.color(device.id),
+        shape: this.pointStyle(device.id),
         badge,
         columns,
       };
@@ -239,7 +259,7 @@ export class ComparisonTotalChartsComponent implements OnChanges {
     this.api.historicalChart(id).subscribe({
       next: (chart) => {
         if (this.selectedSessionId !== id) return;
-        const color = deviceColor(session.deviceId);
+        const color = this.color(session.deviceId);
         const datasets = (chart.series || []).map((series) => {
           const isRef = series.role === 'reference';
           return {
