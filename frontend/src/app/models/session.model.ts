@@ -320,6 +320,8 @@ export interface SportGlobalStats {
   pearson_r: number | null;
   slope:     number | null;
   intercept: number | null;
+  mae?:      number | null;
+  rmse?:     number | null;
 }
 
 export interface SportAggregateCharts {

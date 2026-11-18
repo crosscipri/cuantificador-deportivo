@@ -367,8 +367,34 @@ def align(fc1: pd.Series, fc2: pd.Series):
 # 3. METRICS
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _finite_pairs(fc_ref: pd.Series, fc_dev: pd.Series) -> tuple[pd.Series, pd.Series]:
+    """Keep only pairwise-complete, finite samples. MAE/CCC already skipped NaNs via pandas; Pearson/ICC must do the same."""
+    ref = pd.to_numeric(fc_ref, errors="coerce")
+    dev = pd.to_numeric(fc_dev, errors="coerce")
+    ok = ref.notna() & dev.notna() & np.isfinite(ref) & np.isfinite(dev)
+    return ref[ok].astype(float), dev[ok].astype(float)
+
+
+def _finite_or_none(value, digits: int | None = None):
+    if value is None or not np.isfinite(value):
+        return None
+    return value if digits is None else round(float(value), digits)
+
+
 def calculate_metrics(fc_ref: pd.Series, fc_dev: pd.Series) -> dict:
     """Full set of validation metrics: MAE, MAPE, RMSE, Bland-Altman, CCC, ICC."""
+    fc_ref, fc_dev = _finite_pairs(fc_ref, fc_dev)
+    n = int(len(fc_ref))
+    empty = {
+        "mae": None, "mape": None, "rmse": None, "bias": None,
+        "loa_u": None, "loa_l": None, "ccc": None, "icc": None,
+        "r": None, "p": None, "slope": None, "intercept": None,
+        "n": n, "media_ref": None, "media_dev": None,
+        "within_3_bpm": None, "within_5_bpm": None, "within_10_bpm": None,
+    }
+    if n < 2:
+        return empty
+
     diff = fc_dev - fc_ref
 
     mae  = float(diff.abs().mean())
@@ -378,11 +404,10 @@ def calculate_metrics(fc_ref: pd.Series, fc_dev: pd.Series) -> dict:
     loa_u = bias + 1.96 * float(diff.std())
     loa_l = bias - 1.96 * float(diff.std())
 
-    n = len(fc_ref)
     m1, m2 = float(fc_ref.mean()), float(fc_dev.mean())
     v1, v2 = float(fc_ref.var()), float(fc_dev.var())
     cov = float(((fc_ref - m1) * (fc_dev - m2)).mean())
-    ccc = (2 * cov) / (v1 + v2 + (m1 - m2) ** 2) if (v1 + v2) > 0 else 0.0
+    ccc = (2 * cov) / (v1 + v2 + (m1 - m2) ** 2) if (v1 + v2) > 0 else None
 
     data        = np.column_stack([fc_ref.values, fc_dev.values])
     grand_mean  = data.mean()
@@ -396,20 +421,23 @@ def calculate_metrics(fc_ref: pd.Series, fc_dev: pd.Series) -> dict:
     ms_j = ss_j / 1
     ms_e = ss_e / (n - 1)
     denom = ms_b + ms_e + 2 * (ms_j - ms_e) / n
-    icc   = (ms_b - ms_e) / denom if denom > 0 else 0.0
+    icc   = (ms_b - ms_e) / denom if denom and np.isfinite(denom) and denom > 0 else None
 
     try:
         r, p = stats.pearsonr(fc_ref.values, fc_dev.values)
+        if not (np.isfinite(r) and np.isfinite(p)):
+            r, p = None, None
     except Exception:
-        r, p = 0.0, 1.0
+        # Never store 0.0 as a sentinel: a leading NaN used to raise and became r=0, p=1.
+        r, p = None, None
 
     try:
         lr = stats.linregress(fc_ref.values, fc_dev.values)
-        slope     = round(float(lr.slope), 4)
-        intercept = round(float(lr.intercept), 2)
+        slope     = _finite_or_none(lr.slope, 4)
+        intercept = _finite_or_none(lr.intercept, 2)
     except Exception:
-        slope     = 1.0
-        intercept = 0.0
+        slope     = None
+        intercept = None
 
     return {
         "mae":       round(mae,  2),
@@ -418,10 +446,10 @@ def calculate_metrics(fc_ref: pd.Series, fc_dev: pd.Series) -> dict:
         "bias":      round(bias, 2),
         "loa_u":     round(loa_u, 2),
         "loa_l":     round(loa_l, 2),
-        "ccc":       round(ccc,  4),
-        "icc":       round(float(icc), 4),
-        "r":         round(r,    4),
-        "p":         float(p),
+        "ccc":       _finite_or_none(ccc, 4),
+        "icc":       _finite_or_none(icc, 4),
+        "r":         _finite_or_none(r, 4),
+        "p":         _finite_or_none(p),
         "slope":     slope,
         "intercept": intercept,
         "n":           n,
@@ -1567,7 +1595,7 @@ def build_sport_chart_data(session_data: list) -> dict:
     session_data: list of {label, ref: list[float], dev: list[float]}
     Returns:
         sessions: list of {label, points: [{x,y}], bias, mae}
-        global_stats: {bias, loa_u, loa_l, pearson_r, slope, intercept}
+        global_stats: {bias, loa_u, loa_l, pearson_r, slope, intercept, mae, rmse}
     """
     sessions_out: list[dict] = []
     all_ref: list[float] = []
@@ -1631,6 +1659,9 @@ def build_sport_chart_data(session_data: list) -> dict:
     except Exception:
         slope = 1.0; intercept = 0.0; pearson_r = None
 
+    global_mae  = float(np.abs(diffs_all).mean())
+    global_rmse = float(np.sqrt(np.mean(diffs_all ** 2)))
+
     return {
         "sessions": sessions_out,
         "global_stats": {
@@ -1640,5 +1671,7 @@ def build_sport_chart_data(session_data: list) -> dict:
             "pearson_r": pearson_r,
             "slope":     slope,
             "intercept": intercept,
+            "mae":       round(global_mae, 3),
+            "rmse":      round(global_rmse, 3),
         },
     }

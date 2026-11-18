@@ -30,14 +30,14 @@ const sessions:any[]=[{id:'a1',device_id:'a'},{id:'a2',device_id:'a'},{id:'a3',d
    const response=new Subject<any>();requests.push({device,ids,response});return response;
  }} as any));
  c.devices=devices;c.mode='SELECTED';
- const sport:any={id:'running',sessions,generation:0,aggregates:[],correlation:{datasets:[]}};
+ const sport:any={id:'running',sessions,generation:0,aggregates:[]};
  c.selectSessions(sport,['a1','a2']);assert.deepEqual(requests.map(r=>[r.device,r.ids]),[['a',['a1','a2']]]);
  c.selectSessions(sport,['a3']);assert.deepEqual(requests[1].ids,['a3']);
  const result=(n:number)=>({sessions:[{points:[{x:n,y:n+1}]}]});
  requests[1].response.next(result(30));requests[1].response.complete();
  requests[0].response.next(result(10));requests[0].response.complete();
- assert.deepEqual(sport.correlation.datasets[0].data,[{x:30,y:31}]);
- c.selectSessions(sport,[]);assert.equal(sport.correlation.datasets.length,0);assert.equal(requests.length,2);
+ assert.deepEqual(c.chartRows(sport)[0].points,[{x:30,y:31}]);
+ c.selectSessions(sport,[]);assert.equal(c.chartRows(sport).filter(row=>row.points.length).length,0);assert.equal(requests.length,2);
 }
 // HRV and resting HR share the same explicit multi-night selection and save it.
 {
@@ -49,8 +49,8 @@ const sessions:any[]=[{id:'a1',device_id:'a'},{id:'a2',device_id:'a'},{id:'a3',d
  } as any,{saveNocturnalSelection:(_id:string,ids:string[])=>{saved=ids;return of({session_ids:ids});}} as any));
  c.devices=devices;c.mode='SELECTED';c.selection={session_ids:['a1','a2','b1']};c.ngOnInit();
  assert.deepEqual(calls,[{id:'a',ids:['a1','a2']},{id:'b',ids:['b1']}]);
- assert.equal(c.correlation.datasets[0].data.length,2);
- c.select('hr');assert.equal(c.correlation.datasets[0].data.length,2);assert.equal(calls.length,2);
+ assert.equal(c.chartRows[0].points.length,2);
+ c.select('hr');assert.equal(c.chartRows[0].points.length,2);assert.equal(c.chartRows[0].points[0].y,2);assert.equal(calls.length,2);
  c.toggle('a1');assert.deepEqual(calls.at(-2).ids,['a2']);
  c.toggle('a2');assert.deepEqual(calls.at(-2).ids,[]);
  c.save();assert.deepEqual(saved,['b1']);

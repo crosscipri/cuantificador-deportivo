@@ -20,9 +20,9 @@
     <p class="hint" *ngIf="mode==='ALL'">La misma agregación del análisis normal, comparando los dispositivos con un color para cada uno. Incluye todos los entrenamientos analizados de este deporte; elegir sesiones en una gráfica individual no cambia este conjunto.</p>
     <p class="hint" *ngIf="mode==='SELECTED'">Solo se incluyen las {{sport.selectedIds?.length||0}} sesiones marcadas. Cada dispositivo conserva la referencia de sus propios análisis.</p>
     <p role="status" *ngIf="sport.loading">Cargando correlación global…</p>
-    <div class="dot-chart" *ngIf="sport.correlation.datasets.length"><canvas baseChart [type]="'scatter'" [data]="sport.correlation" [options]="options"></canvas></div>
-    <div class="table-wrap" *ngIf="sport.aggregates.length"><table><thead><tr><th>Dispositivo</th><th>Sesiones con curvas / total</th><th>r global (puntos)</th><th>r equilibrada por sesión</th><th>MAE (bpm)</th><th>RMSE (bpm)</th><th>Bias (bpm)</th></tr></thead><tbody><tr *ngFor="let row of sport.aggregates"><td>{{row.name}}<small *ngIf="row.error">{{row.error}}</small></td><td>{{row.data?.sessions_with_data ?? 0}} / {{row.data?.session_count ?? 0}}</td><td>{{number(row.data?.global_stats?.pearson_r)}}</td><td>{{number(row.data?.balanced_by_session?.pearson_fisher)}}</td><td>{{number(row.data?.balanced_by_session?.mae)}}</td><td>{{number(row.data?.balanced_by_session?.rmse)}}</td><td>{{number(row.data?.balanced_by_session?.bias)}}</td></tr></tbody></table></div>
-    <p class="hint">Cada dispositivo se compara con la referencia de sus propios análisis. La correlación equilibrada usa la transformación de Fisher con igual peso por sesión; la correlación de puntos puede dar más peso a las sesiones largas.</p>
+    <app-comparison-total-charts *ngIf="sport.aggregates.length || sportProfiles.length" [rows]="chartRows(sport)" unit="bpm"
+      xLabel="FC de referencia (bpm)" yLabel="FC del dispositivo (bpm)" [timeSessions]="timeSessions(sport)"
+      [sportDevices]="sportProfiles" [featuredSport]="sport.id"></app-comparison-total-charts>
     <button *ngIf="sport.loaded&&sport.id!=='unknown'" [disabled]="sport.loading" (click)="aggregate(sport)">Actualizar correlación global</button>
   </section>
 </ng-container>

@@ -89,9 +89,17 @@ export interface Experiment {
   gps_reference_session_id?: string; protocol_id?: string; protocol_version?: number;
   references?:Record<string,{quality:string|null}>;
 }
-export const DEVICE_COLORS = ['#2563eb', '#d97706', '#9333ea', '#059669', '#e11d48', '#0891b2', '#78350f', '#4338ca'];
-export function deviceColor(id: string): string {
+/** Okabe-Ito colorblind-safe palette, without the yellow that fades on a light background. */
+export const DEVICE_COLORS = ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#56B4E9', '#E69F00'];
+export const DEVICE_POINT_STYLES = ['circle', 'triangle', 'rect', 'rectRot', 'star', 'rectRounded'] as const;
+function deviceHash(id: string): number {
   let hash = 0;
   for (const c of id) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
-  return DEVICE_COLORS[hash % DEVICE_COLORS.length];
+  return hash;
+}
+export function deviceColor(id: string): string {
+  return DEVICE_COLORS[deviceHash(id) % DEVICE_COLORS.length];
+}
+export function devicePointStyle(id: string): (typeof DEVICE_POINT_STYLES)[number] {
+  return DEVICE_POINT_STYLES[deviceHash(id) % DEVICE_POINT_STYLES.length];
 }

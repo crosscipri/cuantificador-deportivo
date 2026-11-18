@@ -1,0 +1,99 @@
+<div class="total-corr" *ngIf="tableRows.length || sportCharts.length">
+  <div class="charts" *ngIf="scatterData.datasets.length">
+    <div class="chart-card">
+      <h3>Dispositivo frente a referencia</h3>
+      <div class="chart-frame">
+        <canvas baseChart [type]="'scatter'" [data]="scatterData" [options]="scatterOptions"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap" *ngIf="tableRows.length">
+    <table>
+      <thead>
+        <tr>
+          <th>Dispositivo</th>
+          <th class="num">r</th>
+          <th class="num">MAE ({{unit}})</th>
+          <th class="num">RMSE ({{unit}})</th>
+          <th class="num">Bias ({{unit}})</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of tableRows">
+          <td>
+            <span class="swatch" [style.background]="row.color" aria-hidden="true"></span>
+            {{row.name}}
+            <small *ngIf="row.error">{{row.error}}</small>
+          </td>
+          <td class="num">{{formatR(row.stats.r)}}</td>
+          <td class="num">{{formatVal(row.stats.mae)}}</td>
+          <td class="num">{{formatVal(row.stats.rmse)}}</td>
+          <td class="num">{{formatVal(row.stats.bias)}}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sport-corr" *ngIf="sportCharts.length">
+    <article class="sport-card" *ngFor="let chart of sportCharts">
+      <h3>Correlación con la referencia por deporte</h3>
+      <p class="sport-device">{{chart.name}}</p>
+      <div class="corr-captions">
+        <span *ngFor="let col of chart.columns">{{corrCaption(col)}}</span>
+      </div>
+      <svg class="sport-svg" viewBox="0 0 640 320" role="img" [attr.aria-label]="'Correlación por deporte de ' + chart.name">
+        <line *ngFor="let tick of ticks()" [attr.x1]="plot.left" [attr.x2]="plot.width - plot.right"
+          [attr.y1]="yPos(tick)" [attr.y2]="yPos(tick)" class="grid"></line>
+        <line [attr.x1]="plot.left" [attr.x2]="plot.width - plot.right"
+          [attr.y1]="yPos(0.95)" [attr.y2]="yPos(0.95)" class="threshold"></line>
+        <text *ngFor="let tick of ticks()" [attr.x]="plot.left - 8" [attr.y]="yPos(tick) + 3" class="tick">{{tickLabel(tick)}}</text>
+        <ng-container *ngFor="let col of chart.columns; let i = index">
+          <ng-container *ngIf="col.box as box">
+            <line [attr.x1]="xPos(i, chart.columns.length)" [attr.x2]="xPos(i, chart.columns.length)"
+              [attr.y1]="yPos(box.whiskerLow)" [attr.y2]="yPos(box.whiskerHigh)" class="whisker"></line>
+            <line [attr.x1]="xPos(i, chart.columns.length) - 8" [attr.x2]="xPos(i, chart.columns.length) + 8"
+              [attr.y1]="yPos(box.whiskerLow)" [attr.y2]="yPos(box.whiskerLow)" class="whisker"></line>
+            <line [attr.x1]="xPos(i, chart.columns.length) - 8" [attr.x2]="xPos(i, chart.columns.length) + 8"
+              [attr.y1]="yPos(box.whiskerHigh)" [attr.y2]="yPos(box.whiskerHigh)" class="whisker"></line>
+            <rect [attr.x]="xPos(i, chart.columns.length) - boxWidth()/2" [attr.y]="boxTop(box)"
+              [attr.width]="boxWidth()" [attr.height]="boxHeight(box)" class="box"></rect>
+            <line [attr.x1]="xPos(i, chart.columns.length) - boxWidth()/2" [attr.x2]="xPos(i, chart.columns.length) + boxWidth()/2"
+              [attr.y1]="yPos(box.median)" [attr.y2]="yPos(box.median)" class="median"></line>
+          </ng-container>
+          <ng-container *ngFor="let pt of col.jitter">
+            <circle *ngIf="isCircle(chart.shape)" [attr.cx]="pt.x" [attr.cy]="yPos(pt.y)" r="3.4"
+              [attr.fill]="chart.color" stroke="#fff" stroke-width="0.6"></circle>
+            <path *ngIf="!isCircle(chart.shape)" [attr.d]="pointPath(chart.shape, pt.x, yPos(pt.y))"
+              [attr.fill]="chart.color" stroke="#fff" stroke-width="0.6"></path>
+          </ng-container>
+          <ng-container *ngIf="col.r != null">
+            <line [attr.x1]="xPos(i, chart.columns.length) - boxWidth()/2 - 4" [attr.x2]="xPos(i, chart.columns.length) + boxWidth()/2 + 4"
+              [attr.y1]="yPos(col.r)" [attr.y2]="yPos(col.r)" class="overall"></line>
+            <circle [attr.cx]="xPos(i, chart.columns.length)" [attr.cy]="yPos(col.r)" r="3.6" class="overall-dot"></circle>
+          </ng-container>
+          <text [attr.x]="xPos(i, chart.columns.length)" [attr.y]="plot.height - 6" class="sport-label">{{col.label}}</text>
+        </ng-container>
+        <text [attr.x]="16" [attr.y]="168" class="y-title" transform="rotate(-90 16 168)">Correlación con la referencia (r)</text>
+      </svg>
+      <p class="badge">{{chart.badge}}</p>
+      <p class="note">{{percNote}}</p>
+    </article>
+  </div>
+
+  <div class="timeseries" *ngIf="timeSessions.length">
+    <div class="timeseries-bar">
+      <h3>Curva de una sesión</h3>
+      <label>Sesión
+        <select [ngModel]="selectedSessionId" (ngModelChange)="onSessionChange($event)">
+          <option *ngFor="let session of timeSessions" [value]="session.id">{{session.label}}</option>
+        </select>
+      </label>
+    </div>
+    <p role="status" *ngIf="timeLoading">Cargando la curva…</p>
+    <p class="error" role="alert" *ngIf="timeError">{{timeError}}</p>
+    <div class="chart-frame timeseries-frame" *ngIf="timeData.datasets.length">
+      <canvas baseChart [type]="'line'" [data]="timeData" [options]="timeOptions"></canvas>
+    </div>
+  </div>
+</div>

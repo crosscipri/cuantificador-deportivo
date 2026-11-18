@@ -1,0 +1,79 @@
+.total-corr { margin: 0.4rem 0 0; }
+.charts { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+.chart-card h3, .timeseries h3, .sport-card h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.chart-frame { height: 280px; }
+.timeseries-frame { height: 240px; }
+.table-wrap { overflow-x: auto; margin: 1rem 0 0; border: 1px solid var(--line); border-radius: var(--r-md, 8px); }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 0.88rem; }
+th, td { padding: 0.7rem 0.8rem; border-bottom: 1px solid var(--line); white-space: nowrap; text-align: left; }
+th { background: var(--bg-sunk); font-weight: 600; }
+th.num, td.num { text-align: right; }
+td:first-child { white-space: normal; min-width: 160px; }
+.swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  margin-right: 0.45rem;
+  vertical-align: middle;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 18%);
+}
+small { display: block; color: var(--danger, #b91c1c); font-size: 0.75rem; margin-top: 0.15rem; }
+.sport-corr { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 1.2rem; }
+.sport-card {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 8px);
+  padding: 0.85rem 0.85rem 0.7rem;
+  background: #fafbfc;
+}
+.sport-device { margin: 0 0 0.35rem; font-size: 0.82rem; color: #4b5563; }
+.corr-captions {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 0.4rem;
+  margin: 0 0 0.2rem 2.4rem;
+  color: #c1121f;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
+}
+.sport-svg { width: 100%; height: auto; display: block; background: #fff; }
+.grid { stroke: #eef1f4; stroke-width: 1; }
+.threshold { stroke: #e5e7eb; stroke-width: 1; stroke-dasharray: 4 3; }
+.tick { fill: #4b5563; font-size: 9px; text-anchor: end; }
+.whisker { stroke: #6b7280; stroke-width: 1.1; }
+.box { fill: #f3f4f6; stroke: #6b7280; stroke-width: 1.1; }
+.median { stroke: #111827; stroke-width: 1.6; }
+.overall { stroke: #c1121f; stroke-width: 2.1; }
+.overall-dot { fill: #c1121f; stroke: #fff; stroke-width: 0.6; }
+.sport-label { fill: #111827; font-size: 11px; text-anchor: middle; font-weight: 500; }
+.y-title { fill: #111827; font-size: 10px; text-anchor: middle; }
+.badge {
+  display: inline-block;
+  margin: 0.65rem 0 0;
+  padding: 0.28rem 0.5rem;
+  border: 1px solid #c1121f;
+  border-radius: 6px;
+  color: #c1121f;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: #fff;
+}
+.note { margin: 0.55rem 0 0; font-size: 0.75rem; color: #4b5563; line-height: 1.45; }
+.timeseries { margin-top: 1.1rem; }
+.timeseries-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  margin-bottom: 0.4rem;
+}
+.timeseries-bar label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; }
+.timeseries-bar select { max-width: 28rem; }
+.error { color: var(--danger, #b91c1c); }
