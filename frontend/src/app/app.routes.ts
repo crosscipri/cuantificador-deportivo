@@ -63,6 +63,11 @@ export const routes: Routes = [
       import('./pages/overview/overview.component').then(m => m.OverviewComponent),
   },
   {
+    path: 'night-validation',
+    loadComponent: () =>
+      import('./pages/night-validation/night-validation.component').then(m => m.NightValidationComponent),
+  },
+  {
     path: 'tools',
     loadComponent: () =>
       import('./pages/tools/tools.component').then(m => m.ToolsComponent),

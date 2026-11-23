@@ -46,6 +46,7 @@ from comparisons.service import create_indexes as create_comparison_indexes, ens
 from comparisons.protocols import router as comparison_protocols_router
 from comparisons.archive import router as comparison_archive_router, protect_archive, ensure_archive_recordings
 from comparisons.sleep import router as comparison_sleep_router
+from comparisons.night_validation import router as night_validation_router
 
 from reviews.router import router as reviews_router, media_router as review_media_router, public_router as public_reviews_router, create_indexes as create_review_indexes
 
@@ -56,6 +57,7 @@ app.include_router(comparisons_router)
 app.include_router(comparison_protocols_router)
 app.include_router(comparison_archive_router)
 app.include_router(comparison_sleep_router)
+app.include_router(night_validation_router)
 
 app.include_router(reviews_router)
 app.include_router(review_media_router)

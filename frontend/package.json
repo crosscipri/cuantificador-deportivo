@@ -7,7 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test:reviews": "node tests/run-review-tests.mjs",
-    "test:rmssd": "node tests/run-rmssd-tests.mjs"
+    "test:rmssd": "node tests/run-rmssd-tests.mjs",
+    "test:night-validation": "node tests/run-night-validation-tests.mjs"
   },
   "private": true,
   "dependencies": {
