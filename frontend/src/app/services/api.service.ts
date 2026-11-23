@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { AggregateResult, AiAnalysis, AiVerdict, Device, IntervalAnalysis, Session, SportType, SessionDifficulty, OverviewEntry, SportAggregateCharts } from '../models/session.model';
 import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail, UrbanAiAnalysis, GpsTrackModeScore, GpsUrbanModeScore, GpsStoredScores, GpsOverviewEntry } from '../models/gps-analysis.model';
 import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated, NocturnalHrvGlobalAiAnalysis, HrvOverviewEntry } from '../models/hrv-analysis.model';
+import { NightValidationResponse } from '../models/night-validation.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -241,6 +242,12 @@ export class ApiService {
 
   saveGpsScores(deviceId: string, type: 'track' | 'urban', data: GpsStoredScores<GpsTrackModeScore> | GpsStoredScores<GpsUrbanModeScore>): Observable<{ ok: boolean }> {
     return this.http.put<{ ok: boolean }>(`${this.base}/devices/${deviceId}/gps-scores`, { type, data });
+  }
+
+  // ── Validación nocturna (todas las noches de todos los dispositivos) ──────
+
+  getNightValidation(): Observable<NightValidationResponse> {
+    return this.http.get<NightValidationResponse>(`${this.base}/night-validation`);
   }
 
   // ── Nocturnal HRV ─────────────────────────────────────────────────────────

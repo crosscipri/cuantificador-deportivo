@@ -1,0 +1,93 @@
+<div class="nv-page">
+  <nav class="breadcrumb">
+    <a routerLink="/devices">Dispositivos</a><span class="bc-sep">/</span>
+    <span class="bc-current">Validación nocturna</span>
+  </nav>
+
+  <div class="page-header">
+    <div>
+      <div class="eyebrow">Validación nocturna · todos los dispositivos</div>
+      <h1 class="h1-display">FC y HRV nocturnas frente a Polar</h1>
+      <p class="page-sub">
+        Ventanas de 5 min guardadas en cada noche, dispositivo frente a Polar. Solo correlación de Pearson (r), MAE, sesgo y recta de regresión.
+        Las gráficas siguen el estilo de The Quantified Scientist.
+      </p>
+    </div>
+  </div>
+
+  <div class="nv-state" *ngIf="loading">Cargando noches guardadas…</div>
+  <div class="nv-state nv-error" *ngIf="error">{{ error }}</div>
+  <div class="nv-state" *ngIf="!loading && !error && !devices.length">
+    Aún no hay noches con ventanas de FC o RMSSD guardadas.
+  </div>
+
+  <ng-container *ngIf="!loading && devices.length">
+    <section class="nv-section">
+      <div class="section-head">
+        <span class="section-num">1</span>
+        <div><h2>Clasificaciones: un punto por dispositivo</h2>
+          <p class="section-note">Ejes de MAE invertidos: a la derecha, menos error. Una sola configuración guardada (ventanas de 5 min).</p></div>
+      </div>
+      <div class="nv-grid two">
+        <div class="nv-card" *ngFor="let c of leaderboards; trackBy: trackByTitle">
+          <h3>{{ c.title }}</h3>
+          <p class="nv-sub">{{ c.subtitle }}</p>
+          <div class="nv-canvas tall"><canvas baseChart [type]="'scatter'" [data]="c.data" [options]="c.options" [plugins]="labelPlugins"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="nv-section" *ngFor="let kind of kinds; let i = index">
+      <div class="section-head">
+        <span class="section-num">{{ 2 + i }}</span>
+        <div><h2>Dispositivo frente a referencia, ventana a ventana ({{ kindLabel[kind] }})</h2>
+          <p class="section-note">Puntos: ventanas de 5 min de todas las noches. Línea negra: identidad (y = x). Línea azul: regresión.</p></div>
+      </div>
+      <div class="nv-grid three">
+        <div class="nv-card" *ngFor="let c of scatters[kind]; trackBy: trackByTitle">
+          <h3>{{ c.title }}</h3>
+          <p class="nv-sub">{{ c.subtitle }}</p>
+          <div class="nv-canvas square"><canvas baseChart [type]="'scatter'" [data]="c.data" [options]="c.options" [plugins]="statPlugins"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="nv-section">
+      <div class="section-head">
+        <span class="section-num">4</span>
+        <div><h2>Medias por noche</h2>
+          <p class="section-note">Un punto por noche: media de las ventanas emparejadas. Con menos de {{ 5 }} noches, r y la recta dicen poco.</p></div>
+      </div>
+      <ng-container *ngFor="let kind of kinds">
+        <div class="nv-grid three nv-gap">
+          <div class="nv-card" *ngFor="let c of nightly[kind]; trackBy: trackByTitle">
+            <h3>{{ c.title }}</h3>
+            <p class="nv-sub">{{ c.subtitle }}<span class="nv-warn" *ngIf="c.warn"> · {{ c.warn }}</span></p>
+            <div class="nv-canvas square"><canvas baseChart [type]="'scatter'" [data]="c.data" [options]="c.options" [plugins]="statPlugins"></canvas></div>
+          </div>
+        </div>
+      </ng-container>
+    </section>
+
+    <section class="nv-section" *ngFor="let kind of kinds; let i = index">
+      <div class="section-head">
+        <span class="section-num">{{ 5 + i }}</span>
+        <div><h2>Curva de la noche ({{ kindLabel[kind] }})</h2>
+          <p class="section-note">Referencia en rojo y dispositivo en turquesa. Elige la noche en cada tarjeta.</p></div>
+      </div>
+      <div class="nv-grid two">
+        <div class="nv-card" *ngFor="let card of curves[kind]">
+          <ng-container *ngIf="card.chart as c">
+            <div class="nv-card-head">
+              <div><h3 class="left">{{ c.title }}</h3><p class="nv-sub left">{{ c.subtitle }}</p></div>
+              <select class="nv-select" *ngIf="card.nights.length > 1" [value]="card.index" (change)="selectNight(card, $any($event.target).value)" aria-label="Elegir noche">
+                <option *ngFor="let n of card.nights; let j = index" [value]="j">Noche {{ j + 1 }} · {{ n }}</option>
+              </select>
+            </div>
+            <div class="nv-canvas curve"><canvas baseChart [type]="'line'" [data]="c.data" [options]="c.options"></canvas></div>
+          </ng-container>
+        </div>
+      </div>
+    </section>
+  </ng-container>
+</div>
