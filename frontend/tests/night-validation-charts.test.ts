@@ -1,6 +1,6 @@
 import {
   BRAND_COLORS, FEW_NIGHTS, LEADERBOARDS, UNITS, brandOf, brandColor, fmt, kindPairs, leaderboardChart,
-  nightCurve, nightLabel, nightlyPairs, scatterVsReference, squareBounds, statLines,
+  nightCurve, nightLabel, nightlyPairs, pointLabelsPlugin, scatterVsReference, squareBounds, statLines,
 } from '../src/app/pages/night-validation/night-validation-charts';
 import type { NightKindSummary, NightValidationDevice } from '../src/app/models/night-validation.model';
 
@@ -78,6 +78,19 @@ test('límites redondos y fecha en Madrid', () => {
   assert(b.min === 40 && b.max === 80 && b.step === 10, JSON.stringify(b));
   assert(nightLabel(1788123600) === '30/08/2026', nightLabel(1788123600));
   assert(nightLabel(null) === 'sin fecha', 'null date');
+});
+
+test('las etiquetas no se montan sobre los números del eje y', () => {
+  const placed: { t: string; x: number }[] = [];
+  const ctx: any = { save() {}, restore() {}, measureText: (t: string) => ({ width: t.length * 6 }),
+    fillText: (t: string, x: number) => placed.push({ t, x }), beginPath() {}, moveTo() {}, lineTo() {}, stroke() {} };
+  const chart: any = {
+    ctx, chartArea: { left: 60, right: 500, top: 0, bottom: 400 }, isDatasetVisible: () => true,
+    data: { datasets: [{ pointLabels: ['Garmin Forerunner 265', 'Samsung Galaxy Watch 9', 'Fitbit Air'], backgroundColor: '#e3262b' }] },
+    getDatasetMeta: () => ({ data: [{ x: 64, y: 200 }, { x: 72, y: 210 }, { x: 66, y: 190 }] }),
+  };
+  pointLabelsPlugin.afterDatasetsDraw(chart);
+  assert(placed.length === 3 && placed.every(p => p.x >= 62), JSON.stringify(placed));
 });
 
 console.log(`night-validation-charts: ${passed} tests OK`);

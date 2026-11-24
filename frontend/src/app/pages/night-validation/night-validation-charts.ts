@@ -104,10 +104,14 @@ export const pointLabelsPlugin: any = {
       let rect: Rect | null = null;
       for (const [x, y] of cands) {
         const r = { x0: x, x1: x + w, y0: y, y1: y + h };
-        if (x < area.left - 30 || x + w > area.right + 30 || y < area.top - 16 || y + h > area.bottom + 4) continue;
+        // Nunca a la izquierda del área: ahí están los números del eje y.
+        if (x < area.left + 2 || x + w > area.right + 30 || y < area.top - 16 || y + h > area.bottom + 4) continue;
         if (!placed.some(q => overlaps(r, q))) { rect = r; break; }
       }
-      rect ??= { x0: cands[0][0], x1: cands[0][0] + w, y0: cands[0][1], y1: cands[0][1] + h };
+      if (!rect) {
+        const x0 = Math.max(area.left + 2, cands[0][0]);
+        rect = { x0, x1: x0 + w, y0: cands[0][1], y1: cands[0][1] + h };
+      }
       placed.push(rect);
       // Línea guía: del borde del punto al punto más cercano de la etiqueta.
       const ax = Math.min(Math.max(p.x, rect.x0), rect.x1);
