@@ -1,0 +1,97 @@
+"""Validación por deporte: FC de entrenamiento de cada dispositivo frente a la Polar H10.
+
+Solo lectura. Junta (pooled) todos los segundos emparejados guardados en ``fc_data``
+de todas las sesiones de un dispositivo en cada deporte y calcula n, r de Pearson,
+R², MAE, sesgo y recta de regresión con ``pair_stats`` (el mismo cálculo que la
+validación nocturna). No calcula límites de acuerdo ni Bland-Altman.
+"""
+import math
+
+from fastapi import APIRouter, Request
+from starlette.concurrency import run_in_threadpool
+
+from .night_validation import pair_stats
+
+router = APIRouter(prefix="/api", tags=["sport validation"])
+
+VERSION = "sport-validation-1"
+SPORTS = ("running", "gym", "cycling")
+SPORT_LABELS = {"running": "Carrera", "gym": "Fuerza", "cycling": "Ciclismo"}
+# Clave extra de la respuesta: los segundos de los tres deportes juntos.
+COMBINED = "combined"
+COMBINED_LABEL = "Los 3 deportes combinados"
+SAMPLE_MAX = 4000
+# Variantes de colocación que no son un dispositivo aparte (p. ej. la Fitbit Air en el bíceps).
+EXCLUDED_NAMES = {"fitbit air biceps"}
+
+
+def _ok(value):
+    return value is not None and isinstance(value, (int, float)) and math.isfinite(value)
+
+
+def session_pairs(doc):
+    """Pares (referencia, dispositivo) válidos de una sesión."""
+    fc = doc.get("fc_data") or {}
+    ref, dev = fc.get("reference") or [], fc.get("device") or []
+    return [(float(a), float(b)) for a, b in zip(ref, dev) if _ok(a) and _ok(b)]
+
+
+def sample_pairs(pairs, limit=SAMPLE_MAX):
+    """Muestra regular de como mucho ``limit`` pares, redondeados a 0,1 bpm."""
+    if not pairs:
+        return []
+    step = max(1, math.ceil(len(pairs) / limit))
+    return [[round(a, 1), round(b, 1)] for a, b in pairs[::step]][:limit]
+
+
+def build_sport_validation(devices, sessions):
+    names = {str(d["_id"]): d.get("name") or "Dispositivo" for d in devices}
+    groups = {}
+    for doc in sessions:
+        sport = doc.get("sport_type")
+        device_id = str(doc.get("device_id"))
+        name = names.get(device_id)
+        if sport not in SPORTS or name is None or name.strip().lower() in EXCLUDED_NAMES:
+            continue
+        pairs = session_pairs(doc)
+        if not pairs:
+            continue
+        for key in (sport, COMBINED):
+            group = groups.setdefault((key, device_id), {"sessions": 0, "pairs": [], "by_sport": {}})
+            group["sessions"] += 1
+            group["pairs"].extend(pairs)
+            group["by_sport"][sport] = group["by_sport"].get(sport, 0) + 1
+    out = {key: [] for key in (*SPORTS, COMBINED)}
+    for (sport, device_id), group in groups.items():
+        stats = pair_stats(group["pairs"])
+        if not stats["n"]:
+            continue
+        out[sport].append({
+            "device_id": device_id,
+            "name": names[device_id],
+            "sessions": group["sessions"],
+            **({"sessions_by_sport": group["by_sport"]} if sport == COMBINED else {}),
+            **stats,
+            "sample": sample_pairs(group["pairs"]),
+        })
+    for items in out.values():
+        items.sort(key=lambda x: (x["mae"] is None, x["mae"] if x["mae"] is not None else 0, x["name"].lower()))
+    return {
+        "version": VERSION,
+        "reference": "Polar H10",
+        "metrics": ["n", "r", "r2", "mae", "bias", "slope", "intercept"],
+        "sport_labels": {**SPORT_LABELS, COMBINED: COMBINED_LABEL},
+        "sample_max": SAMPLE_MAX,
+        "sports": out,
+    }
+
+
+@router.get("/sport-validation")
+async def get_sport_validation(request: Request):
+    db = request.app.state.db
+    devices = [d async for d in db.devices.find({}, {"name": 1})]
+    sessions = [s async for s in db.sessions.find(
+        {"sport_type": {"$in": list(SPORTS)}},
+        {"device_id": 1, "sport_type": 1, "fc_data.reference": 1, "fc_data.device": 1},
+    )]
+    return await run_in_threadpool(build_sport_validation, devices, sessions)
