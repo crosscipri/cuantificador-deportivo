@@ -1,0 +1,56 @@
+<div class="nv-page pp-page">
+  <nav class="breadcrumb">
+    <a routerLink="/devices">Dispositivos</a><span class="bc-sep">/</span>
+    <span class="bc-current">Precisión-precio</span>
+  </nav>
+
+  <div class="page-header">
+    <div>
+      <div class="eyebrow">Precisión-precio · todos los dispositivos</div>
+      <h1 class="h1-display">Precisión-precio</h1>
+      <p class="page-sub">
+        Nota de precisión (combinación fija de MAE y r frente a la Polar) frente al precio verificado.
+        El eje del precio está invertido: caro a la izquierda, barato a la derecha. Lo más preciso y más barato
+        queda arriba a la derecha. Al pasar el ratón se ven la nota, el MAE, la r, el precio, la tienda y la fecha.
+      </p>
+    </div>
+  </div>
+
+  <div class="nv-state" *ngIf="loading">Cargando notas y precios…</div>
+  <div class="nv-state nv-error" *ngIf="error">{{ error }}</div>
+  <div class="nv-state" *ngIf="!loading && !error && !hasData">Aún no hay datos de validación con precio para mostrar.</div>
+
+  <ng-container *ngIf="!loading && hasData">
+    <section class="nv-section" *ngFor="let v of views; trackBy: trackByKey" [attr.id]="'pp-' + v.key" [attr.data-chart]="v.key">
+      <div class="section-head">
+        <span class="section-num">{{ v.key === 'sports' ? '1' : v.key === 'night' ? '2' : '3' }}</span>
+        <div>
+          <h2>{{ v.key === 'sports' ? 'Precisión-precio en los deportes' : v.key === 'night' ? 'Precisión-precio en las métricas nocturnas' : 'Precisión-precio final (deporte y noche)' }}</h2>
+          <p class="section-note">{{ v.subtitle }}</p>
+        </div>
+      </div>
+      <div class="nv-card">
+        <h3>{{ v.title }}</h3>
+        <p class="nv-sub">{{ v.subtitle }}</p>
+        <div class="nv-canvas pp-canvas"><canvas baseChart [type]="'scatter'" [data]="v.chart.data" [options]="v.chart.options" [plugins]="plugins"></canvas></div>
+      </div>
+      <div class="pp-warn" *ngIf="v.few.length">
+        <b>⚠ Pocas {{ v.key === 'sports' ? 'sesiones' : 'noches' }}</b>
+        (menos de {{ response?.few_threshold }}): {{ fewText(v.few, v.key) }}.
+        Con tan pocas observaciones, el punto puede moverse bastante con una más.
+      </div>
+      <div class="pp-miss" *ngIf="v.key === 'night' && response?.missing_night?.length">
+        Dispositivos con datos de deporte pero <b>sin métricas nocturnas</b>
+        (no entran en esta gráfica ni en la final): {{ missingNames(response!.missing_night) }}.
+      </div>
+      <div class="pp-miss" *ngIf="v.key === 'final' && response?.missing_night?.length">
+        <b>Fuera de esta gráfica</b> (falta la nota nocturna): {{ missingNames(response!.missing_night) }}.
+      </div>
+    </section>
+
+    <p class="pp-formula">{{ formulaLine() }}</p>
+    <div class="pp-miss" *ngIf="response?.missing_price?.length">
+      <b>Sin precio</b> (fuera de las gráficas): {{ missingNames(response!.missing_price) }}.
+    </div>
+  </ng-container>
+</div>

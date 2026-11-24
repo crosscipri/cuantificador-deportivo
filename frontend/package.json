@@ -9,7 +9,8 @@
     "test:reviews": "node tests/run-review-tests.mjs",
     "test:rmssd": "node tests/run-rmssd-tests.mjs",
     "test:night-validation": "node tests/run-night-validation-tests.mjs",
-    "test:sport-validation": "node tests/run-sport-validation-tests.mjs"
+    "test:sport-validation": "node tests/run-sport-validation-tests.mjs",
+    "test:precision-price": "node tests/run-precision-price-tests.mjs"
   },
   "private": true,
   "dependencies": {

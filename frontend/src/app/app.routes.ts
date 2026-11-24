@@ -73,6 +73,11 @@ export const routes: Routes = [
       import('./pages/sport-validation/sport-validation.component').then(m => m.SportValidationComponent),
   },
   {
+    path: 'precision-price',
+    loadComponent: () =>
+      import('./pages/precision-price/precision-price.component').then(m => m.PrecisionPriceComponent),
+  },
+  {
     path: 'tools',
     loadComponent: () =>
       import('./pages/tools/tools.component').then(m => m.ToolsComponent),

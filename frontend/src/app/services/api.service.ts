@@ -6,6 +6,7 @@ import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTe
 import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated, NocturnalHrvGlobalAiAnalysis, HrvOverviewEntry } from '../models/hrv-analysis.model';
 import { NightValidationResponse } from '../models/night-validation.model';
 import { SportValidationResponse } from '../models/sport-validation.model';
+import { PrecisionPriceResponse } from '../models/precision-price.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -256,6 +257,12 @@ export class ApiService {
   getSportValidation(): Observable<SportValidationResponse> {
     return this.http.get<SportValidationResponse>(`${this.base}/sport-validation`);
   }
+
+  // ── Precisión-precio (nota de MAE y r frente al precio verificado) ────────
+  getPrecisionPrice(): Observable<PrecisionPriceResponse> {
+    return this.http.get<PrecisionPriceResponse>(`${this.base}/precision-price`);
+  }
+
 
   // ── Nocturnal HRV ─────────────────────────────────────────────────────────
 
