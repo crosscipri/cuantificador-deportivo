@@ -5,6 +5,7 @@ import { AggregateResult, AiAnalysis, AiVerdict, Device, IntervalAnalysis, Sessi
 import { GpsTestSummary, GpsTestDetail, GpsAiAnalysis, UrbanTestSummary, UrbanTestDetail, UrbanAiAnalysis, GpsTrackModeScore, GpsUrbanModeScore, GpsStoredScores, GpsOverviewEntry } from '../models/gps-analysis.model';
 import { NocturnalHrvSummary, NocturnalHrvDetail, NocturnalHrvAiAnalysis, NocturnalHrvAggregated, NocturnalHrvGlobalAiAnalysis, HrvOverviewEntry } from '../models/hrv-analysis.model';
 import { NightValidationResponse } from '../models/night-validation.model';
+import { SportValidationResponse } from '../models/sport-validation.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -248,6 +249,12 @@ export class ApiService {
 
   getNightValidation(): Observable<NightValidationResponse> {
     return this.http.get<NightValidationResponse>(`${this.base}/night-validation`);
+  }
+
+  // ── Validación por deporte (FC de entrenamiento frente a Polar H10) ───────
+
+  getSportValidation(): Observable<SportValidationResponse> {
+    return this.http.get<SportValidationResponse>(`${this.base}/sport-validation`);
   }
 
   // ── Nocturnal HRV ─────────────────────────────────────────────────────────

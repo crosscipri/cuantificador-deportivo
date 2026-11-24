@@ -87,8 +87,10 @@ export const pointLabelsPlugin: any = {
     const pts: { x: number; y: number; text: string; color: string }[] = [];
     chart.data.datasets.forEach((ds: any, i: number) => {
       if (!ds.pointLabels || !chart.isDatasetVisible(i)) return;
-      chart.getDatasetMeta(i).data.forEach((p: any, j: number) =>
-        pts.push({ x: p.x, y: p.y, text: ds.pointLabels[j], color: ds.backgroundColor }));
+      chart.getDatasetMeta(i).data.forEach((p: any, j: number) => {
+        // Una etiqueta vacía deja el punto sin nombre (p. ej. el grupo que se amplía aparte).
+        if (ds.pointLabels[j]) pts.push({ x: p.x, y: p.y, text: ds.pointLabels[j], color: ds.backgroundColor });
+      });
     });
     const placed: Rect[] = pts.map(p => ({ x0: p.x - 7, x1: p.x + 7, y0: p.y - 7, y1: p.y + 7 }));
     const h = 11, g = 14;
@@ -144,8 +146,8 @@ export const statBoxPlugin: any = {
 
 // ── Configuraciones ──────────────────────────────────────────────────────────
 
-const FONT = '"Inter Tight", Helvetica, Arial, sans-serif';
-function axis(title: string, extra: any = {}): any {
+export const FONT = '"Inter Tight", Helvetica, Arial, sans-serif';
+export function axis(title: string, extra: any = {}): any {
   const { ticks, ...rest } = extra;
   return {
     title: { display: true, text: title, font: { weight: 'bold', size: 13, family: FONT }, color: '#111' },

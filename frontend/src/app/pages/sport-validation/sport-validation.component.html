@@ -1,0 +1,125 @@
+<div class="nv-page sv-page">
+  <nav class="breadcrumb">
+    <a routerLink="/devices">Dispositivos</a><span class="bc-sep">/</span>
+    <span class="bc-current">Validación por deporte</span>
+  </nav>
+
+  <div class="page-header">
+    <div>
+      <div class="eyebrow">Validación por deporte · todos los dispositivos</div>
+      <h1 class="h1-display">Validación por deporte</h1>
+      <p class="page-sub">
+        FC durante el entrenamiento frente a la Polar H10. Se juntan todos los segundos emparejados de todas las sesiones
+        de cada dispositivo en cada deporte. Solo correlación de Pearson (r), MAE, sesgo y recta de regresión;
+        las gráficas siguen el estilo de The Quantified Scientist.
+      </p>
+    </div>
+  </div>
+
+  <div class="nv-state" *ngIf="loading">Cargando sesiones guardadas…</div>
+  <div class="nv-state nv-error" *ngIf="error">{{ error }}</div>
+  <div class="nv-state" *ngIf="!loading && !error && !hasData">Aún no hay sesiones de entrenamiento con FC frente a la referencia.</div>
+
+  <ng-container *ngIf="!loading && hasData">
+    <section class="nv-section" id="sv-sport">
+      <div class="section-head">
+        <span class="section-num">1</span>
+        <div><h2>{{ labels[sport] }}: FC durante el entrenamiento frente a la Polar H10</h2>
+          <p class="section-note">Un punto por dispositivo. Eje de MAE invertido: mejor rendimiento arriba a la derecha.</p></div>
+      </div>
+
+      <div class="sv-tabs" role="tablist" aria-label="Deporte">
+        <button type="button" role="tab" *ngFor="let s of sports" [class.on]="s === sport" [attr.aria-selected]="s === sport"
+                [disabled]="!count(s)" (click)="selectSport(s)">{{ labels[s] }} <span class="sv-count">{{ count(s) }}</span></button>
+      </div>
+
+      <div class="nv-state" *ngIf="!ranking.length">No hay sesiones de {{ labels[sport].toLowerCase() }}.</div>
+
+      <ng-container *ngIf="boards as b">
+        <div class="nv-grid" [class.two]="b.zoom">
+          <div class="nv-card">
+            <h3>{{ labels[sport] }}: MAE frente a correlación</h3>
+            <p class="nv-sub">Todos los dispositivos. Mejor rendimiento arriba a la derecha.</p>
+            <div class="nv-canvas tall"><canvas baseChart [type]="'scatter'" [data]="b.all.data" [options]="b.all.options" [plugins]="labelPlugins"></canvas></div>
+          </div>
+          <div class="nv-card" *ngIf="b.zoom as z">
+            <h3>{{ labels[sport] }}: detalle del grupo de cabeza</h3>
+            <p class="nv-sub">Los {{ b.head.length }} dispositivos con MAE ≤ 2 × la mediana ({{ fmt(b.limit, 1) }} bpm).</p>
+            <div class="nv-canvas tall"><canvas baseChart [type]="'scatter'" [data]="z.data" [options]="z.options" [plugins]="labelPlugins"></canvas></div>
+          </div>
+        </div>
+        <div class="sv-warn" *ngIf="few.length">
+          <b>⚠ Pocas sesiones</b> (menos de {{ fewLimit }} en {{ labels[sport].toLowerCase() }}): {{ fewText(few) }}.
+          Con tan pocas sesiones, el punto puede moverse mucho con una sesión más.
+        </div>
+
+        <div class="nv-grid sv-detail">
+          <div class="nv-card">
+            <div class="nv-card-head">
+              <div><h3 class="left">{{ selected?.name }}: FC frente a Polar H10 · {{ labels[sport] }}</h3>
+                <p class="nv-sub left">Segundo a segundo · {{ selected?.sessions }} sesiones
+                  <span class="nv-warn" *ngIf="selected && isFew(selected)"> · ⚠ pocas sesiones</span></p></div>
+              <select class="nv-select" [value]="deviceId" (change)="selectDevice($any($event.target).value)" aria-label="Elegir dispositivo">
+                <option *ngFor="let d of ranking; trackBy: trackById" [value]="d.device_id">{{ d.name }}</option>
+              </select>
+            </div>
+            <div class="nv-canvas square" *ngIf="scatter as sc"><canvas baseChart [type]="'scatter'" [data]="sc.data" [options]="sc.options" [plugins]="statPlugins"></canvas></div>
+            <p class="sv-foot">Puntos grises: muestra de como mucho {{ response?.sample_max }} segundos. Línea negra: identidad (y = x). Línea azul: regresión. El recuadro usa todos los segundos.</p>
+          </div>
+          <div class="nv-card">
+            <h3 class="left">Clasificación en {{ labels[sport].toLowerCase() }}</h3>
+            <p class="nv-sub left">Ordenada por MAE (menos es mejor).</p>
+            <table class="sv-table">
+              <thead><tr><th>#</th><th>Dispositivo</th><th>Sesiones</th><th>MAE (bpm)</th><th>r</th><th>R²</th><th>Sesgo (bpm)</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let d of ranking; let i = index; trackBy: trackById" [class.on]="d.device_id === deviceId" (click)="selectDevice(d.device_id)">
+                  <td>{{ i + 1 }}</td><td class="name">{{ d.name }}</td>
+                  <td [class.nv-warn]="isFew(d)">{{ d.sessions }}<span *ngIf="isFew(d)"> ⚠ pocas</span></td>
+                  <td>{{ fmt(d.mae) }}</td><td>{{ fmt(d.r, 3) }}</td><td>{{ fmt(d.r2, 3) }}</td><td>{{ fmt(d.bias) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </ng-container>
+    </section>
+
+    <section class="nv-section" id="sv-combined" *ngIf="combinedBoards as b">
+      <div class="section-head">
+        <span class="section-num">2</span>
+        <div><h2>Los 3 deportes combinados</h2>
+          <p class="section-note">Todos los segundos de carrera, fuerza y ciclismo juntos, con el mismo cálculo. Un punto por dispositivo; mejor rendimiento arriba a la derecha.</p></div>
+      </div>
+      <div class="nv-grid" [class.two]="b.zoom">
+        <div class="nv-card">
+          <h3>Los 3 deportes combinados: MAE frente a correlación</h3>
+          <p class="nv-sub">Todos los dispositivos. Mejor rendimiento arriba a la derecha.</p>
+          <div class="nv-canvas tall"><canvas baseChart [type]="'scatter'" [data]="b.all.data" [options]="b.all.options" [plugins]="labelPlugins"></canvas></div>
+        </div>
+        <div class="nv-card" *ngIf="b.zoom as z">
+          <h3>Los 3 deportes combinados: detalle del grupo de cabeza</h3>
+          <p class="nv-sub">Los {{ b.head.length }} dispositivos con MAE ≤ 2 × la mediana ({{ fmt(b.limit, 1) }} bpm).</p>
+          <div class="nv-canvas tall"><canvas baseChart [type]="'scatter'" [data]="z.data" [options]="z.options" [plugins]="labelPlugins"></canvas></div>
+        </div>
+      </div>
+      <div class="sv-warn" *ngIf="combinedFew.length">
+        <b>⚠ Pocas sesiones</b> (menos de {{ fewLimit }} en total): {{ fewText(combinedFew) }}.
+      </div>
+      <div class="nv-card sv-ranking">
+        <h3 class="left">Mejores dispositivos con los 3 deportes combinados</h3>
+        <p class="nv-sub left">Ordenada por MAE (menos es mejor).</p>
+        <table class="sv-table">
+          <thead><tr><th>#</th><th>Dispositivo</th><th>Sesiones totales</th><th class="by">Por deporte</th><th>MAE (bpm)</th><th>r</th><th>R²</th><th>Sesgo (bpm)</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let d of combinedRanking; let i = index; trackBy: trackById">
+              <td>{{ i + 1 }}</td><td class="name">{{ d.name }}</td>
+              <td [class.nv-warn]="isFew(d)">{{ d.sessions }}<span *ngIf="isFew(d)"> ⚠ pocas</span></td>
+              <td class="by">{{ breakdown(d) }}</td>
+              <td>{{ fmt(d.mae) }}</td><td>{{ fmt(d.r, 3) }}</td><td>{{ fmt(d.r2, 3) }}</td><td>{{ fmt(d.bias) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </ng-container>
+</div>
