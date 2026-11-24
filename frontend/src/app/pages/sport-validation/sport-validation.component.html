@@ -46,40 +46,78 @@
           Con tan pocas sesiones, el punto puede moverse mucho con una sesión más.
         </div>
 
-        <div class="nv-grid sv-detail">
-          <div class="nv-card">
-            <div class="nv-card-head">
-              <div><h3 class="left">{{ selected?.name }}: FC frente a Polar H10 · {{ labels[sport] }}</h3>
-                <p class="nv-sub left">Segundo a segundo · {{ selected?.sessions }} sesiones
-                  <span class="nv-warn" *ngIf="selected && isFew(selected)"> · ⚠ pocas sesiones</span></p></div>
-              <select class="nv-select" [value]="deviceId" (change)="selectDevice($any($event.target).value)" aria-label="Elegir dispositivo">
-                <option *ngFor="let d of ranking; trackBy: trackById" [value]="d.device_id">{{ d.name }}</option>
-              </select>
-            </div>
-            <div class="nv-canvas square" *ngIf="scatter as sc"><canvas baseChart [type]="'scatter'" [data]="sc.data" [options]="sc.options" [plugins]="statPlugins"></canvas></div>
-            <p class="sv-foot">Puntos grises: muestra de como mucho {{ response?.sample_max }} segundos. Línea negra: identidad (y = x). Línea azul: regresión. El recuadro usa todos los segundos.</p>
-          </div>
-          <div class="nv-card">
-            <h3 class="left">Clasificación en {{ labels[sport].toLowerCase() }}</h3>
-            <p class="nv-sub left">Ordenada por MAE (menos es mejor).</p>
-            <table class="sv-table">
-              <thead><tr><th>#</th><th>Dispositivo</th><th>Sesiones</th><th>MAE (bpm)</th><th>r</th><th>R²</th><th>Sesgo (bpm)</th></tr></thead>
-              <tbody>
-                <tr *ngFor="let d of ranking; let i = index; trackBy: trackById" [class.on]="d.device_id === deviceId" (click)="selectDevice(d.device_id)">
-                  <td>{{ i + 1 }}</td><td class="name">{{ d.name }}</td>
-                  <td [class.nv-warn]="isFew(d)">{{ d.sessions }}<span *ngIf="isFew(d)"> ⚠ pocas</span></td>
-                  <td>{{ fmt(d.mae) }}</td><td>{{ fmt(d.r, 3) }}</td><td>{{ fmt(d.r2, 3) }}</td><td>{{ fmt(d.bias) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="nv-card sv-ranking">
+          <h3 class="left">Clasificación en {{ labels[sport].toLowerCase() }}</h3>
+          <p class="nv-sub left">Ordenada por MAE (menos es mejor).</p>
+          <table class="sv-table">
+            <thead><tr><th>#</th><th>Dispositivo</th><th>Sesiones</th><th>MAE (bpm)</th><th>r</th><th>R²</th><th>Sesgo (bpm)</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let d of ranking; let i = index; trackBy: trackById">
+                <td>{{ i + 1 }}</td><td class="name">{{ d.name }}</td>
+                <td [class.nv-warn]="isFew(d)">{{ d.sessions }}<span *ngIf="isFew(d)"> ⚠ pocas</span></td>
+                <td>{{ fmt(d.mae) }}</td><td>{{ fmt(d.r, 3) }}</td><td>{{ fmt(d.r2, 3) }}</td><td>{{ fmt(d.bias) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </ng-container>
     </section>
 
+    <ng-container *ngIf="ranking.length">
+      <section class="nv-section" id="sv-scatter">
+        <div class="section-head">
+          <span class="section-num">2</span>
+          <div><h2>{{ labels[sport] }}: dispositivo frente a Polar H10, segundo a segundo</h2>
+            <p class="section-note">Puntos grises: muestra de como mucho {{ response?.sample_max }} segundos de todas las sesiones. Línea negra: identidad (y = x). Línea azul: regresión. El recuadro usa todos los segundos.</p></div>
+        </div>
+        <div class="nv-grid three">
+          <div class="nv-card" *ngFor="let c of scatters; trackBy: trackByCard">
+            <h3>{{ c.title }}</h3>
+            <p class="nv-sub">{{ c.subtitle }}<span class="nv-warn" *ngIf="c.few"> · ⚠ pocas sesiones</span></p>
+            <div class="nv-canvas square"><canvas baseChart [type]="'scatter'" [data]="c.chart.data" [options]="c.chart.options" [plugins]="statPlugins"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="nv-section" id="sv-means" *ngIf="means.length">
+        <div class="section-head">
+          <span class="section-num">3</span>
+          <div><h2>{{ labels[sport] }}: medias por sesión</h2>
+            <p class="section-note">Un punto por sesión: media de los segundos emparejados. Con menos de {{ fewLimit }} sesiones, r y la recta dicen poco (con menos de 3 no hay r).</p></div>
+        </div>
+        <div class="nv-grid three">
+          <div class="nv-card" *ngFor="let c of means; trackBy: trackByCard">
+            <h3>{{ c.title }}</h3>
+            <p class="nv-sub">{{ c.subtitle }}<span class="nv-warn" *ngIf="c.few"> · ⚠ pocas sesiones</span></p>
+            <div class="nv-canvas square"><canvas baseChart [type]="'scatter'" [data]="c.chart.data" [options]="c.chart.options" [plugins]="statPlugins"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="nv-section" id="sv-curves" *ngIf="curves.length">
+        <div class="section-head">
+          <span class="section-num">4</span>
+          <div><h2>{{ labels[sport] }}: curva de la sesión frente a Polar H10</h2>
+            <p class="section-note">Referencia en rojo y dispositivo en turquesa (medias de tramos de pocos segundos). Elige la sesión en cada tarjeta.</p></div>
+        </div>
+        <div class="nv-grid two">
+          <div class="nv-card" *ngFor="let card of curves; trackBy: trackByCard">
+            <div class="nv-card-head">
+              <div><h3 class="left">{{ card.device.name }}: FC frente a Polar H10</h3>
+                <p class="nv-sub left">{{ card.sessions[card.index] }}<span class="nv-warn" *ngIf="card.few"> · ⚠ pocas sesiones</span></p></div>
+              <select class="nv-select" *ngIf="card.sessions.length > 1" [value]="card.index" (change)="selectSession(card, $any($event.target).value)" aria-label="Elegir sesión">
+                <option *ngFor="let s of card.sessions; let j = index" [value]="j">Sesión {{ j + 1 }} · {{ s }}</option>
+              </select>
+            </div>
+            <div class="nv-canvas curve" *ngIf="card.chart as c"><canvas baseChart [type]="'line'" [data]="c.data" [options]="c.options"></canvas></div>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+
     <section class="nv-section" id="sv-combined" *ngIf="combinedBoard as b">
       <div class="section-head">
-        <span class="section-num">2</span>
+        <span class="section-num">5</span>
         <div><h2>Los 3 deportes combinados</h2>
           <p class="section-note">Todos los segundos de carrera, fuerza y ciclismo juntos, con el mismo cálculo. Un punto por dispositivo; mejor rendimiento arriba a la derecha.</p></div>
       </div>
@@ -105,6 +143,22 @@
             </tr>
           </tbody>
         </table>
+      </div>
+      <h3 class="sv-sub-h">Dispositivo frente a Polar H10, segundo a segundo · 3 deportes</h3>
+      <div class="nv-grid three">
+        <div class="nv-card" *ngFor="let c of combinedScatters; trackBy: trackByCard">
+          <h3>{{ c.title }}</h3>
+          <p class="nv-sub">{{ c.subtitle }}<span class="nv-warn" *ngIf="c.few"> · ⚠ pocas sesiones</span></p>
+          <div class="nv-canvas square"><canvas baseChart [type]="'scatter'" [data]="c.chart.data" [options]="c.chart.options" [plugins]="statPlugins"></canvas></div>
+        </div>
+      </div>
+      <h3 class="sv-sub-h" *ngIf="combinedMeans.length">Medias por sesión · 3 deportes</h3>
+      <div class="nv-grid three">
+        <div class="nv-card" *ngFor="let c of combinedMeans; trackBy: trackByCard">
+          <h3>{{ c.title }}</h3>
+          <p class="nv-sub">{{ c.subtitle }}<span class="nv-warn" *ngIf="c.few"> · ⚠ pocas sesiones</span></p>
+          <div class="nv-canvas square"><canvas baseChart [type]="'scatter'" [data]="c.chart.data" [options]="c.chart.options" [plugins]="statPlugins"></canvas></div>
+        </div>
       </div>
     </section>
   </ng-container>

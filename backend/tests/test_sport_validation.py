@@ -5,7 +5,10 @@ from bson import ObjectId
 from fastapi import FastAPI
 from httpx import AsyncClient, ASGITransport
 
-from comparisons.sport_validation import SAMPLE_MAX, build_sport_validation, router, sample_pairs, session_pairs
+from datetime import datetime
+
+from comparisons.sport_validation import (SAMPLE_MAX, SERIES_MAX, build_sport_validation, router, sample_pairs,
+                                          session_pairs, session_series)
 
 
 def session(device_id, sport, ref, dev):
@@ -26,6 +29,27 @@ class HelperTests(unittest.TestCase):
         self.assertGreater(len(sample), SAMPLE_MAX * 0.8)
         self.assertEqual(sample[0], [0.0, 0.0])
         self.assertEqual(sample_pairs([(1, 2)] * 10), [[1, 2]] * 10)
+
+
+class SeriesTests(unittest.TestCase):
+    def test_series_is_bucketed_and_relative(self):
+        n = 2000
+        doc = {"fc_data": {"reference": [100.0] * n, "device": [101.0] * (n - 1) + [None],
+                           "time": list(range(500, 500 + 2 * n, 2)), "step": 2}}
+        s = session_series(doc)
+        self.assertLessEqual(len(s["time"]), SERIES_MAX)
+        self.assertEqual(len(s["time"]), len(s["reference"]))
+        self.assertEqual(s["time"][0], 0.0)
+        self.assertEqual(s["time"][1], 12.0)  # tramos de 6 puntos cada 2 s
+        self.assertEqual(s["reference"][0], 100.0)
+        self.assertEqual(s["device"][-1], 101.0)
+
+    def test_series_without_time_uses_step_and_keeps_gaps(self):
+        s = session_series({"fc_data": {"reference": [100, None, 102], "device": [None, None, 103], "step": 3}}, limit=10)
+        self.assertEqual(s["time"], [0.0, 3.0, 6.0])
+        self.assertEqual(s["reference"], [100.0, None, 102.0])
+        self.assertEqual(s["device"], [None, None, 103.0])
+        self.assertIsNone(session_series({"fc_data": {}}))
 
 
 class BuildTests(unittest.TestCase):
@@ -70,6 +94,28 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(combined["Fitbit Air"]["sessions"], 1)  # natación y sesión vacía fuera
         self.assertEqual(out["sport_labels"]["combined"], "Los 3 deportes combinados")
         self.assertNotIn("sessions_by_sport", out["sports"]["running"][0])
+
+    def test_session_means_and_series_per_device(self):
+        self.sessions[0]["activity_date"] = datetime(2026, 9, 2, 18, 0)
+        self.sessions[1]["activity_date"] = datetime(2026, 9, 1, 18, 0)
+        self.sessions[1]["session_name"] = "Series"
+        out = build_sport_validation(self.devices, self.sessions)
+        garmin = [d for d in out["sports"]["running"] if d["name"] == "Garmin Cirqa"][0]
+        means = garmin["session_means"]
+        self.assertEqual([p["date"][:10] for p in means["points"]], ["2026-09-01", "2026-09-02"])
+        self.assertEqual(means["points"][0]["name"], "Series")
+        self.assertAlmostEqual(means["points"][0]["reference"], 140.0)
+        self.assertAlmostEqual(means["points"][0]["device"], 140.67, places=2)
+        self.assertEqual(means["n"], 2)
+        self.assertIsNone(means["r"])  # con 2 sesiones no hay r
+        self.assertEqual(len(garmin["series"]), 2)
+        self.assertEqual(garmin["series"][0]["time"], [0.0, 1.0, 2.0])
+        self.assertEqual(garmin["series"][0]["device"], [129.0, 141.0, 152.0])
+        combined = [d for d in out["sports"]["combined"] if d["name"] == "Garmin Cirqa"][0]
+        self.assertNotIn("series", combined)
+        self.assertEqual(len(combined["session_means"]["points"]), 3)
+        self.assertEqual({p["sport"] for p in combined["session_means"]["points"]}, {"running", "gym"})
+        self.assertFalse({"loa_l", "loa_u", "ccc"} & set(means))
 
     def test_excludes_biceps_and_unknown_sports(self):
         out = build_sport_validation(self.devices, self.sessions)

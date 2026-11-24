@@ -1,6 +1,7 @@
-import { BRAND_COLORS, pointLabelsPlugin } from '../src/app/pages/night-validation/night-validation-charts';
+import { BRAND_COLORS, DEVICE_COLOR, REFERENCE_COLOR, pointLabelsPlugin } from '../src/app/pages/night-validation/night-validation-charts';
 import {
-  FEW_SESSIONS, SPORT_LABELS, byMae, fewSessions, sessionsBreakdown, sportLeaderboard, sportScatter,
+  FEW_SESSIONS, SPORT_LABELS, byMae, fewSessions, sessionCurve, sessionDate, sessionLabel, sessionMeansChart,
+  sessionsBreakdown, sportLeaderboard, sportScatter,
 } from '../src/app/pages/sport-validation/sport-validation-charts';
 import type { SportValidationDevice } from '../src/app/models/sport-validation.model';
 
@@ -100,6 +101,36 @@ test('las etiquetas vacías no se dibujan', () => {
   };
   pointLabelsPlugin.afterDatasetsDraw(chart);
   assert(texts.length === 1 && texts[0] === 'Garmin Cirqa', JSON.stringify(texts));
+});
+
+test('medias por sesión: un punto por sesión, identidad y recuadro solo Pearson', () => {
+  const points = [
+    { session_id: 'a', date: '2026-06-06T16:10:30', name: 'Series 8x400', sport: 'running' as const, reference: 150, device: 151 },
+    { session_id: 'b', date: '2026-06-08T07:00:00', name: 'Rodaje', sport: 'running' as const, reference: 140, device: 139.5 },
+    { session_id: 'c', date: null, name: 'Fondo', sport: 'running' as const, reference: 135, device: 136 },
+  ];
+  const d = dev('Fitbit Air', 1.48, 0.99, 3, { session_means: { n: 3, r: 0.98, r2: 0.96, mae: 0.83, bias: 0.5, slope: 1.02, intercept: -2, points } });
+  const c = sessionMeansChart(d)!;
+  assert(c.data.datasets[0].data.length === 3 && c.data.datasets.length === 3, 'points + identity + regression');
+  const lines: string[] = c.options.plugins.nvStatBox.lines;
+  assert(lines[0] === 'n = 3' && lines[1] === 'r = 0,980' && lines[2] === 'R² = 0,960' && lines.includes('MAE = 0,83 bpm'), lines.join('|'));
+  assert(!JSON.stringify(c).match(/LoA|loa_|Bland|CCC/i), 'only pearson');
+  assert(sessionMeansChart(dev('x', 1, 1)) === null, 'no means, no chart');
+});
+
+test('fechas de sesión en Madrid y etiqueta', () => {
+  assert(sessionDate('2026-06-06T23:30:00') === '07/06/2026', sessionDate('2026-06-06T23:30:00'));
+  assert(sessionDate('2026-06-06T10:00:00+00:00') === '06/06/2026', 'offset');
+  assert(sessionDate(null) === 'sin fecha' && sessionDate('nope') === 'sin fecha', 'missing');
+  assert(sessionLabel({ date: '2026-06-06T10:00:00', name: 'Series 8x400' }) === '06/06/2026 · Series 8x400', 'label');
+});
+
+test('curva de la sesión: Polar en rojo, dispositivo en turquesa, minutos y huecos', () => {
+  const c = sessionCurve({ session_id: 'a', date: null, name: 'x', time: [0, 60, 120], reference: [100, null, 120], device: [101, 111, null] }, 'Garmin Cirqa');
+  assert(c.data.datasets[0].label === 'Polar H10 (referencia)' && c.data.datasets[0].borderColor === REFERENCE_COLOR, 'ref');
+  assert(c.data.datasets[1].label === 'Garmin Cirqa' && c.data.datasets[1].borderColor === DEVICE_COLOR, 'dev');
+  assert(c.data.datasets[0].data[1].y === null && c.data.datasets[1].data[2].x === 2, 'gaps + minutes');
+  assert(c.options.scales.x.title.text === 'Tiempo desde el inicio / min', 'axis');
 });
 
 console.log(`sport-validation-charts: ${passed} tests OK`);

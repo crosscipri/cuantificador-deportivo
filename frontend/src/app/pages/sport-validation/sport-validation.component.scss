@@ -14,8 +14,6 @@
   background: #fff3cd; border: 1px solid #e0c36c; color: #3b2f00;
   b { color: var(--bad-ink); }
 }
-.sv-detail { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-top: 16px; }
-@media (max-width: 1100px) { .sv-detail { grid-template-columns: 1fr; } }
 .sv-ranking { margin-top: 16px; }
 .sv-foot { margin: 6px 0 0; font-size: 11px; color: var(--ink-3); }
 .sv-table {
@@ -27,3 +25,4 @@
   tbody tr.on { background: var(--accent-soft); }
 }
 .nv-canvas.sv-board { height: 520px; }
+.sv-sub-h { margin: 22px 0 10px; font-size: 15px; }
