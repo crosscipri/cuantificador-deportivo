@@ -94,6 +94,12 @@ export const pointLabelsPlugin: any = {
     });
     const placed: Rect[] = pts.map(p => ({ x0: p.x - 7, x1: p.x + 7, y0: p.y - 7, y1: p.y + 7 }));
     const h = 11, g = 14;
+    // Con ``plugins.nvPointLabels.inside`` las etiquetas quedan siempre dentro del área del
+    // gráfico (también arriba, abajo y a la derecha) y se prueban más posiciones alejadas.
+    const inside = !!chart.options?.plugins?.nvPointLabels?.inside;
+    const fits = (x: number, y: number, w: number) => inside
+      ? x >= area.left + 2 && x + w <= area.right - 2 && y >= area.top + 1 && y + h <= area.bottom - 1
+      : !(x < area.left + 2 || x + w > area.right + 30 || y < area.top - 16 || y + h > area.bottom + 4);
     [...pts].sort((a, b) => a.y - b.y).forEach(p => {
       const w = ctx.measureText(p.text).width;
       const cands: [number, number][] = [
@@ -101,16 +107,26 @@ export const pointLabelsPlugin: any = {
         [p.x + g, p.y - g - h], [p.x - g - w, p.y - g - h], [p.x + g, p.y + g], [p.x - g - w, p.y + g],
         [p.x - w / 2, p.y - 2 * g - h], [p.x - w / 2, p.y + 2 * g],
       ];
+      if (inside) {
+        for (const k of [2, 3, 4, 5]) {
+          cands.push([p.x + k * g, p.y - h / 2], [p.x - k * g - w, p.y - h / 2],
+            [p.x + k * g, p.y - k * g - h], [p.x - k * g - w, p.y - k * g - h],
+            [p.x + k * g, p.y + k * g], [p.x - k * g - w, p.y + k * g],
+            [p.x - w / 2, p.y - (k + 1) * g - h], [p.x - w / 2, p.y + (k + 1) * g]);
+        }
+      }
       let rect: Rect | null = null;
       for (const [x, y] of cands) {
         const r = { x0: x, x1: x + w, y0: y, y1: y + h };
         // Nunca a la izquierda del área: ahí están los números del eje y.
-        if (x < area.left + 2 || x + w > area.right + 30 || y < area.top - 16 || y + h > area.bottom + 4) continue;
+        if (!fits(x, y, w)) continue;
         if (!placed.some(q => overlaps(r, q))) { rect = r; break; }
       }
       if (!rect) {
-        const x0 = Math.max(area.left + 2, cands[0][0]);
-        rect = { x0, x1: x0 + w, y0: cands[0][1], y1: cands[0][1] + h };
+        // Sin hueco libre: se solapa, pero sin salirse del área.
+        const x0 = inside ? Math.min(Math.max(area.left + 2, cands[0][0]), area.right - 2 - w) : Math.max(area.left + 2, cands[0][0]);
+        const y0 = inside ? Math.min(Math.max(area.top + 1, cands[0][1]), area.bottom - 1 - h) : cands[0][1];
+        rect = { x0, x1: x0 + w, y0, y1: y0 + h };
       }
       placed.push(rect);
       // Línea guía: del borde del punto al punto más cercano de la etiqueta.

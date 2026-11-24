@@ -1,7 +1,6 @@
 import { BRAND_COLORS, pointLabelsPlugin } from '../src/app/pages/night-validation/night-validation-charts';
 import {
-  FEW_SESSIONS, SPORT_LABELS, byMae, fewSessions, headGroup, medianMae, sessionsBreakdown, sportLeaderboard,
-  sportLeaderboards, sportScatter,
+  FEW_SESSIONS, SPORT_LABELS, byMae, fewSessions, sessionsBreakdown, sportLeaderboard, sportScatter,
 } from '../src/app/pages/sport-validation/sport-validation-charts';
 import type { SportValidationDevice } from '../src/app/models/sport-validation.model';
 
@@ -30,13 +29,9 @@ test('etiquetas en castellano y umbral de pocas sesiones', () => {
   assert(FEW_SESSIONS === 5 && fewSessions(dev('a', 1, 1, 4)) && !fewSessions(dev('a', 1, 1, 5)), 'few');
 });
 
-test('orden por MAE y grupo de cabeza (MAE ≤ 2 × mediana)', () => {
+test('orden por MAE', () => {
   assert(byMae([dev('b', 2, 0.9), dev('a', 1, 0.9), dev('x', null, 0.9)]).map(d => d.name).join() === 'a,b', 'byMae');
-  assert(medianMae(running) === 1.51, String(medianMae(running)));
-  const head = headGroup(running);
-  assert(Math.abs((head.limit as number) - 3.02) < 1e-9 && head.devices.length === 7, JSON.stringify(head.limit));
-  assert(!head.devices.some(d => d.name.startsWith('Ultrahuman') || d.name.startsWith('Realme')), 'outliers out');
-  assert(medianMae([]) === null && headGroup([]).devices.length === 0, 'empty');
+  assert(byMae(running)[0].name === 'Garmin Forerunner 170' && byMae(running).length === 9, 'running order');
 });
 
 test('clasificación: un dataset por marca, colores aprobados y MAE invertido', () => {
@@ -51,15 +46,29 @@ test('clasificación: un dataset por marca, colores aprobados y MAE invertido', 
   assert(garmin.pointLabels.includes('Garmin Forerunner 70 ⚠') && garmin.pointLabels.includes('Garmin Cirqa'), 'few marker');
 });
 
-test('vista general con recuadro sin nombres + detalle del grupo de cabeza', () => {
-  const b = sportLeaderboards(running);
-  assert(b.zoom !== null && b.head.length === 7, 'zoom');
-  const labels = b.all.data.datasets.flatMap((d: any) => d.pointLabels);
-  assert(labels.filter((l: string) => !l).length === 7, 'head unlabeled in overview');
-  assert(labels.includes('Realme Watch 5 ⚠') && b.all.options.plugins.svClusterBox.enabled, 'outliers labeled + box');
-  assert(b.zoom!.data.datasets.flatMap((d: any) => d.pointLabels).every((l: string) => !!l), 'zoom labeled');
-  const tight = sportLeaderboards([dev('Garmin A', 1, 0.99), dev('Fitbit B', 1.2, 0.98)]);
-  assert(tight.zoom === null && !tight.all.options.plugins.svClusterBox.enabled, 'no zoom when nobody is out');
+test('todos los dispositivos con nombre, sin recuadro ni zoom, etiquetas dentro del área', () => {
+  const c = sportLeaderboard(running);
+  const labels = c.data.datasets.flatMap((d: any) => d.pointLabels);
+  assert(labels.length === 9 && labels.every((l: string) => !!l), JSON.stringify(labels));
+  assert(labels.includes('Fitbit Air') && labels.includes('Garmin Forerunner 170 ⚠') && labels.includes('Realme Watch 5 ⚠'), 'names');
+  assert(c.options.plugins.nvPointLabels.inside === true, 'inside');
+  assert(!('svClusterBox' in c.options.plugins) && !JSON.stringify(c.options).includes('detalle'), 'no cluster box');
+});
+
+test('con la opción inside, las etiquetas solapadas no salen del área', () => {
+  const placed: { t: string; x: number; y: number }[] = [];
+  const ctx: any = { save() {}, restore() {}, measureText: (t: string) => ({ width: t.length * 6 }),
+    fillText: (t: string, x: number, y: number) => placed.push({ t, x, y }), beginPath() {}, moveTo() {}, lineTo() {}, stroke() {} };
+  const area = { left: 60, right: 400, top: 20, bottom: 300 };
+  const names = running.map(d => d.name);
+  const chart: any = {
+    ctx, chartArea: area, isDatasetVisible: () => true, options: { plugins: { nvPointLabels: { inside: true } } },
+    data: { datasets: [{ pointLabels: names, backgroundColor: '#e3262b' }] },
+    getDatasetMeta: () => ({ data: names.map((_, i) => ({ x: 380 + (i % 3) * 6, y: 24 + Math.floor(i / 3) * 5 })) }),
+  };
+  pointLabelsPlugin.afterDatasetsDraw(chart);
+  assert(placed.length === 9, String(placed.length));
+  assert(placed.every(p => p.x >= area.left + 2 && p.x + p.t.length * 6 <= area.right - 2 && p.y >= area.top + 1 && p.y + 11 <= area.bottom - 1), JSON.stringify(placed));
 });
 
 test('dispersión frente a Polar: identidad, regresión, recuadro solo Pearson', () => {

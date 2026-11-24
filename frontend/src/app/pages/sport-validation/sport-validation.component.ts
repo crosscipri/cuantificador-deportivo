@@ -6,12 +6,10 @@ import { ApiService } from '../../services/api.service';
 import { SportKey, SportValidationDevice, SportValidationResponse } from '../../models/sport-validation.model';
 import { fmt, pointLabelsPlugin, statBoxPlugin } from '../night-validation/night-validation-charts';
 import {
-  FEW_SESSIONS, SPORTS, SPORT_LABELS, byMae, clusterBoxPlugin, fewSessions, sessionsBreakdown,
-  sportLeaderboards, sportScatter,
+  FEW_SESSIONS, SPORTS, SPORT_LABELS, byMae, fewSessions, sessionsBreakdown, sportLeaderboard, sportScatter,
 } from './sport-validation-charts';
 
 interface Chart { data: any; options: any; }
-interface LeaderboardView { limit: number | null; head: SportValidationDevice[]; all: Chart; zoom: Chart | null; }
 
 @Component({
   selector: 'app-sport-validation',
@@ -28,7 +26,7 @@ export class SportValidationComponent implements OnInit {
   readonly sports = SPORTS;
   readonly labels = SPORT_LABELS;
   readonly fewLimit = FEW_SESSIONS;
-  readonly labelPlugins = [pointLabelsPlugin, clusterBoxPlugin];
+  readonly labelPlugins = [pointLabelsPlugin];
   readonly statPlugins = [statBoxPlugin];
   readonly fmt = fmt;
   readonly isFew = fewSessions;
@@ -36,12 +34,12 @@ export class SportValidationComponent implements OnInit {
 
   sport: SportKey = 'running';
   ranking: SportValidationDevice[] = [];
-  boards: LeaderboardView | null = null;
+  board: Chart | null = null;
   deviceId = '';
   scatter: Chart | null = null;
 
   combinedRanking: SportValidationDevice[] = [];
-  combinedBoards: LeaderboardView | null = null;
+  combinedBoard: Chart | null = null;
 
   constructor(private api: ApiService) {}
 
@@ -50,7 +48,7 @@ export class SportValidationComponent implements OnInit {
       next: res => {
         this.response = res;
         this.combinedRanking = byMae(res.sports.combined ?? []);
-        this.combinedBoards = sportLeaderboards(res.sports.combined ?? []);
+        this.combinedBoard = this.combinedRanking.length ? sportLeaderboard(this.combinedRanking) : null;
         this.selectSport(this.sport);
         this.loading = false;
       },
@@ -71,7 +69,7 @@ export class SportValidationComponent implements OnInit {
     this.sport = sport;
     const list = this.response?.sports[sport] ?? [];
     this.ranking = byMae(list);
-    this.boards = this.ranking.length ? sportLeaderboards(list) : null;
+    this.board = this.ranking.length ? sportLeaderboard(this.ranking) : null;
     const keep = this.ranking.find(d => d.device_id === this.deviceId);
     this.selectDevice(keep ? keep.device_id : this.ranking[0]?.device_id ?? '');
   }
