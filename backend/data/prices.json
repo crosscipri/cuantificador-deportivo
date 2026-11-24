@@ -1,0 +1,84 @@
+{
+  "version": "prices-1",
+  "checked_at": "2026-10-14",
+  "currency": "EUR",
+  "rule": "Precio usado = oferta verificada más barata (EUR) por dispositivo en content/shop-offers/verified-offers.json (checked_at 2026-10-14). No se inventan precios. Si un dispositivo no tiene precio, queda fuera de las gráficas y se lista en missing_price.",
+  "source": {
+    "file": "content/shop-offers/verified-offers.json",
+    "note": "Comprobación puntual del 14 de octubre de 2026 en el repo de la web. El site.json exportado tenía los campos price a null, así que no se usó."
+  },
+  "devices": [
+    {
+      "name": "Realme Watch 5",
+      "price": 54.9,
+      "shop": "MediaMarkt",
+      "label": "MediaMarkt · Watch 5 Titanium Black",
+      "checked_at": "2026-10-14",
+      "source": "content/shop-offers/verified-offers.json"
+    },
+    {
+      "name": "Fitbit Air",
+      "price": 99.99,
+      "shop": "Google Store",
+      "label": "Google Store · Fitbit Air",
+      "checked_at": "2026-10-14",
+      "source": "content/shop-offers/verified-offers.json"
+    },
+    {
+      "name": "Garmin Cirqa",
+      "price": 199.99,
+      "shop": "Decathlon",
+      "label": "Decathlon · CIRQA negro L/XL",
+      "checked_at": "2026-10-14",
+      "source": "content/shop-offers/verified-offers.json"
+    },
+    {
+      "name": "Garmin Forerunner 70",
+      "price": 221.49,
+      "shop": "Decathlon",
+      "label": "Decathlon · 70 negro",
+      "checked_at": "2026-10-14",
+      "source": "content/shop-offers/verified-offers.json"
+    },
+    {
+      "name": "Garmin Forerunner 170",
+      "price": 269.0,
+      "shop": "PcComponentes",
+      "label": "PcComponentes · Forerunner 170 negro/amarillo",
+      "checked_at": "2026-10-14",
+      "source": "content/shop-offers/verified-offers.json"
+    },
+    {
+      "name": "Huawei Watch Fit 5 Pro",
+      "price": 299.0,
+      "shop": "PcComponentes",
+      "label": "PcComponentes · Fit 5 Pro blanco",
+      "checked_at": "2026-10-14",
+      "source": "content/shop-offers/verified-offers.json"
+    },
+    {
+      "name": "Garmin Forerunner 265",
+      "price": 359.99,
+      "shop": "Decathlon",
+      "label": "Decathlon · Forerunner 265",
+      "checked_at": "2026-10-14",
+      "source": "content/shop-offers/verified-offers.json"
+    },
+    {
+      "name": "Ultrahuman Ring Air",
+      "price": 379.0,
+      "shop": "MediaMarkt",
+      "label": "MediaMarkt · Ring AIR titanio talla 7",
+      "checked_at": "2026-10-14",
+      "source": "content/shop-offers/verified-offers.json"
+    },
+    {
+      "name": "Samsung Galaxy Watch 9",
+      "price": 389.0,
+      "shop": "MediaMarkt",
+      "label": "MediaMarkt · Watch9 BT 44 mm plata",
+      "checked_at": "2026-10-14",
+      "source": "content/shop-offers/verified-offers.json"
+    }
+  ]
+}
