@@ -2,7 +2,7 @@
   "version": "prices-1",
   "checked_at": "2026-10-14",
   "currency": "EUR",
-  "rule": "Precio usado = oferta verificada más barata (EUR) por dispositivo en content/shop-offers/verified-offers.json (checked_at 2026-10-14). No se inventan precios. Si un dispositivo no tiene precio, queda fuera de las gráficas y se lista en missing_price. Cada entrada lleva el device_id de la oferta verificada (también se admite 'aliases' con otros nombres del mismo dispositivo); el cruce con la base va primero por device_id y después por nombre normalizado.",
+  "rule": "Precio usado = oferta verificada más barata (EUR) por dispositivo en content/shop-offers/verified-offers.json (checked_at 2026-10-14), salvo las entradas con source 'precio indicado por Ciprian' (no son oferta de tienda; no se estiman). Si un dispositivo no tiene precio, queda fuera de las gráficas y se lista en missing_price. Cada entrada de oferta verificada lleva el device_id; las indicadas por Ciprian no lo tienen si el dispositivo no está en el Mongo local. También se admite 'aliases' con otros nombres del mismo dispositivo; el cruce va primero por device_id y después por nombre normalizado o alias.",
   "source": {
     "file": "content/shop-offers/verified-offers.json",
     "note": "Comprobación puntual del 14 de octubre de 2026 en el repo de la web. El site.json exportado tenía los campos price a null, así que no se usó."
@@ -34,6 +34,22 @@
       "label": "Decathlon · CIRQA negro L/XL",
       "checked_at": "2026-10-14",
       "source": "content/shop-offers/verified-offers.json"
+    },
+    {
+      "name": "Whoop",
+      "price": 264.0,
+      "shop": null,
+      "label": "Suscripción media",
+      "checked_at": "2026-11-25",
+      "source": "precio indicado por Ciprian, 25/11/2026 (suscripción media)",
+      "aliases": [
+        "Whoop",
+        "WHOOP",
+        "Whoop 5.0",
+        "WHOOP 5.0",
+        "WHOOP 5.0/MG",
+        "Whoop 5.0/MG"
+      ]
     },
     {
       "name": "Garmin Forerunner 70",
@@ -88,6 +104,20 @@
       "label": "MediaMarkt · Watch9 BT 44 mm plata",
       "checked_at": "2026-10-14",
       "source": "content/shop-offers/verified-offers.json"
+    },
+    {
+      "name": "Samsung Galaxy Watch Ultra 2",
+      "price": 750.0,
+      "shop": null,
+      "label": "Precio indicado por Ciprian",
+      "checked_at": "2026-11-25",
+      "source": "precio indicado por Ciprian, 25/11/2026",
+      "aliases": [
+        "Galaxy Watch Ultra 2",
+        "Samsung Galaxy Watch Ultra 2",
+        "Galaxy Watch Ultra",
+        "Samsung Galaxy Watch Ultra"
+      ]
     }
   ]
 }

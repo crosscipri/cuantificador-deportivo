@@ -163,7 +163,7 @@ class BuildTests(unittest.TestCase):
 
 
 class CatalogTests(unittest.TestCase):
-    def test_versioned_prices_file_has_the_nine_devices(self):
+    def test_versioned_prices_file_has_the_catalog_devices(self):
         prices = load_prices(PRICES_PATH)
         self.assertEqual(prices["checked_at"], "2026-10-14")
         names = {v["name"] for v in prices["by_name"].values()}
@@ -171,14 +171,46 @@ class CatalogTests(unittest.TestCase):
             "Realme Watch 5", "Fitbit Air", "Garmin Cirqa", "Garmin Forerunner 70",
             "Garmin Forerunner 170", "Huawei Watch Fit 5 Pro", "Garmin Forerunner 265",
             "Ultrahuman Ring Air", "Samsung Galaxy Watch 9",
+            "Whoop", "Samsung Galaxy Watch Ultra 2",
         }
         self.assertEqual(names, expected)
         self.assertEqual(prices["by_name"]["fitbit air"]["price"], 99.99)
         self.assertEqual(prices["by_name"]["realme watch 5"]["price"], 54.9)
         self.assertEqual(prices["by_name"]["ultrahuman ring air"]["price"], 379.0)
         self.assertEqual(prices["by_name"]["samsung galaxy watch 9"]["price"], 389.0)
+        self.assertEqual(prices["by_name"]["whoop"]["price"], 264.0)
+        self.assertEqual(prices["by_name"]["samsung galaxy watch ultra 2"]["price"], 750.0)
         self.assertTrue(PRICES_PATH.is_file())
         self.assertTrue(str(PRICES_PATH).endswith("backend/data/prices.json"))
+
+    def test_ciprian_prices_match_by_alias_without_device_id(self):
+        prices = load_prices(PRICES_PATH)
+        # Sin device_id local: el cruce es por nombre o alias.
+        self.assertIsNone(prices["by_name"]["whoop"].get("device_id") or None)
+        self.assertIsNone(prices["by_name"]["samsung galaxy watch ultra 2"].get("device_id") or None)
+        self.assertEqual(len(prices["by_id"]), 9)
+        whoop_aliases = [
+            "Whoop", "WHOOP", "Whoop 5.0", "WHOOP 5.0", "WHOOP 5.0/MG", "Whoop 5.0/MG",
+        ]
+        for alias in whoop_aliases:
+            offer, how = find_offer(prices, None, alias)
+            self.assertEqual(offer["name"], "Whoop", alias)
+            self.assertIn(how, {"nombre", "alias"}, (alias, how))
+            self.assertEqual(offer["price"], 264.0)
+        self.assertIn("suscripción media", offer["source"].lower())
+        self.assertIn("ciprian", offer["source"].lower())
+        ultra_aliases = [
+            "Samsung Galaxy Watch Ultra 2", "Galaxy Watch Ultra 2",
+            "Galaxy Watch Ultra", "Samsung Galaxy Watch Ultra",
+        ]
+        for alias in ultra_aliases:
+            offer, how = find_offer(prices, None, alias)
+            self.assertEqual(offer["name"], "Samsung Galaxy Watch Ultra 2", alias)
+            self.assertIn(how, {"nombre", "alias", "nombre sin marca"}, (alias, how))
+            self.assertEqual(offer["price"], 750.0)
+        # No hereda el precio del Watch 9 ni al revés.
+        self.assertEqual(find_offer(prices, None, "Samsung Galaxy Watch 9")[0]["price"], 389.0)
+        self.assertIsNone(find_offer(prices, None, "Galaxy Watch 8")[0])
 
 
 class NameMatchingTests(unittest.TestCase):

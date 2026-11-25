@@ -21,9 +21,16 @@ export const SHORT_LABELS: Record<string, string> = {
   'Garmin Cirqa': 'Cirqa',
   'Huawei Watch Fit 5 Pro': 'Fit 5 Pro',
   'Samsung Galaxy Watch 9': 'Galaxy Watch 9',
+  'Samsung Galaxy Watch Ultra 2': 'Ultra 2',
+  'Galaxy Watch Ultra 2': 'Ultra 2',
+  'Galaxy Watch Ultra': 'Ultra 2',
   'Fitbit Air': 'Fitbit Air',
   'Realme Watch 5': 'Realme Watch 5',
   'Ultrahuman Ring Air': 'Ring Air',
+  'Whoop': 'Whoop',
+  'Whoop 5.0': 'Whoop',
+  'WHOOP 5.0/MG': 'Whoop',
+  'Whoop 5.0/MG': 'Whoop',
 };
 
 export const VIEW_COPY: Record<PrecisionPriceView, { title: string; subtitle: string }> = {
