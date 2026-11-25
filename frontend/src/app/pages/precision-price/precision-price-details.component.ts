@@ -8,7 +8,7 @@ import type { PrecisionPriceDevice, PrecisionPriceView } from '../../models/prec
 import type { SportValidationResponse } from '../../models/sport-validation.model';
 import type { NightValidationResponse } from '../../models/night-validation.model';
 import { statBoxPlugin } from '../night-validation/night-validation-charts';
-import { DETAIL_GRIDS, DetailCard, DetailGrid, buildDetailGrids, selectSource } from './precision-price-details';
+import { DETAIL_GRIDS, DETAIL_TOP, DetailCard, DetailGrid, buildDetailGrids, selectSource, topDevices } from './precision-price-details';
 
 /** Descarga una sola vez (y solo si hace falta) las validaciones por deporte y por noche. */
 @Injectable({ providedIn: 'root' })
@@ -41,6 +41,9 @@ export class PrecisionPriceDetailsComponent implements OnInit {
   loading = true;
   failed = false;
   grids: DetailGrid[] = [];
+  shownCount = 0;
+  totalCount = 0;
+  readonly topLimit = DETAIL_TOP;
   readonly statPlugins = [statBoxPlugin];
 
   constructor(private data: PrecisionPriceDetailsData) {}
@@ -54,6 +57,8 @@ export class PrecisionPriceDetailsComponent implements OnInit {
       night: needNight ? this.data.night() : of(null),
     }).subscribe(({ sport, night }) => {
       this.failed = (needSport && !sport) || (needNight && !night);
+      this.totalCount = this.devices.length;
+      this.shownCount = topDevices(this.devices, DETAIL_TOP).length;
       this.grids = buildDetailGrids(this.view, this.devices, sport, night);
       this.loading = false;
     });

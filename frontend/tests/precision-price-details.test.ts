@@ -3,7 +3,7 @@ import type { SportValidationDevice, SportValidationResponse } from '../src/app/
 import type { NightKindSummary, NightValidationResponse } from '../src/app/models/night-validation.model';
 import { PRICE_MAX, priceAxisMax, priceScoreChart } from '../src/app/pages/precision-price/precision-price-charts';
 import {
-  DETAIL_GRIDS, SCATTER_POINTS_MAX, buildDetailGrids, decimate, selectSource,
+  DETAIL_GRIDS, DETAIL_TOP, SCATTER_POINTS_MAX, buildDetailGrids, decimate, selectSource, topDevices,
 } from '../src/app/pages/precision-price/precision-price-details';
 
 let passed = 0;
@@ -65,6 +65,8 @@ assert(priceAxisMax([dev('w', 'Galaxy Watch Ultra 2', 699)]) === 750, String(pri
 assert(priceAxisMax([dev('w', 'x', 425)]) === 450, 'cabe justo');
 assert(priceAxisMax([dev('w', 'x', 430)]) === 500, 'margen de 25 €');
 assert(priceScoreChart([dev('w', 'x', 699)], 'sports').options.scales.x.max === 750, 'x.max dinámico');
+assert(priceAxisMax([dev('w', 'Samsung Galaxy Watch Ultra 2', 750)]) === 800, '750 € entra en el eje (máximo 800)');
+assert(priceScoreChart([dev('w', 'Samsung Galaxy Watch Ultra 2', 750)], 'sports').options.scales.x.max === 800, 'x.max 750');
 
 // decimación
 assert(decimate(sample(4000)).length <= SCATTER_POINTS_MAX, 'decimate max');
@@ -102,5 +104,30 @@ assert(fin.map(g => g.key).join() === DETAIL_GRIDS.final.join(), fin.map(g => g.
 
 // sin datos de una fuente no revienta
 assert(buildDetailGrids('final', [a], null, null).length === 0, 'sin fuentes, sin rejillas');
+
+// Solo los 6 con mejor nota (rejilla 3×2), por la nota de esa comparativa
+assert(DETAIL_TOP === 6, 'límite 6');
+const crowd: PrecisionPriceDevice[] = Array.from({ length: 9 }, (_, i) =>
+  dev(`id${i}`, `Dispositivo ${i}`, 100 + i, { score: 50 + i }));
+const top = topDevices(crowd);
+assert(top.length === 6, String(top.length));
+assert(top.map(d => d.device_id).join() === 'id8,id7,id6,id5,id4,id3', top.map(d => d.device_id).join());
+assert(topDevices(crowd.slice(0, 4)).length === 4, 'si hay menos de 6, salen todos');
+// empate: desempate por nombre
+const tied = [dev('z', 'Zeta', 1, { score: 90 }), dev('a', 'Alfa', 1, { score: 90 }), dev('m', 'Mid', 1, { score: 80 })];
+assert(topDevices(tied, 2).map(d => d.name).join() === 'Alfa,Zeta', 'desempate por nombre');
+
+const sportCrowd = {
+  version: 'x', reference: 'Polar H10', metrics: [], sample_max: 4000,
+  sport_labels: {} as any,
+  sports: {
+    combined: crowd.map(d => sportDev(d.device_id, d.name, 8)),
+    running: crowd.map(d => sportDev(d.device_id, d.name, 8, [serie('r', 10)])),
+    gym: [], cycling: [],
+  },
+} as unknown as SportValidationResponse;
+const limited = buildDetailGrids('sports', crowd, sportCrowd, null);
+assert(limited[0].cards.length === 6 && limited[1].cards.length === 6, '6 tarjetas por bloque');
+assert(limited[0].cards.map(c => c.deviceId).join() === 'id8,id7,id6,id5,id4,id3', limited[0].cards.map(c => c.deviceId).join());
 
 console.log(`precision-price-details: ${passed} comprobaciones OK`);

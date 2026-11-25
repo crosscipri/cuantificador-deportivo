@@ -16,6 +16,16 @@ export type ChartCfg = { data: any; options: any };
 
 export const SCATTER_POINTS_MAX = 1500;
 
+/** Por bloque: los N dispositivos con mejor nota de esa comparativa (rejilla 3×2). */
+export const DETAIL_TOP = 6;
+
+export function topDevices(devices: PrecisionPriceDevice[], limit = DETAIL_TOP): PrecisionPriceDevice[] {
+  return [...devices]
+    .sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity) || a.name.localeCompare(b.name, 'es'))
+    .slice(0, limit);
+}
+
+
 export const DETAIL_GRIDS: Record<PrecisionPriceView, DetailKey[]> = {
   sports: ['sport-corr', 'sport-curve'],
   night: ['night-hr-corr', 'night-hrv-corr', 'night-hr-curve'],
@@ -179,15 +189,18 @@ export function selectSource(card: DetailCard, index: number | string): void {
 export function buildDetailGrids(
   view: PrecisionPriceView, devices: PrecisionPriceDevice[],
   sport: SportValidationResponse | null, night: NightValidationResponse | null,
+  limit = DETAIL_TOP,
 ): DetailGrid[] {
+  const shown = topDevices(devices, limit);
   const make = (key: DetailKey): DetailCard[] => {
     switch (key) {
-      case 'sport-corr': return sportCorrelationCards(devices, sport);
-      case 'sport-curve': return sportCurveCards(devices, sport);
-      case 'night-hr-corr': return nightCorrelationCards(devices, night, 'hr');
-      case 'night-hrv-corr': return nightCorrelationCards(devices, night, 'rmssd');
-      case 'night-hr-curve': return nightCurveCards(devices, night);
+      case 'sport-corr': return sportCorrelationCards(shown, sport);
+      case 'sport-curve': return sportCurveCards(shown, sport);
+      case 'night-hr-corr': return nightCorrelationCards(shown, night, 'hr');
+      case 'night-hrv-corr': return nightCorrelationCards(shown, night, 'rmssd');
+      case 'night-hr-curve': return nightCurveCards(shown, night);
     }
   };
   return DETAIL_GRIDS[view].map(key => ({ key, ...DETAIL_COPY[key], cards: make(key) })).filter(g => g.cards.length);
+
 }

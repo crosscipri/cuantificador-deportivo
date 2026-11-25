@@ -3,6 +3,9 @@
   <div class="pp-miss" *ngIf="!loading && failed">
     No se han podido cargar todas las gráficas por dispositivo (validación por deporte o nocturna).
   </div>
+  <p class="pp-detail-note pp-top-note" *ngIf="!loading && totalCount > shownCount" data-top-note="1">
+    Solo los {{ shownCount }} dispositivos con mejor nota de esta comparativa (de {{ totalCount }}).
+  </p>
   <section class="pp-detail-grid" *ngFor="let g of grids; trackBy: trackByKey" [attr.data-grid]="g.key">
     <h3 class="pp-detail-title">{{ g.title }}</h3>
     <p class="pp-detail-note">{{ g.note }}</p>
