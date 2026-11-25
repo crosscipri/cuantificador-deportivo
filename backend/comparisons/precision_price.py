@@ -125,6 +125,41 @@ def norm_name(name):
     return " ".join(re.sub(r"[^0-9a-z]+", " ", text).split())
 
 
+def flexible_norm(name):
+    """Como ``norm_name``, pero separa camelCase y letras pegadas a cifras (Ultra2 → ultra 2)."""
+    text = unicodedata.normalize("NFKD", str(name or ""))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = re.sub(r"([a-z])([A-Z])", r"\1 \2", text)
+    text = re.sub(r"([A-Za-z])(\d)", r"\1 \2", text)
+    text = re.sub(r"(\d)([A-Za-z])", r"\1 \2", text)
+    return " ".join(re.sub(r"[^0-9a-z]+", " ", text.casefold()).split())
+
+
+def name_tokens(name):
+    return set(flexible_norm(name).split())
+
+
+# Marcas que no deben heredar el precio del Galaxy Watch Ultra 2 en el cruce por tokens.
+_ULTRA2_BLOCKED = {
+    "apple", "ultrahuman", "oura", "whoop", "garmin", "fitbit",
+    "huawei", "realme", "polar", "suunto", "amazfit",
+}
+
+
+def looks_like_galaxy_watch_ultra_2(name):
+    """True si el nombre contiene los tokens «ultra» y «2», con Samsung/Galaxy opcionales.
+
+    No coincide con el Watch 9 ni con Ultrahuman, ni con un Apple Watch Ultra 2.
+    «Galaxy Watch Ultra» (sin 2) queda fuera de esta regla (sí puede entrar por alias).
+    """
+    tokens = name_tokens(name)
+    if "ultra" not in tokens or "2" not in tokens:
+        return False
+    if tokens & _ULTRA2_BLOCKED:
+        return False
+    return True
+
+
 def load_prices(path=None):
     """Catálogo de precios. Se indexa por device_id, por nombre normalizado y por alias."""
     raw = json.loads(Path(path or PRICES_PATH).read_text())
@@ -142,11 +177,15 @@ def load_prices(path=None):
             "checked_at": item.get("checked_at") or raw.get("checked_at"),
             "source": item.get("source") or (raw.get("source") or {}).get("file"),
         }
-        by_name[norm_name(name)] = offer
+        for key in {norm_name(name), flexible_norm(name)}:
+            if key:
+                by_name.setdefault(key, offer)
         if offer["device_id"]:
             by_id[offer["device_id"]] = offer
         for alias in item.get("aliases") or []:
-            by_alias[norm_name(alias)] = offer
+            for key in {norm_name(alias), flexible_norm(alias)}:
+                if key:
+                    by_alias.setdefault(key, offer)
     return {
         "version": raw.get("version"),
         "checked_at": raw.get("checked_at"),
@@ -160,24 +199,38 @@ def load_prices(path=None):
 
 
 def find_offer(prices, device_id, name):
-    """Oferta de un dispositivo y cómo se cruzó: id, nombre, alias o nombre sin marca.
+    """Oferta de un dispositivo y cómo se cruzó: id, nombre, alias, nombre sin marca o tokens.
 
-    Sin coincidencias aproximadas: «sin marca» solo vale si el nombre de la base es
-    exactamente el del catálogo sin su primera palabra (marca) y es único.
+    «Sin marca» solo vale si el nombre de la base es exactamente el del catálogo sin su
+    primera palabra (marca) y es único. El cruce por tokens («ultra» + «2») solo aplica
+    al Galaxy Watch Ultra 2 y no a otros Samsung ni a Apple/Ultrahuman.
     """
     by_name = prices.get("by_name") or {}
+    by_alias = prices.get("by_alias") or {}
     offer = (prices.get("by_id") or {}).get(str(device_id)) if device_id is not None else None
     if offer:
         return offer, "id"
-    key = norm_name(name)
-    if key in by_name:
-        return by_name[key], "nombre"
-    if key in (prices.get("by_alias") or {}):
-        return prices["by_alias"][key], "alias"
-    if key:
+    keys = [k for k in (norm_name(name), flexible_norm(name)) if k]
+    # Quitar duplicados conservando el orden.
+    keys = list(dict.fromkeys(keys))
+    for key in keys:
+        if key in by_name:
+            return by_name[key], "nombre"
+        if key in by_alias:
+            return by_alias[key], "alias"
+    for key in keys:
         candidates = [o for k, o in by_name.items() if " " in k and k.split(" ", 1)[1] == key]
-        if len(candidates) == 1:
-            return candidates[0], "nombre sin marca"
+        # únicos por identidad de oferta
+        uniq = []
+        for o in candidates:
+            if o not in uniq:
+                uniq.append(o)
+        if len(uniq) == 1:
+            return uniq[0], "nombre sin marca"
+    if looks_like_galaxy_watch_ultra_2(name):
+        ultra = by_name.get("samsung galaxy watch ultra 2")
+        if ultra:
+            return ultra, "tokens (ultra 2)"
     return None, None
 
 

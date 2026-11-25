@@ -27,6 +27,20 @@
       "source": "content/shop-offers/verified-offers.json"
     },
     {
+      "name": "Fitbit Edge",
+      "device_id": "6af99a9868c1040e4f7e7416",
+      "price": 179.0,
+      "shop": null,
+      "label": "Precio indicado por Ciprian",
+      "checked_at": "2026-11-25",
+      "source": "precio indicado por Ciprian, 25/11/2026",
+      "aliases": [
+        "Fitbit Edge",
+        "FitBit Edge",
+        "Google Fitbit Edge"
+      ]
+    },
+    {
       "name": "Garmin Cirqa",
       "device_id": "6a719a8f204f0816b65f89c1",
       "price": 199.99,
@@ -116,7 +130,18 @@
         "Galaxy Watch Ultra 2",
         "Samsung Galaxy Watch Ultra 2",
         "Galaxy Watch Ultra",
-        "Samsung Galaxy Watch Ultra"
+        "Samsung Galaxy Watch Ultra",
+        "Galaxy Ultra 2",
+        "Samsung Ultra 2",
+        "Watch Ultra 2",
+        "Samsung Galaxy Ultra 2",
+        "Galaxy Watch Ultra 2 LTE",
+        "Samsung Galaxy Watch Ultra 2 LTE",
+        "GalaxyWatchUltra2",
+        "Galaxy Watch Ultra2",
+        "Galaxy Watch Ultra (2025)",
+        "Samsung Galaxy Watch Ultra (2025)",
+        "Galaxy Watch Ultra 2 (2025)"
       ]
     }
   ]

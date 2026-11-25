@@ -171,7 +171,7 @@ class CatalogTests(unittest.TestCase):
             "Realme Watch 5", "Fitbit Air", "Garmin Cirqa", "Garmin Forerunner 70",
             "Garmin Forerunner 170", "Huawei Watch Fit 5 Pro", "Garmin Forerunner 265",
             "Ultrahuman Ring Air", "Samsung Galaxy Watch 9",
-            "Whoop", "Samsung Galaxy Watch Ultra 2",
+            "Whoop", "Samsung Galaxy Watch Ultra 2", "Fitbit Edge",
         }
         self.assertEqual(names, expected)
         self.assertEqual(prices["by_name"]["fitbit air"]["price"], 99.99)
@@ -180,6 +180,8 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(prices["by_name"]["samsung galaxy watch 9"]["price"], 389.0)
         self.assertEqual(prices["by_name"]["whoop"]["price"], 264.0)
         self.assertEqual(prices["by_name"]["samsung galaxy watch ultra 2"]["price"], 750.0)
+        self.assertEqual(prices["by_name"]["fitbit edge"]["price"], 179.0)
+        self.assertEqual(prices["by_id"]["6af99a9868c1040e4f7e7416"]["name"], "Fitbit Edge")
         self.assertTrue(PRICES_PATH.is_file())
         self.assertTrue(str(PRICES_PATH).endswith("backend/data/prices.json"))
 
@@ -188,7 +190,7 @@ class CatalogTests(unittest.TestCase):
         # Sin device_id local: el cruce es por nombre o alias.
         self.assertIsNone(prices["by_name"]["whoop"].get("device_id") or None)
         self.assertIsNone(prices["by_name"]["samsung galaxy watch ultra 2"].get("device_id") or None)
-        self.assertEqual(len(prices["by_id"]), 9)
+        self.assertEqual(len(prices["by_id"]), 10)
         whoop_aliases = [
             "Whoop", "WHOOP", "Whoop 5.0", "WHOOP 5.0", "WHOOP 5.0/MG", "Whoop 5.0/MG",
         ]
@@ -211,6 +213,59 @@ class CatalogTests(unittest.TestCase):
         # No hereda el precio del Watch 9 ni al revés.
         self.assertEqual(find_offer(prices, None, "Samsung Galaxy Watch 9")[0]["price"], 389.0)
         self.assertIsNone(find_offer(prices, None, "Galaxy Watch 8")[0])
+
+
+    def test_fitbit_edge_matches_local_id_and_aliases(self):
+        prices = load_prices(PRICES_PATH)
+        offer, how = find_offer(prices, "6af99a9868c1040e4f7e7416", "cualquier nombre")
+        self.assertEqual((offer["name"], offer["price"], how), ("Fitbit Edge", 179.0, "id"))
+        for alias in ("Fitbit Edge", "FitBit Edge", "Google Fitbit Edge"):
+            offer, how = find_offer(prices, None, alias)
+            self.assertEqual(offer["price"], 179.0, alias)
+            self.assertIn("ciprian", offer["source"].lower())
+
+    def test_ultra_2_token_fallback_does_not_match_other_samsungs(self):
+        prices = load_prices(PRICES_PATH)
+        # Variantes que no están (o no tienen por qué estar) como alias exacto: tokens «ultra» + «2».
+        token_names = [
+            "Ultra 2",
+            "el Ultra 2 negro",
+            "GW Ultra 2",
+            "Galaxy Watch Ultra 2 BT 47 mm",
+            "SAMSUNG ultra-2",
+        ]
+        for name in token_names:
+            offer, how = find_offer(prices, None, name)
+            self.assertIsNotNone(offer, name)
+            self.assertEqual(offer["name"], "Samsung Galaxy Watch Ultra 2", name)
+            self.assertEqual(offer["price"], 750.0, name)
+            self.assertIn(how, {"alias", "nombre", "nombre sin marca", "tokens (ultra 2)"}, (name, how))
+        # Estas no están en la lista de alias; deben entrar por tokens.
+        offer, how = find_offer(prices, None, "el Ultra 2 negro")
+        self.assertEqual(how, "tokens (ultra 2)")
+        offer, how = find_offer(prices, None, "GalaxyWatchUltra2")
+        self.assertEqual(offer["price"], 750.0)
+        # Compacto, sin espacio delante del 2.
+        offer, _ = find_offer(prices, None, "Galaxy Watch Ultra2")
+        self.assertEqual(offer["price"], 750.0)
+        # Alias pedidos explícitamente.
+        for alias in (
+            "Galaxy Ultra 2", "Samsung Ultra 2", "Watch Ultra 2",
+            "Samsung Galaxy Ultra 2", "Galaxy Watch Ultra 2 LTE",
+            "Galaxy Watch Ultra (2025)",
+        ):
+            offer, how = find_offer(prices, None, alias)
+            self.assertEqual(offer["price"], 750.0, (alias, how))
+        # No deben heredar el precio: Watch 9, Ultrahuman, Apple, Ultra de 1.ª gen sin 2
+        # (la 1.ª gen «Galaxy Watch Ultra» sí coincide por alias, a propósito).
+        self.assertEqual(find_offer(prices, None, "Samsung Galaxy Watch 9")[0]["price"], 389.0)
+        self.assertEqual(find_offer(prices, None, "Galaxy Watch 9")[0]["name"], "Samsung Galaxy Watch 9")
+        self.assertEqual(find_offer(prices, None, "Ultrahuman Ring Air")[0]["name"], "Ultrahuman Ring Air")
+        self.assertIsNone(find_offer(prices, None, "Apple Watch Ultra 2")[0])
+        self.assertIsNone(find_offer(prices, None, "Apple Watch Ultra")[0])
+        self.assertIsNone(find_offer(prices, None, "Watch 9")[0] if find_offer(prices, None, "Watch 9")[0] and find_offer(prices, None, "Watch 9")[0]["name"] == "Samsung Galaxy Watch Ultra 2" else None)
+        # «Galaxy Watch Ultra» (sin 2) sigue yendo por alias al Ultra 2, como en el catálogo.
+        self.assertEqual(find_offer(prices, None, "Galaxy Watch Ultra")[0]["price"], 750.0)
 
 
 class NameMatchingTests(unittest.TestCase):
@@ -257,7 +312,7 @@ class NameMatchingTests(unittest.TestCase):
 
     def test_prices_json_ids_match_verified_offers(self):
         prices = load_prices(PRICES_PATH)
-        self.assertEqual(len(prices["by_id"]), 9)
+        self.assertEqual(len(prices["by_id"]), 10)
         self.assertEqual(prices["by_id"]["6a25a8ce3216ad99131e0c1b"]["name"], "Fitbit Air")
         # El Biceps (excluido) no hereda el precio del Fitbit Air.
         self.assertIsNone(prices["by_id"].get("6a8ecc59e39b7e25dfc44ef3"))
