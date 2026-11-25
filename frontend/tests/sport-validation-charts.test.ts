@@ -1,7 +1,7 @@
 import { BRAND_COLORS, DEVICE_COLOR, REFERENCE_COLOR, pointLabelsPlugin } from '../src/app/pages/night-validation/night-validation-charts';
 import {
-  FEW_SESSIONS, SPORT_LABELS, byMae, fewSessions, sessionCurve, sessionDate, sessionLabel, sessionMeansChart,
-  sessionsBreakdown, sportLeaderboard, sportScatter,
+  FEW_SESSIONS, SPORT_LABELS, byMae, fewSessions, headGroup, medianMae, sessionCurve, sessionDate, sessionLabel, sessionMeansChart,
+  sessionsBreakdown, sportLeaderboard, sportLeaderboards, sportScatter,
 } from '../src/app/pages/sport-validation/sport-validation-charts';
 import type { SportValidationDevice } from '../src/app/models/sport-validation.model';
 
@@ -30,9 +30,14 @@ test('etiquetas en castellano y umbral de pocas sesiones', () => {
   assert(FEW_SESSIONS === 5 && fewSessions(dev('a', 1, 1, 4)) && !fewSessions(dev('a', 1, 1, 5)), 'few');
 });
 
-test('orden por MAE', () => {
+test('orden por MAE y grupo de cabeza (MAE ≤ 2 × mediana)', () => {
   assert(byMae([dev('b', 2, 0.9), dev('a', 1, 0.9), dev('x', null, 0.9)]).map(d => d.name).join() === 'a,b', 'byMae');
   assert(byMae(running)[0].name === 'Garmin Forerunner 170' && byMae(running).length === 9, 'running order');
+  assert(medianMae(running) === 1.51, String(medianMae(running)));
+  const head = headGroup(running);
+  assert(Math.abs((head.limit as number) - 3.02) < 1e-9 && head.devices.length === 7, JSON.stringify(head.limit));
+  assert(!head.devices.some(d => d.name.startsWith('Ultrahuman') || d.name.startsWith('Realme')), 'outliers out');
+  assert(medianMae([]) === null && headGroup([]).devices.length === 0, 'empty');
 });
 
 test('clasificación: un dataset por marca, colores aprobados y MAE invertido', () => {
@@ -47,13 +52,27 @@ test('clasificación: un dataset por marca, colores aprobados y MAE invertido', 
   assert(garmin.pointLabels.includes('Garmin Forerunner 70 ⚠') && garmin.pointLabels.includes('Garmin Cirqa'), 'few marker');
 });
 
-test('todos los dispositivos con nombre, sin recuadro ni zoom, etiquetas dentro del área', () => {
+test('todos los dispositivos con nombre, sin recuadro, etiquetas dentro del área', () => {
   const c = sportLeaderboard(running);
   const labels = c.data.datasets.flatMap((d: any) => d.pointLabels);
   assert(labels.length === 9 && labels.every((l: string) => !!l), JSON.stringify(labels));
   assert(labels.includes('Fitbit Air') && labels.includes('Garmin Forerunner 170 ⚠') && labels.includes('Realme Watch 5 ⚠'), 'names');
   assert(c.options.plugins.nvPointLabels.inside === true, 'inside');
   assert(!('svClusterBox' in c.options.plugins) && !JSON.stringify(c.options).includes('detalle'), 'no cluster box');
+});
+
+test('zoom del grupo de cabeza: todos con nombre, recuadro no vuelve', () => {
+  const b = sportLeaderboards(running);
+  assert(b.zoom !== null && b.head.length === 7 && Math.abs((b.limit as number) - 3.02) < 1e-9, 'zoom');
+  const allLabels = b.all.data.datasets.flatMap((d: any) => d.pointLabels);
+  const zoomLabels = b.zoom!.data.datasets.flatMap((d: any) => d.pointLabels);
+  assert(allLabels.length === 9 && allLabels.every((l: string) => !!l) && allLabels.includes('Realme Watch 5 ⚠'), 'main names everyone');
+  assert(zoomLabels.length === 7 && zoomLabels.every((l: string) => !!l) && zoomLabels.includes('Garmin Forerunner 170 ⚠'), 'zoom names');
+  assert(!zoomLabels.some((l: string) => l.startsWith('Ultrahuman') || l.startsWith('Realme')), 'outliers not in zoom');
+  assert(!('svClusterBox' in b.all.options.plugins) && !JSON.stringify(b.all.options).includes('detalle'), 'no box on main');
+  assert(!JSON.stringify(b.zoom!.options).includes('detalle'), 'no box on zoom');
+  const tight = sportLeaderboards([dev('Garmin A', 1, 0.99), dev('Fitbit B', 1.2, 0.98)]);
+  assert(tight.zoom === null, 'no zoom when nobody is out');
 });
 
 test('con la opción inside, las etiquetas solapadas no salen del área', () => {

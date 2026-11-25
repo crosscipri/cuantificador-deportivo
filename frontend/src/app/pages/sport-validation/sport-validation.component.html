@@ -35,11 +35,18 @@
 
       <div class="nv-state" *ngIf="!ranking.length">No hay sesiones de {{ labels[sport].toLowerCase() }}.</div>
 
-      <ng-container *ngIf="board as b">
+      <ng-container *ngIf="boards as b">
+        <div class="nv-grid" [class.two]="b.zoom">
         <div class="nv-card">
           <h3>{{ labels[sport] }}: MAE frente a correlación</h3>
           <p class="nv-sub">Todos los dispositivos. Mejor rendimiento arriba a la derecha.</p>
-          <div class="nv-canvas sv-board"><canvas baseChart [type]="'scatter'" [data]="b.data" [options]="b.options" [plugins]="labelPlugins"></canvas></div>
+          <div class="nv-canvas" [class.tall]="b.zoom" [class.sv-board]="!b.zoom"><canvas baseChart [type]="'scatter'" [data]="b.all.data" [options]="b.all.options" [plugins]="labelPlugins"></canvas></div>
+        </div>
+        <div class="nv-card" *ngIf="b.zoom as z">
+          <h3>{{ labels[sport] }}: zona ampliada de los más precisos</h3>
+          <p class="nv-sub">Los {{ b.head.length }} dispositivos con MAE ≤ 2 × la mediana ({{ fmt(b.limit, 1) }} bpm). Mejor rendimiento arriba a la derecha.</p>
+          <div class="nv-canvas tall"><canvas baseChart [type]="'scatter'" [data]="z.data" [options]="z.options" [plugins]="labelPlugins"></canvas></div>
+        </div>
         </div>
         <div class="sv-warn" *ngIf="few.length">
           <b>⚠ Pocas sesiones</b> (menos de {{ fewLimit }} en {{ labels[sport].toLowerCase() }}): {{ fewText(few) }}.
@@ -115,16 +122,23 @@
       </section>
     </ng-container>
 
-    <section class="nv-section" id="sv-combined" *ngIf="combinedBoard as b">
+    <section class="nv-section" id="sv-combined" *ngIf="combinedBoards as b">
       <div class="section-head">
         <span class="section-num">5</span>
         <div><h2>Los 3 deportes combinados</h2>
           <p class="section-note">Todos los segundos de carrera, fuerza y ciclismo juntos, con el mismo cálculo. Un punto por dispositivo; mejor rendimiento arriba a la derecha.</p></div>
       </div>
+      <div class="nv-grid" [class.two]="b.zoom">
       <div class="nv-card">
         <h3>Los 3 deportes combinados: MAE frente a correlación</h3>
         <p class="nv-sub">Todos los dispositivos. Mejor rendimiento arriba a la derecha.</p>
-        <div class="nv-canvas sv-board"><canvas baseChart [type]="'scatter'" [data]="b.data" [options]="b.options" [plugins]="labelPlugins"></canvas></div>
+        <div class="nv-canvas" [class.tall]="b.zoom" [class.sv-board]="!b.zoom"><canvas baseChart [type]="'scatter'" [data]="b.all.data" [options]="b.all.options" [plugins]="labelPlugins"></canvas></div>
+      </div>
+      <div class="nv-card" *ngIf="b.zoom as z">
+        <h3>Los 3 deportes combinados: zona ampliada de los más precisos</h3>
+        <p class="nv-sub">Los {{ b.head.length }} dispositivos con MAE ≤ 2 × la mediana ({{ fmt(b.limit, 1) }} bpm). Mejor rendimiento arriba a la derecha.</p>
+        <div class="nv-canvas tall"><canvas baseChart [type]="'scatter'" [data]="z.data" [options]="z.options" [plugins]="labelPlugins"></canvas></div>
+      </div>
       </div>
       <div class="sv-warn" *ngIf="combinedFew.length">
         <b>⚠ Pocas sesiones</b> (menos de {{ fewLimit }} en total): {{ fewText(combinedFew) }}.

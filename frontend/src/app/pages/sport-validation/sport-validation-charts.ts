@@ -13,12 +13,27 @@ export const SPORTS: SportKey[] = ['running', 'gym', 'cycling'];
 export const SPORT_LABELS: Record<SportViewKey, string> = {
   running: 'Carrera', gym: 'Fuerza', cycling: 'Ciclismo', combined: 'Los 3 deportes combinados',
 };
+export const HEAD_FACTOR = 2;
 
 export const fewSessions = (d: SportValidationDevice) => d.sessions < FEW_SESSIONS;
 export const withStats = (list: SportValidationDevice[]) => list.filter(d => d.mae != null && d.r != null);
 
 export function byMae(list: SportValidationDevice[]): SportValidationDevice[] {
   return [...withStats(list)].sort((a, b) => (a.mae as number) - (b.mae as number) || a.name.localeCompare(b.name, 'es'));
+}
+
+/** Mediana de los MAE (con número par, el valor superior del centro, como en la maqueta). */
+export function medianMae(list: SportValidationDevice[]): number | null {
+  const v = withStats(list).map(d => d.mae as number).sort((a, b) => a - b);
+  return v.length ? v[Math.floor(v.length / 2)] : null;
+}
+
+/** Grupo de cabeza: MAE ≤ 2 × la mediana. */
+export function headGroup(list: SportValidationDevice[]): { limit: number | null; devices: SportValidationDevice[] } {
+  const med = medianMae(list);
+  if (med == null) return { limit: null, devices: [] };
+  const limit = HEAD_FACTOR * med;
+  return { limit, devices: byMae(list).filter(d => (d.mae as number) <= limit) };
 }
 
 const label = (d: SportValidationDevice) => d.name + (fewSessions(d) ? ' ⚠' : '');
@@ -53,6 +68,22 @@ export function sportLeaderboard(list: SportValidationDevice[]): { data: any; op
         y: axis('FC: correlación / r', { type: 'linear', grace: '6%', max: 1 }),
       },
     },
+  };
+}
+
+/**
+ * Gráfica de todos los dispositivos (con todos los nombres, sin recuadro) y, si hace falta,
+ * un zoom del grupo de cabeza (MAE ≤ 2 × la mediana), también con todos sus nombres.
+ */
+export function sportLeaderboards(list: SportValidationDevice[]) {
+  const head = headGroup(list);
+  const all = withStats(list);
+  const zoomUseful = head.devices.length >= 2 && head.devices.length < all.length;
+  return {
+    limit: head.limit,
+    head: head.devices,
+    all: sportLeaderboard(all),
+    zoom: zoomUseful ? sportLeaderboard(head.devices) : null,
   };
 }
 

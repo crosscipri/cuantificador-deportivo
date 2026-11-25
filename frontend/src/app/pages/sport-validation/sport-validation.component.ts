@@ -7,10 +7,11 @@ import { SportKey, SportValidationDevice, SportValidationResponse } from '../../
 import { fmt, pointLabelsPlugin, statBoxPlugin } from '../night-validation/night-validation-charts';
 import {
   FEW_SESSIONS, SPORTS, SPORT_LABELS, byMae, fewSessions, sessionCurve, sessionLabel, sessionMeansChart,
-  sessionsBreakdown, sportLeaderboard, sportScatter,
+  sessionsBreakdown, sportLeaderboards, sportScatter,
 } from './sport-validation-charts';
 
 interface Chart { data: any; options: any; }
+interface LeaderboardView { limit: number | null; head: SportValidationDevice[]; all: Chart; zoom: Chart | null; }
 /** Tarjeta por dispositivo (dispersión o medias por sesión). */
 interface DeviceCard { device: SportValidationDevice; title: string; subtitle: string; few: boolean; chart: Chart; }
 /** Curva de una sesión con selector de sesión, como la curva de la noche. */
@@ -39,13 +40,13 @@ export class SportValidationComponent implements OnInit {
 
   sport: SportKey = 'running';
   ranking: SportValidationDevice[] = [];
-  board: Chart | null = null;
+  boards: LeaderboardView | null = null;
   scatters: DeviceCard[] = [];
   means: DeviceCard[] = [];
   curves: CurveCard[] = [];
 
   combinedRanking: SportValidationDevice[] = [];
-  combinedBoard: Chart | null = null;
+  combinedBoards: LeaderboardView | null = null;
   combinedScatters: DeviceCard[] = [];
   combinedMeans: DeviceCard[] = [];
 
@@ -56,7 +57,7 @@ export class SportValidationComponent implements OnInit {
       next: res => {
         this.response = res;
         this.combinedRanking = byMae(res.sports.combined ?? []);
-        this.combinedBoard = this.combinedRanking.length ? sportLeaderboard(this.combinedRanking) : null;
+        this.combinedBoards = this.combinedRanking.length ? sportLeaderboards(this.combinedRanking) : null;
         this.combinedScatters = this.scatterCards(this.combinedRanking, SPORT_LABELS.combined);
         this.combinedMeans = this.meanCards(this.combinedRanking, SPORT_LABELS.combined);
         this.selectSport(this.sport);
@@ -78,7 +79,7 @@ export class SportValidationComponent implements OnInit {
     this.sport = sport;
     const list = this.response?.sports[sport] ?? [];
     this.ranking = byMae(list);
-    this.board = this.ranking.length ? sportLeaderboard(this.ranking) : null;
+    this.boards = this.ranking.length ? sportLeaderboards(this.ranking) : null;
     const label = SPORT_LABELS[sport];
     this.scatters = this.scatterCards(this.ranking, label);
     this.means = this.meanCards(this.ranking, label);
