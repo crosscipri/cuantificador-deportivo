@@ -1,0 +1,24 @@
+{
+  "articles": [
+    {
+      "slug": "mejores-mascarillas-led-faciales-amazon-2026",
+      "public_path": "/articulos/mejores-mascarillas-led-faciales-amazon-2026/",
+      "canonical": "https://elcuantificador.com/articulos/mejores-mascarillas-led-faciales-amazon-2026/",
+      "title": "Mejores mascarillas LED faciales en Amazon España (2026)",
+      "seo_title": "Mascarillas LED en Amazon España 2026: ranking calidad-precio",
+      "seo_description": "Nanoleaf lidera (77,5 puntos, 99,99 €) el ranking de mascarillas LED en Amazon.es con notas de Alex Fergus. Dosis, longitudes de onda y límites.",
+      "summary": "Ranking calidad-precio de las mascarillas LED con nota de Alex Fergus que se venden en amazon.es. La Nanoleaf (77,5 y 99,99 €) queda primera. Precio consultado el 25/11/2026.",
+      "article_kind": "guide",
+      "published_at": "2026-11-25",
+      "updated_at": "2026-11-25",
+      "source": "content/articles/mejores-mascarillas-led-faciales-amazon-2026.json",
+      "charts": [
+        "/images/articulos/mascarillas-led-2026/nota-precio.svg",
+        "/images/articulos/mascarillas-led-2026/dosis.svg",
+        "/images/articulos/mascarillas-led-2026/espectro.svg",
+        "/images/articulos/mascarillas-led-2026/esquema-pbm.svg",
+        "/images/articulos/mascarillas-led-2026/portada.svg"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,495 @@
+{
+  "schema_version": 1,
+  "content_type": "article",
+  "article_kind": "guide",
+  "public_path": "/articulos/mejores-mascarillas-led-faciales-amazon-2026/",
+  "published_at": "2026-11-25",
+  "first_published_at": "2026-11-25",
+  "updated_at": "2026-11-25",
+  "faq": [
+    {
+      "name": "¿Cuál compensa más en Amazon España?",
+      "text": "La Nanoleaf LED Facial Therapy Mask: 77,5/100 y 99,99 € el 25/11/2026, con 6,5 J/cm² en 10 minutos. Es la primera del índice nota/precio. La oferta citada termina el 30/11/2026."
+    },
+    {
+      "name": "¿Más minutos o más potencia es mejor?",
+      "text": "No. La dosis tiene un tramo útil y, por encima, la respuesta puede empeorar: es el efecto bifásico que revisan Huang y colegas (2009). Fergus usa unos 5–9 J/cm² como zona de comparación en estas mascarillas. No es una receta clínica."
+    },
+    {
+      "name": "¿Una nota de 77,5 significa que quita arrugas?",
+      "text": "No. La nota es la de la review de Alex Fergus sobre esa mascarilla. No es un ensayo clínico nuestro ni un porcentaje de mejora en la piel."
+    },
+    {
+      "name": "¿Por qué la Foreo FAQ 202 está como no recomendada?",
+      "text": "Porque Fergus le pone 41,5/100, la peor de este grupo, con una salida muy baja y sin infrarrojo cercano aprovechable. No hay dosis que citar. Además costaba 503,40 € (PVP 839 €) el 25/11/2026."
+    },
+    {
+      "name": "¿Y la LumaLux V2 o la MitoGlow, que tienen más nota?",
+      "text": "Fergus publica 80 para la LumaLux Face V2 y 78 para la MitoGlow. No están en Amazon España, así que no entran en un ranking de amazon.es. La LumaLux de esta página es la Face Pro, no la V2."
+    },
+    {
+      "name": "¿El azul y el verde de la Nanoleaf cuentan como luz roja?",
+      "text": "No. La evidencia de fotobiomodulación en piel se concentra en el rojo (unos 630–660 nm) y el infrarrojo cercano (unos 810–850 nm). El azul se ha estudiado aparte y el verde tiene mucho menos respaldo. No suman al índice."
+    },
+    {
+      "name": "¿Los enlaces son de afiliado?",
+      "text": "Sí. Apuntan a amazon.es con la etiqueta elcuantificad-21. Si compras, el proyecto puede recibir una comisión sin coste añadido para ti. Esa comisión no cambia el orden del ranking."
+    }
+  ],
+  "article": {
+    "schema_version": 1,
+    "title": "Mejores mascarillas LED faciales en Amazon España (2026)",
+    "slug": "mejores-mascarillas-led-faciales-amazon-2026",
+    "summary": "Ranking calidad-precio de las mascarillas LED con nota de Alex Fergus que se venden en amazon.es. La Nanoleaf (77,5 y 99,99 €) queda primera. Precio consultado el 25/11/2026.",
+    "author": "Cipri",
+    "cover": {
+      "media_id": "",
+      "path": "/images/articulos/mascarillas-led-2026/portada.svg",
+      "alt": "Gráfico editorial del ranking: nota de Alex Fergus frente al precio en Amazon.es el 25/11/2026. No es una foto de las mascarillas.",
+      "caption": "Gráfico del ranking, no una fotografía de producto.",
+      "width": 1200,
+      "height": 750
+    },
+    "youtube": "",
+    "categories": [
+      "Luz roja",
+      "Cuidado de la piel"
+    ],
+    "tags": [
+      "Mascarilla LED",
+      "Amazon",
+      "Fotobiomodulación",
+      "Calidad-precio"
+    ],
+    "blocks": [
+      {
+        "id": "intro-1",
+        "type": "text",
+        "html": "<p>Este ranking ordena las mascarillas LED faciales que, a 25 de noviembre de 2026, tienen ficha en amazon.es y nota publicada por Alex Fergus en Light Therapy Insiders. El Cuantificador mide relojes y pulseras frente a una banda de pecho; estas mascarillas no las hemos medido nosotros. Las notas, las longitudes de onda y las dosis salen de esas reviews, enlazadas una a una. Los precios salen de amazon.es. Precio consultado el 25/11/2026: puede cambiar, y la oferta de la Nanoleaf termina el 30/11/2026.</p><p>No es un tratamiento ni una promesa de resultado en la piel. La nota es la que publica Fergus; aquí no la convertimos en un porcentaje de arrugas menos. La fotobiomodulación tiene literatura, y también límites: los citamos abajo.</p>"
+      },
+      {
+        "id": "metodo-h",
+        "type": "heading",
+        "text": "Cómo se calcula el índice calidad-precio",
+        "level": 2
+      },
+      {
+        "id": "metodo-1",
+        "type": "text",
+        "html": "<p>El índice es la nota de Fergus (sobre 100) dividida por el precio en euros y multiplicada por 100. Son puntos de nota por cada 100 €. A igual nota, queda delante la más barata. Redondeamos el índice a dos decimales. No entra la comisión de afiliado, ni el PVP tachado, ni una opinión de confort que no esté en la review.</p><p>La Nanoleaf, la INIA Glow y la LumaLux Face Pro empatan a 77,5. El precio las separa: 99,99 €, 169,99 € y 439,00 €. Por eso la Nanoleaf es la recomendada de este listado, no porque la nota sea más alta.</p><p>Quedan fuera, a propósito, dos modelos con más nota en Fergus y sin ficha en Amazon España: la LumaLux Face V2 (80/100; no es la Face Pro de este ranking) y la MitoGlow (78/100). Sin precio contrastado en amazon.es no entran en el índice.</p>"
+      },
+      {
+        "id": "ranking-h",
+        "type": "heading",
+        "text": "Ranking calidad-precio en Amazon.es",
+        "level": 2
+      },
+      {
+        "id": "table-ranking",
+        "type": "table",
+        "title": "Índice calidad-precio con precio consultado el 25/11/2026",
+        "table_origin": "editorial",
+        "rows": [
+          [
+            "Puesto",
+            "Mascarilla",
+            "Nota Fergus",
+            "Precio 25/11/2026",
+            "Índice (nota / € × 100)",
+            "Dosis por sesión",
+            "Lectura"
+          ],
+          [
+            "1",
+            "Nanoleaf",
+            "77,5/100",
+            "99,99 €",
+            "77,51",
+            "6,5 J/cm² en 10 min",
+            "Recomendada"
+          ],
+          [
+            "2",
+            "INIA Glow",
+            "77,5/100",
+            "169,99 €",
+            "45,59",
+            "10,8 J/cm² en 10 min",
+            "Alternativa"
+          ],
+          [
+            "3",
+            "LumaLux Face Pro",
+            "77,5/100",
+            "439,00 €",
+            "17,65",
+            "3,8 J/cm² en 3 min (sesión por defecto)",
+            "Alternativa"
+          ],
+          [
+            "4",
+            "CurrentBody Series 2",
+            "68,5/100",
+            "449,99 €",
+            "15,22",
+            "11,2 J/cm² en 10 min",
+            "Alternativa"
+          ],
+          [
+            "5",
+            "Omnilux Contour",
+            "60,5/100",
+            "419,00 €",
+            "14,44",
+            "16 J/cm² en 10 min",
+            "Alternativa"
+          ],
+          [
+            "6",
+            "Foreo FAQ 202",
+            "41,5/100",
+            "503,40 €",
+            "8,24",
+            "Sin dato",
+            "No recomendada"
+          ]
+        ]
+      },
+      {
+        "id": "ranking-nota",
+        "type": "text",
+        "html": "<p>Precio consultado el 25/11/2026. La columna de dosis es la de la sesión que publica cada review (10 minutos, o 3 minutos en la LumaLux Face Pro). La Foreo FAQ 202 no tiene dosis utilizable: no ponemos un cero.</p><figure><img src=\"/images/articulos/mascarillas-led-2026/nota-precio.svg\" alt=\"Gráfico de dispersión: nota de Alex Fergus frente al precio en euros. La Nanoleaf queda arriba a la izquierda, con 77,5 puntos y 99,99 euros.\" width=\"880\" height=\"540\"><figcaption>Nota de Fergus frente al precio del 25/11/2026. Arriba y a la izquierda es mejor relación nota/precio. La Foreo queda abajo y a la derecha.</figcaption></figure>"
+      },
+      {
+        "id": "reco-h",
+        "type": "heading",
+        "text": "La recomendada: Nanoleaf",
+        "level": 2
+      },
+      {
+        "id": "reco-1",
+        "type": "text",
+        "html": "<p>Con 77,5/100 y 99,99 € (PVP 149,99 €, oferta Black Friday hasta el 30/11/2026) la Nanoleaf suma el índice más alto, 77,51. La sesión de 10 minutos entrega 6,5 J/cm², dentro de la zona de unos 5–9 J/cm² que Fergus usa al reseñar mascarillas. Roja a 639 nm e infrarrojo cercano a 848 nm: las dos ventanas con más literatura. Además trae azul a 460 nm y verde a 518 nm.</p><p>Los peros están en la review y conviene leerlos antes de comprarla: Correa, poca cobertura en labios, mandíbula y barbilla, y el infrarrojo cercano no se puede apagar. Si te importa tratar solo con rojo, esta mascarilla no deja apagar el infrarrojo cercano.</p><p><a href=\"https://www.lighttherapyinsiders.com/nanoleaf-light-therapy-mask-review-best-under-300/\" target=\"_blank\" rel=\"noopener noreferrer\">review de Nanoleaf en Light Therapy Insiders</a>. <a href=\"https://www.amazon.es/dp/B0DQSK8Y52?tag=elcuantificad-21\" target=\"_blank\" rel=\"sponsored nofollow noopener noreferrer\">Nanoleaf LED Facial Therapy Mask en Amazon.es</a>.</p>"
+      },
+      {
+        "id": "fichas-h",
+        "type": "heading",
+        "text": "El resto, de mejor a peor índice",
+        "level": 2
+      },
+      {
+        "id": "ficha-inia-h",
+        "type": "heading",
+        "text": "INIA Glow",
+        "level": 3
+      },
+      {
+        "id": "ficha-inia",
+        "type": "text",
+        "html": "<p>Nota 77,5/100. 10,8 J/cm² en 10 min. Longitudes: 630 nm (roja), 660 nm (roja), 850 nm (NIR), 940 nm (NIR). Precio: 169,99 € el 25/11/2026, PVP 199,99 €. Pesada e incómoda, según la review.</p><p><a href=\"https://www.lighttherapyinsiders.com/inia-glow-4d-review-great-red-light-mask-but-one-big-problem/\" target=\"_blank\" rel=\"noopener noreferrer\">review de INIA Glow en Light Therapy Insiders</a>. Ficha: <a href=\"https://www.amazon.es/dp/B0GFNT1252?tag=elcuantificad-21\" target=\"_blank\" rel=\"sponsored nofollow noopener noreferrer\">ver INIA Glow en Amazon.es</a> (ASIN B0GFNT1252).</p>"
+      },
+      {
+        "id": "ficha-lumalux-h",
+        "type": "heading",
+        "text": "LumaLux Face Pro",
+        "level": 3
+      },
+      {
+        "id": "ficha-lumalux",
+        "type": "text",
+        "html": "<p>Nota 77,5/100. 3,8 J/cm² en 3 min (sesión por defecto). Longitudes: 630 nm (roja), 850 nm (NIR), 1070 nm (NIR). Precio: 439,00 € el 25/11/2026, No es la LumaLux Face V2. La sesión por defecto se queda por debajo de la zona de 5–9 J/cm². Hay algo de 1.070 nm, fuera de la ventana de 810–850 nm.</p><p>Los 1.070 nm aparecen como un componente menor. No los tratamos como si fueran la ventana de 810–850 nm, que es donde hay más literatura de fotobiomodulación en piel.</p><p><a href=\"https://www.lighttherapyinsiders.com/lumalux-pro-led-mask-project-es-led-mask-reviewed/\" target=\"_blank\" rel=\"noopener noreferrer\">review de LumaLux Face Pro en Light Therapy Insiders</a>. Ficha: <a href=\"https://www.amazon.es/dp/B0DLK4HWCV?tag=elcuantificad-21\" target=\"_blank\" rel=\"sponsored nofollow noopener noreferrer\">ver LumaLux Face Pro en Amazon.es</a> (ASIN B0DLK4HWCV).</p>"
+      },
+      {
+        "id": "ficha-currentbody-h",
+        "type": "heading",
+        "text": "CurrentBody Series 2",
+        "level": 3
+      },
+      {
+        "id": "ficha-currentbody",
+        "type": "text",
+        "html": "<p>Nota 68,5/100. 11,2 J/cm² en 10 min. Longitudes: 630 nm (roja), 830 nm (NIR), 1072 nm (NIR). Precio: 449,99 € el 25/11/2026. Irradiancia medida de 18,5 mW/cm² frente a 30 mW/cm² anunciados.</p><p>18,5 mW/cm² durante 600 s son 11,1 J/cm². Cuadra, dentro del redondeo, con los 11,2 J/cm² de la review. La ficha anuncia 30 mW/cm²: la cifra que ordena este artículo es la medida, no el anuncio.</p><p><a href=\"https://www.lighttherapyinsiders.com/currentbody-series-2-ledmask-review/\" target=\"_blank\" rel=\"noopener noreferrer\">review de CurrentBody Series 2 en Light Therapy Insiders</a>. Ficha: <a href=\"https://www.amazon.es/dp/B0DHRW819R?tag=elcuantificad-21\" target=\"_blank\" rel=\"sponsored nofollow noopener noreferrer\">ver CurrentBody Series 2 en Amazon.es</a> (ASIN B0DHRW819R).</p>"
+      },
+      {
+        "id": "ficha-omnilux-h",
+        "type": "heading",
+        "text": "Omnilux Contour",
+        "level": 3
+      },
+      {
+        "id": "ficha-omnilux",
+        "type": "text",
+        "html": "<p>Nota 60,5/100. 16 J/cm² en 10 min. Longitudes: 630 nm (roja), 830 nm (NIR). Precio: 419,00 € el 25/11/2026, Vendedor externo. Dosis alta para 10 min; la review sugiere 6–7 min. La ficha de Amazon.es es de un vendedor externo.</p><p>Con 16 J/cm² en 10 min, 6 min equivalen a unos 9,6 J/cm² y 7 min a unos 11,2 J/cm². Es aritmética sobre la dosis publicada, no un protocolo. La propia review ya sugiere acortar a 6–7 min, y aun así esa franja queda en el borde alto o por encima de los 5–9 J/cm² que Fergus toma como zona útil.</p><p><a href=\"https://www.lighttherapyinsiders.com/2025-omnilux-contour-mask-review/\" target=\"_blank\" rel=\"noopener noreferrer\">review de Omnilux Contour en Light Therapy Insiders</a>. Ficha: <a href=\"https://www.amazon.es/dp/B08NCGWVPY?tag=elcuantificad-21\" target=\"_blank\" rel=\"sponsored nofollow noopener noreferrer\">ver Omnilux Contour en Amazon.es</a> (ASIN B08NCGWVPY).</p>"
+      },
+      {
+        "id": "ficha-foreo-h",
+        "type": "heading",
+        "text": "Foreo FAQ 202: no recomendada",
+        "level": 3
+      },
+      {
+        "id": "ficha-foreo",
+        "type": "text",
+        "html": "<p>No recomendada. Nota 41,5/100. Sin dato. Longitudes: sin longitud de onda aprovechable en los datos usados. Precio: 503,40 € el 25/11/2026, PVP 839,00 €. La peor nota del grupo: salida muy baja y sin infrarrojo cercano aprovechable. No recomendada.</p><p><a href=\"https://www.lighttherapyinsiders.com/foreo-faq-202-led-mask-review/\" target=\"_blank\" rel=\"noopener noreferrer\">review de Foreo FAQ 202 en Light Therapy Insiders</a>. Ficha: <a href=\"https://www.amazon.es/dp/B0BY982DFD?tag=elcuantificad-21\" target=\"_blank\" rel=\"sponsored nofollow noopener noreferrer\">ver Foreo FAQ 202 en Amazon.es</a> (ASIN B0BY982DFD).</p>"
+      },
+      {
+        "id": "dosis-h",
+        "type": "heading",
+        "text": "Dosis: qué es un J/cm² y por qué más no es mejor",
+        "level": 2
+      },
+      {
+        "id": "dosis-1",
+        "type": "text",
+        "html": "<p>La irradiancia es la potencia por superficie, en mW/cm². La dosis, o fluencia, es esa irradiancia por el tiempo. En julios: mW/cm² × segundos / 1.000 = J/cm². Diez minutos son 600 segundos. Por eso una mascarilla puede anunciar muchos milivatios y, si la sesión es corta o la medida real es más baja, entregar poca energía.</p><p>Fergus marca una zona útil de unos 5–9 J/cm² por sesión al comparar estas mascarillas. No es un umbral clínico universal. La ventana depende del tejido, de la longitud de onda y de la irradiancia. Lo que sí está descrito es un efecto bifásico: por debajo de cierto nivel no se observa respuesta y, por encima, la respuesta puede dejar de subir o invertirse. Huang, Chen, Carroll y Hamblin lo revisan en <a href=\"https://doi.org/10.2203/dose-response.09-027.Hamblin\" target=\"_blank\" rel=\"noopener noreferrer\">Dose-Response (2009)</a>. Alargar la sesión «por si acaso» no es una forma rigurosa de mejorar el resultado.</p><figure><img src=\"/images/articulos/mascarillas-led-2026/dosis.svg\" alt=\"Barras de dosis en julios por centímetro cuadrado. Una banda marca la zona de 5 a 9. La Nanoleaf cae dentro; INIA, CurrentBody y Omnilux quedan por encima; LumaLux Face Pro, por debajo; Foreo, sin dato.\" width=\"880\" height=\"460\"><figcaption>Dosis de la sesión publicada. La banda es la zona de unos 5–9 J/cm² que usa Fergus, no una prescripción. La Foreo no tiene dosis: no se dibuja una barra en cero.</figcaption></figure><p>La Nanoleaf (6,5) cae dentro. La LumaLux Face Pro se queda en 3,8 J/cm² porque la sesión por defecto dura 3 minutos; no tenemos otra dosis medida, así que no inventamos un tiempo más largo. INIA (10,8), CurrentBody (11,2) y Omnilux (16) superan esa zona en la sesión de 10 minutos. En la Omnilux, la review ya propone 6–7 minutos en lugar de 10.</p>"
+      },
+      {
+        "id": "ondas-h",
+        "type": "heading",
+        "text": "Longitudes de onda y por qué se habla de mitocondrias",
+        "level": 2
+      },
+      {
+        "id": "ondas-1",
+        "type": "text",
+        "html": "<p>La fotobiomodulación (a veces llamada terapia de luz roja o LLLT) usa luz roja e infrarroja cercana a intensidades que no queman el tejido. No es un láser de corte. Los LED de una mascarilla entran en esa familia de fuentes, con mucha menos concentración que un láser clínico.</p><p>La hipótesis con más recorrido es que el citocromo c oxidasa, el complejo IV de la cadena respiratoria mitocondrial, absorbe parte de esa luz. Tiene grupos hemo y cobre. Una lectura habitual es que los fotones despegan óxido nítrico que frena la enzima y, con ello, puede subir el transporte de electrones y el ATP. Es una hipótesis de mecanismo, no un efecto que estas mascarillas vayan a producir en la piel. Está resumida por de Freitas y Hamblin en <a href=\"https://doi.org/10.1109/JSTQE.2016.2561201\" target=\"_blank\" rel=\"noopener noreferrer\">IEEE Journal of Selected Topics in Quantum Electronics (2016)</a> y, con el encuadre de dosimetría y LED, por Chung y colegas en <a href=\"https://doi.org/10.1007/s10439-011-0454-7\" target=\"_blank\" rel=\"noopener noreferrer\">Annals of Biomedical Engineering (2012)</a>.</p><p>En piel, la literatura se concentra en dos ventanas: rojo de unos 630–660 nm e infrarrojo cercano de unos 810–850 nm. El rojo se absorbe antes; el infrarrojo cercano penetra más hacia la dermis. 940, 1.070 y 1.072 nm salen en algunas de estas mascarillas. Aquí no los contamos como si tuvieran el mismo respaldo que 830–850 nm.</p><p>El azul (460 nm en la Nanoleaf) se ha estudiado sobre todo por otro motivo: las porfirinas de bacterias de la piel, no por el citocromo c oxidasa. El verde (518 nm) tiene bastante menos literatura. Tenerlos no suma puntos en este índice.</p><figure><img src=\"/images/articulos/mascarillas-led-2026/espectro.svg\" alt=\"Espectro de 400 a 1.100 nanómetros con las ventanas roja, de 630 a 660, e infrarroja cercana, de 810 a 850, y las longitudes de cada mascarilla. La Foreo no tiene longitudes en los datos.\" width=\"880\" height=\"560\"><figcaption>Cada punto es una longitud citada en la review de Fergus. Las bandas son las ventanas con más evidencia de fotobiomodulación en piel. Lo que cae fuera no lo tratamos como equivalente.</figcaption></figure><figure><img src=\"/images/articulos/mascarillas-led-2026/esquema-pbm.svg\" alt=\"Esquema cualitativo: la luz llega a la piel, el rojo se queda más superficial que el infrarrojo cercano, y la hipótesis de trabajo sitúa la absorción en el citocromo c oxidasa de la mitocondria.\" width=\"880\" height=\"360\"><figcaption>Esquema, no una medición. Sirve para situar la hipótesis (citocromo c oxidasa) y la diferencia de penetración entre rojo e infrarrojo cercano.</figcaption></figure>"
+      },
+      {
+        "id": "uso-h",
+        "type": "heading",
+        "text": "Cómo usarla sin convertirla en un tratamiento",
+        "level": 2
+      },
+      {
+        "id": "uso-1",
+        "type": "text",
+        "html": "<ul><li>Piel limpia y seca, salvo que el manual pida otra cosa. El maquillaje y el protector opaco restan luz.</li><li>Empieza por el tiempo de la sesión de fábrica. No lo alargues porque la sesión «se haya quedado corta»: en la zona alta, más dosis no implica más efecto.</li><li>No mires de frente a los LED. Si el manual pide gafas o indica que cierres los ojos, hazlo. El azul es el que más molesta a la vista.</li><li>La literatura de fotobiomodulación cuenta por semanas de uso repetido, no por una sesión. Una noche no reordena el colágeno.</li><li>Si estás embarazada, tomas un fármaco fotosensibilizante o tienes una lesión cutánea sin diagnosticar, esto no sustituye una consulta. Este artículo no cubre esos casos.</li></ul>"
+      },
+      {
+        "id": "elegir-h",
+        "type": "heading",
+        "text": "Cómo elegir entre las que sí están en Amazon.es",
+        "level": 2
+      },
+      {
+        "id": "elegir-1",
+        "type": "text",
+        "html": "<ol><li>Mira la irradiancia medida, no la del anuncio. En la CurrentBody Series 2 la review mide 18,5 mW/cm² y la ficha dice 30.</li><li>Comprueba la dosis de la sesión que vas a usar de verdad. La zona de 5–9 J/cm² es una referencia de Fergus, útil para comparar, no una receta.</li><li>Prioriza rojo (630–660 nm) e infrarrojo cercano (810–850 nm). Trata 940–1.072 nm como un extra con menos respaldo en este uso.</li><li>Lee la cobertura y el ajuste. La Nanoleaf flojea en labios, mandíbula y barbilla; la INIA se reseña como pesada.</li><li>Mira quién vende. La Omnilux Contour de este ASIN está en un vendedor externo: el precio y la garantía no son los de Amazon como vendedor.</li><li>Descarta la Foreo FAQ 202 si buscas una mascarilla de luz roja con infrarrojo cercano: es la peor nota y no hay dosis que enseñar.</li></ol>"
+      },
+      {
+        "id": "limites-h",
+        "type": "heading",
+        "text": "Lo que este ranking no dice",
+        "level": 2
+      },
+      {
+        "id": "limites-1",
+        "type": "text",
+        "html": "<ul><li>No hemos medido estas mascarillas. Si Fergus corrige una review, este texto queda desfasado hasta que se actualice.</li><li>Una nota de 77,5 no es un 77,5 % de mejora en arrugas, acné o manchas. Tampoco es una nota de dispositivo médico.</li><li>Los ensayos clínicos de luz roja usan aparatos, dosis y poblaciones distintas. No se pueden trasladar a una mascarilla doméstica solo porque el LED sea rojo.</li><li>El precio es el visto el 25/11/2026. La oferta de la Nanoleaf está fechada hasta el 30/11/2026. Después, el índice puede cambiar de líder sin que cambie la nota.</li><li>Los enlaces a Amazon llevan la etiqueta de afiliado elcuantificad-21. La comisión no modifica el orden: el índice usa la nota de un tercero y el precio de ese día. El aviso está en <a href=\"/afiliacion/\">enlaces de compra y afiliación</a>.</li></ul>"
+      },
+      {
+        "id": "faq-h",
+        "type": "heading",
+        "text": "Preguntas frecuentes",
+        "level": 2
+      },
+      {
+        "id": "faq-q1",
+        "type": "heading",
+        "text": "¿Cuál compensa más en Amazon España?",
+        "level": 3
+      },
+      {
+        "id": "faq-a1",
+        "type": "text",
+        "html": "<p>La Nanoleaf LED Facial Therapy Mask: 77,5/100 y 99,99 € el 25/11/2026, con 6,5 J/cm² en 10 minutos. Es la primera del índice nota/precio. La oferta citada termina el 30/11/2026.</p>"
+      },
+      {
+        "id": "faq-q2",
+        "type": "heading",
+        "text": "¿Más minutos o más potencia es mejor?",
+        "level": 3
+      },
+      {
+        "id": "faq-a2",
+        "type": "text",
+        "html": "<p>No. La dosis tiene un tramo útil y, por encima, la respuesta puede empeorar: es el efecto bifásico que revisan Huang y colegas (2009). Fergus usa unos 5–9 J/cm² como zona de comparación en estas mascarillas. No es una receta clínica.</p>"
+      },
+      {
+        "id": "faq-q3",
+        "type": "heading",
+        "text": "¿Una nota de 77,5 significa que quita arrugas?",
+        "level": 3
+      },
+      {
+        "id": "faq-a3",
+        "type": "text",
+        "html": "<p>No. La nota es la de la review de Alex Fergus sobre esa mascarilla. No es un ensayo clínico nuestro ni un porcentaje de mejora en la piel.</p>"
+      },
+      {
+        "id": "faq-q4",
+        "type": "heading",
+        "text": "¿Por qué la Foreo FAQ 202 está como no recomendada?",
+        "level": 3
+      },
+      {
+        "id": "faq-a4",
+        "type": "text",
+        "html": "<p>Porque Fergus le pone 41,5/100, la peor de este grupo, con una salida muy baja y sin infrarrojo cercano aprovechable. No hay dosis que citar. Además costaba 503,40 € (PVP 839 €) el 25/11/2026.</p>"
+      },
+      {
+        "id": "faq-q5",
+        "type": "heading",
+        "text": "¿Y la LumaLux V2 o la MitoGlow, que tienen más nota?",
+        "level": 3
+      },
+      {
+        "id": "faq-a5",
+        "type": "text",
+        "html": "<p>Fergus publica 80 para la LumaLux Face V2 y 78 para la MitoGlow. No están en Amazon España, así que no entran en un ranking de amazon.es. La LumaLux de esta página es la Face Pro, no la V2.</p>"
+      },
+      {
+        "id": "faq-q6",
+        "type": "heading",
+        "text": "¿El azul y el verde de la Nanoleaf cuentan como luz roja?",
+        "level": 3
+      },
+      {
+        "id": "faq-a6",
+        "type": "text",
+        "html": "<p>No. La evidencia de fotobiomodulación en piel se concentra en el rojo (unos 630–660 nm) y el infrarrojo cercano (unos 810–850 nm). El azul se ha estudiado aparte y el verde tiene mucho menos respaldo. No suman al índice.</p>"
+      },
+      {
+        "id": "faq-q7",
+        "type": "heading",
+        "text": "¿Los enlaces son de afiliado?",
+        "level": 3
+      },
+      {
+        "id": "faq-a7",
+        "type": "text",
+        "html": "<p>Sí. Apuntan a amazon.es con la etiqueta elcuantificad-21. Si compras, el proyecto puede recibir una comisión sin coste añadido para ti. Esa comisión no cambia el orden del ranking.</p>"
+      },
+      {
+        "id": "fuentes-h",
+        "type": "heading",
+        "text": "Fuentes",
+        "level": 2
+      },
+      {
+        "id": "fuentes-1",
+        "type": "text",
+        "html": "<p>Mediciones y notas de mascarillas, consultadas para este texto:</p><ul><li><a href=\"https://www.lighttherapyinsiders.com/nanoleaf-light-therapy-mask-review-best-under-300/\" target=\"_blank\" rel=\"noopener noreferrer\">review de Nanoleaf en Light Therapy Insiders</a>.</li><li><a href=\"https://www.lighttherapyinsiders.com/inia-glow-4d-review-great-red-light-mask-but-one-big-problem/\" target=\"_blank\" rel=\"noopener noreferrer\">review de INIA Glow en Light Therapy Insiders</a>.</li><li><a href=\"https://www.lighttherapyinsiders.com/lumalux-pro-led-mask-project-es-led-mask-reviewed/\" target=\"_blank\" rel=\"noopener noreferrer\">review de LumaLux Face Pro en Light Therapy Insiders</a>.</li><li><a href=\"https://www.lighttherapyinsiders.com/currentbody-series-2-ledmask-review/\" target=\"_blank\" rel=\"noopener noreferrer\">review de CurrentBody Series 2 en Light Therapy Insiders</a>.</li><li><a href=\"https://www.lighttherapyinsiders.com/2025-omnilux-contour-mask-review/\" target=\"_blank\" rel=\"noopener noreferrer\">review de Omnilux Contour en Light Therapy Insiders</a>.</li><li><a href=\"https://www.lighttherapyinsiders.com/foreo-faq-202-led-mask-review/\" target=\"_blank\" rel=\"noopener noreferrer\">review de Foreo FAQ 202 en Light Therapy Insiders</a>.</li></ul><p>Mecanismo y dosis, literatura general. No estudian estos seis modelos:</p><ul><li>Huang YY, Chen AC, Carroll JD, Hamblin MR. Biphasic dose response in low level light therapy. Dose-Response. 2009;7(4):358-383. <a href=\"https://doi.org/10.2203/dose-response.09-027.Hamblin\" target=\"_blank\" rel=\"noopener noreferrer\">doi:10.2203/dose-response.09-027.Hamblin</a>.</li><li>Chung H, Dai T, Sharma SK, Huang YY, Carroll JD, Hamblin MR. The nuts and bolts of low-level laser (light) therapy. Annals of Biomedical Engineering. 2012;40(2):516-533. <a href=\"https://doi.org/10.1007/s10439-011-0454-7\" target=\"_blank\" rel=\"noopener noreferrer\">doi:10.1007/s10439-011-0454-7</a>.</li><li>de Freitas LF, Hamblin MR. Proposed mechanisms of photobiomodulation or low-level light therapy. IEEE Journal of Selected Topics in Quantum Electronics. 2016;22(3):348-364. <a href=\"https://doi.org/10.1109/JSTQE.2016.2561201\" target=\"_blank\" rel=\"noopener noreferrer\">doi:10.1109/JSTQE.2016.2561201</a>.</li></ul>"
+      },
+      {
+        "id": "compra-h",
+        "type": "heading",
+        "text": "Dónde consultar el precio",
+        "level": 2
+      },
+      {
+        "id": "compra",
+        "type": "purchase",
+        "title": "Fichas en Amazon.es",
+        "affiliate_notice": "En calidad de Afiliado de Amazon, obtengo ingresos por las compras adscritas que cumplen los requisitos aplicables. Estos enlaces usan la etiqueta elcuantificad-21. Precio consultado el 25/11/2026; puede cambiar. La comisión no entra en el índice calidad-precio.",
+        "links": [
+          {
+            "id": "shop-amazon-nanoleaf",
+            "label": "Amazon · Nanoleaf",
+            "url": "https://www.amazon.es/dp/B0DQSK8Y52?tag=elcuantificad-21",
+            "price": 99.99,
+            "original_price": 149.99,
+            "original_price_kind": "previous",
+            "availability": "unknown",
+            "shipping_cost": null,
+            "shipping_note": "Oferta Black Friday hasta el 30/11/2026",
+            "currency": "EUR",
+            "price_checked_at": "2026-11-25"
+          },
+          {
+            "id": "shop-amazon-inia",
+            "label": "Amazon · INIA Glow",
+            "url": "https://www.amazon.es/dp/B0GFNT1252?tag=elcuantificad-21",
+            "price": 169.99,
+            "original_price": 199.99,
+            "original_price_kind": "previous",
+            "availability": "unknown",
+            "shipping_cost": null,
+            "shipping_note": "",
+            "currency": "EUR",
+            "price_checked_at": "2026-11-25"
+          },
+          {
+            "id": "shop-amazon-lumalux",
+            "label": "Amazon · LumaLux Face Pro",
+            "url": "https://www.amazon.es/dp/B0DLK4HWCV?tag=elcuantificad-21",
+            "price": 439.0,
+            "original_price": null,
+            "original_price_kind": null,
+            "availability": "unknown",
+            "shipping_cost": null,
+            "shipping_note": "No es la LumaLux Face V2",
+            "currency": "EUR",
+            "price_checked_at": "2026-11-25"
+          },
+          {
+            "id": "shop-amazon-currentbody",
+            "label": "Amazon · CurrentBody Series 2",
+            "url": "https://www.amazon.es/dp/B0DHRW819R?tag=elcuantificad-21",
+            "price": 449.99,
+            "original_price": null,
+            "original_price_kind": null,
+            "availability": "unknown",
+            "shipping_cost": null,
+            "shipping_note": "",
+            "currency": "EUR",
+            "price_checked_at": "2026-11-25"
+          },
+          {
+            "id": "shop-amazon-omnilux",
+            "label": "Amazon · Omnilux Contour",
+            "url": "https://www.amazon.es/dp/B08NCGWVPY?tag=elcuantificad-21",
+            "price": 419.0,
+            "original_price": null,
+            "original_price_kind": null,
+            "availability": "unknown",
+            "shipping_cost": null,
+            "shipping_note": "Vendedor externo",
+            "currency": "EUR",
+            "price_checked_at": "2026-11-25"
+          },
+          {
+            "id": "shop-amazon-foreo",
+            "label": "Amazon · Foreo FAQ 202 (no recomendada)",
+            "url": "https://www.amazon.es/dp/B0BY982DFD?tag=elcuantificad-21",
+            "price": 503.4,
+            "original_price": 839.0,
+            "original_price_kind": "previous",
+            "availability": "unknown",
+            "shipping_cost": null,
+            "shipping_note": "",
+            "currency": "EUR",
+            "price_checked_at": "2026-11-25"
+          }
+        ]
+      }
+    ],
+    "seo_title": "Mascarillas LED en Amazon España 2026: ranking calidad-precio",
+    "seo_description": "Nanoleaf lidera (77,5 puntos, 99,99 €) el ranking de mascarillas LED en Amazon.es con notas de Alex Fergus. Dosis, longitudes de onda y límites."
+  },
+  "device": null,
+  "media": {
+    "/images/articulos/mascarillas-led-2026/portada.svg": {
+      "alt": "Gráfico editorial del ranking: nota de Alex Fergus frente al precio en Amazon.es el 25/11/2026. No es una foto de las mascarillas.",
+      "width": 1200,
+      "height": 750,
+      "mime": "image/svg+xml",
+      "kind": "image"
+    }
+  },
+  "og_image": {
+    "path": "/images/articulos/mascarillas-led-2026/portada.svg",
+    "alt": "Gráfico editorial del ranking: nota de Alex Fergus frente al precio en Amazon.es el 25/11/2026. No es una foto de las mascarillas."
+  },
+  "version": "published-2026-11-25"
+}
