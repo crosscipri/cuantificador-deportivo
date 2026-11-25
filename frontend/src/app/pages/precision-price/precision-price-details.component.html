@@ -1,0 +1,34 @@
+<div class="pp-detail" [attr.data-view]="view">
+  <div class="nv-state" *ngIf="loading">Cargando gráficas por dispositivo…</div>
+  <div class="pp-miss" *ngIf="!loading && failed">
+    No se han podido cargar todas las gráficas por dispositivo (validación por deporte o nocturna).
+  </div>
+  <section class="pp-detail-grid" *ngFor="let g of grids; trackBy: trackByKey" [attr.data-grid]="g.key">
+    <h3 class="pp-detail-title">{{ g.title }}</h3>
+    <p class="pp-detail-note">{{ g.note }}</p>
+    <div class="nv-grid three">
+      <div class="nv-card pp-mini" *ngFor="let c of g.cards; trackBy: trackByDevice">
+        <div class="nv-card-head" *ngIf="g.kind === 'curve'; else corrHead">
+          <div>
+            <h3 class="left">{{ c.name }}</h3>
+            <p class="nv-sub left">{{ c.subtitle }}<span class="nv-warn" *ngIf="c.few"> · ⚠ pocas</span></p>
+          </div>
+          <select class="nv-select" *ngIf="c.sources && c.sources.length > 1" [value]="c.index"
+                  (change)="select(c, $any($event.target).value)" aria-label="Elegir sesión o noche">
+            <option *ngFor="let s of c.sources; let j = index" [value]="j" [selected]="j === c.index">{{ s.label }}</option>
+          </select>
+        </div>
+        <ng-template #corrHead>
+          <h3>{{ c.name }}</h3>
+          <p class="nv-sub">{{ c.subtitle }}<span class="nv-warn" *ngIf="c.few"> · ⚠ pocas</span></p>
+        </ng-template>
+        <ng-container *ngIf="c.chart as ch">
+          <div class="nv-canvas pp-mini-canvas" [class.square]="g.kind === 'corr'" [class.curve]="g.kind === 'curve'">
+            <canvas baseChart [type]="g.kind === 'corr' ? 'scatter' : 'line'" [data]="ch.data" [options]="ch.options"
+                    [plugins]="g.kind === 'corr' ? statPlugins : []"></canvas>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+  </section>
+</div>

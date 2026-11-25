@@ -7,7 +7,13 @@
 import type { PrecisionPriceDevice, PrecisionPriceView } from '../../models/precision-price.model';
 import { FONT, axis, brandColor, brandOf, fmt } from '../night-validation/night-validation-charts';
 
+/** Eje de precio mínimo; se amplía de 50 en 50 € si algún dispositivo cuesta más (no se recorta ninguno). */
 export const PRICE_MAX = 450;
+
+export function priceAxisMax(list: { price: number | null | undefined }[]): number {
+  const top = Math.max(0, ...list.map(d => d.price ?? 0));
+  return Math.max(PRICE_MAX, Math.ceil((top + 25) / 50) * 50);
+}
 export const SHORT_LABELS: Record<string, string> = {
   'Garmin Forerunner 170': 'Forerunner 170',
   'Garmin Forerunner 265': 'Forerunner 265',
@@ -207,7 +213,7 @@ export function priceScoreChart(list: PrecisionPriceDevice[], view: PrecisionPri
       },
       scales: {
         x: axis('Precio (€)  ← más caro  ·  más barato →', {
-          type: 'linear', min: 0, max: PRICE_MAX, reverse: true, ticks: { stepSize: 50 },
+          type: 'linear', min: 0, max: priceAxisMax(plotted), reverse: true, ticks: { stepSize: 50 },
         }),
         y: axis('Nota de precisión / 0–100', { type: 'linear', min: 0, max: 100, ticks: { stepSize: 10 } }),
       },

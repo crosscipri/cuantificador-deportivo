@@ -2,7 +2,7 @@
   "version": "prices-1",
   "checked_at": "2026-10-14",
   "currency": "EUR",
-  "rule": "Precio usado = oferta verificada más barata (EUR) por dispositivo en content/shop-offers/verified-offers.json (checked_at 2026-10-14). No se inventan precios. Si un dispositivo no tiene precio, queda fuera de las gráficas y se lista en missing_price.",
+  "rule": "Precio usado = oferta verificada más barata (EUR) por dispositivo en content/shop-offers/verified-offers.json (checked_at 2026-10-14). No se inventan precios. Si un dispositivo no tiene precio, queda fuera de las gráficas y se lista en missing_price. Cada entrada lleva el device_id de la oferta verificada (también se admite 'aliases' con otros nombres del mismo dispositivo); el cruce con la base va primero por device_id y después por nombre normalizado.",
   "source": {
     "file": "content/shop-offers/verified-offers.json",
     "note": "Comprobación puntual del 14 de octubre de 2026 en el repo de la web. El site.json exportado tenía los campos price a null, así que no se usó."
@@ -10,6 +10,7 @@
   "devices": [
     {
       "name": "Realme Watch 5",
+      "device_id": "6a6f017654ba8a179e8b1516",
       "price": 54.9,
       "shop": "MediaMarkt",
       "label": "MediaMarkt · Watch 5 Titanium Black",
@@ -18,6 +19,7 @@
     },
     {
       "name": "Fitbit Air",
+      "device_id": "6a25a8ce3216ad99131e0c1b",
       "price": 99.99,
       "shop": "Google Store",
       "label": "Google Store · Fitbit Air",
@@ -26,6 +28,7 @@
     },
     {
       "name": "Garmin Cirqa",
+      "device_id": "6a719a8f204f0816b65f89c1",
       "price": 199.99,
       "shop": "Decathlon",
       "label": "Decathlon · CIRQA negro L/XL",
@@ -34,6 +37,7 @@
     },
     {
       "name": "Garmin Forerunner 70",
+      "device_id": "6a82b331f7efebd4a5339cbb",
       "price": 221.49,
       "shop": "Decathlon",
       "label": "Decathlon · 70 negro",
@@ -42,6 +46,7 @@
     },
     {
       "name": "Garmin Forerunner 170",
+      "device_id": "6a82b345f7efebd4a5339cbc",
       "price": 269.0,
       "shop": "PcComponentes",
       "label": "PcComponentes · Forerunner 170 negro/amarillo",
@@ -50,6 +55,7 @@
     },
     {
       "name": "Huawei Watch Fit 5 Pro",
+      "device_id": "6a25af113216ad99131e0c22",
       "price": 299.0,
       "shop": "PcComponentes",
       "label": "PcComponentes · Fit 5 Pro blanco",
@@ -58,6 +64,7 @@
     },
     {
       "name": "Garmin Forerunner 265",
+      "device_id": "69fa2bdc27e77d3971eca281",
       "price": 359.99,
       "shop": "Decathlon",
       "label": "Decathlon · Forerunner 265",
@@ -66,6 +73,7 @@
     },
     {
       "name": "Ultrahuman Ring Air",
+      "device_id": "69fa2ec027e77d3971eca28e",
       "price": 379.0,
       "shop": "MediaMarkt",
       "label": "MediaMarkt · Ring AIR titanio talla 7",
@@ -74,6 +82,7 @@
     },
     {
       "name": "Samsung Galaxy Watch 9",
+      "device_id": "6a8558926d054bcb81414365",
       "price": 389.0,
       "shop": "MediaMarkt",
       "label": "MediaMarkt · Watch9 BT 44 mm plata",

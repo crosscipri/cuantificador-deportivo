@@ -6,18 +6,22 @@ nocturna (FC en reposo y RMSSD). Aplica una fórmula con constantes fijas, no
 relativas al grupo, y lee los precios de ``backend/data/prices.json``.
 
 No calcula límites de acuerdo ni Bland-Altman. Si un dispositivo no tiene
-precio, queda fuera de las gráficas y se lista en ``missing_price``.
+precio, queda fuera de las gráficas y se lista en ``missing_price``. Además,
+``left_out`` explica por gráfica quién queda fuera y por qué, y ``needs_price``
+lista a quién le falta precio. Nunca se inventan precios.
 """
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 from pathlib import Path
 
 from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
 
 from .night_validation import build_validation
-from .sport_validation import SPORTS, build_sport_validation
+from .sport_validation import SPORTS, build_sport_validation, session_pairs
 
 router = APIRouter(prefix="/api", tags=["precision price"])
 
@@ -114,21 +118,35 @@ def pareto_flags(rows, price_key="price", score_key="score"):
     return flags
 
 
+def norm_name(name):
+    """Clave de cruce: sin acentos, sin mayúsculas, sin signos y con espacios únicos."""
+    text = unicodedata.normalize("NFKD", str(name or ""))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch)).casefold()
+    return " ".join(re.sub(r"[^0-9a-z]+", " ", text).split())
+
+
 def load_prices(path=None):
+    """Catálogo de precios. Se indexa por device_id, por nombre normalizado y por alias."""
     raw = json.loads(Path(path or PRICES_PATH).read_text())
-    by_name = {}
+    by_name, by_id, by_alias = {}, {}, {}
     for item in raw.get("devices") or []:
         name = (item.get("name") or "").strip()
         if not name or item.get("price") is None:
             continue
-        by_name[name.casefold()] = {
+        offer = {
             "name": name,
+            "device_id": str(item["device_id"]) if item.get("device_id") else None,
             "price": float(item["price"]),
             "shop": item.get("shop"),
             "label": item.get("label"),
             "checked_at": item.get("checked_at") or raw.get("checked_at"),
             "source": item.get("source") or (raw.get("source") or {}).get("file"),
         }
+        by_name[norm_name(name)] = offer
+        if offer["device_id"]:
+            by_id[offer["device_id"]] = offer
+        for alias in item.get("aliases") or []:
+            by_alias[norm_name(alias)] = offer
     return {
         "version": raw.get("version"),
         "checked_at": raw.get("checked_at"),
@@ -136,18 +154,42 @@ def load_prices(path=None):
         "rule": raw.get("rule"),
         "source": raw.get("source"),
         "by_name": by_name,
+        "by_id": by_id,
+        "by_alias": by_alias,
     }
 
 
+def find_offer(prices, device_id, name):
+    """Oferta de un dispositivo y cómo se cruzó: id, nombre, alias o nombre sin marca.
+
+    Sin coincidencias aproximadas: «sin marca» solo vale si el nombre de la base es
+    exactamente el del catálogo sin su primera palabra (marca) y es único.
+    """
+    by_name = prices.get("by_name") or {}
+    offer = (prices.get("by_id") or {}).get(str(device_id)) if device_id is not None else None
+    if offer:
+        return offer, "id"
+    key = norm_name(name)
+    if key in by_name:
+        return by_name[key], "nombre"
+    if key in (prices.get("by_alias") or {}):
+        return prices["by_alias"][key], "alias"
+    if key:
+        candidates = [o for k, o in by_name.items() if " " in k and k.split(" ", 1)[1] == key]
+        if len(candidates) == 1:
+            return candidates[0], "nombre sin marca"
+    return None, None
+
+
 def _excluded(name):
-    return (name or "").strip().casefold() in EXCLUDED_NAMES
+    return norm_name(name) in EXCLUDED_NAMES
 
 
-def _price_fields(offer):
+def _price_fields(offer, how=None):
     if not offer:
         return {
             "price": None, "shop": None, "label": None,
-            "checked_at": None, "source": None,
+            "checked_at": None, "source": None, "price_match": None,
         }
     return {
         "price": offer["price"],
@@ -155,12 +197,13 @@ def _price_fields(offer):
         "label": offer.get("label"),
         "checked_at": offer.get("checked_at"),
         "source": offer.get("source"),
+        "price_match": how,
     }
 
 
 def _sport_row(item, prices):
     name = item["name"]
-    offer = prices["by_name"].get(name.casefold())
+    offer, how = find_offer(prices, item.get("device_id"), name)
     score = metric_score(item.get("mae"), item.get("r"), MAE_MAX_SPORT_HR)
     row = {
         "device_id": item["device_id"],
@@ -173,7 +216,7 @@ def _sport_row(item, prices):
         "mae_score": _round(mae_score(item.get("mae"), MAE_MAX_SPORT_HR)),
         "r_score": _round(r_score(item.get("r"))),
         "score": _round(score),
-        **_price_fields(offer),
+        **_price_fields(offer, how),
         "few": (item.get("sessions") or 0) < FEW,
     }
     row["value_index"] = _round(value_index(score, row["price"]), 2)
@@ -182,7 +225,7 @@ def _sport_row(item, prices):
 
 def _night_row(item, prices):
     name = item["name"]
-    offer = prices["by_name"].get(name.casefold())
+    offer, how = find_offer(prices, item.get("device_id"), name)
     hr, rm = item.get("hr") or {}, item.get("rmssd") or {}
     s_hr = metric_score(hr.get("mae"), hr.get("r"), MAE_MAX_REST_HR) if hr.get("n") else None
     s_rm = metric_score(rm.get("mae"), rm.get("r"), MAE_MAX_RMSSD) if rm.get("n") else None
@@ -203,7 +246,7 @@ def _night_row(item, prices):
         "rmssd_r": rm.get("r"),
         "rmssd_score": _round(s_rm),
         "score": _round(score),
-        **_price_fields(offer),
+        **_price_fields(offer, how),
         "few": nights < FEW,
     }
     row["value_index"] = _round(value_index(score, row["price"]), 2)
@@ -217,8 +260,72 @@ def _mark_frontier(rows):
     return rows
 
 
-def build_precision_price(sport, night, prices):
-    """Combina las respuestas de sport/night-validation con los precios versionados."""
+NO_PRICE = "sin precio verificado"
+
+
+def _sport_reasons(did, row, stats):
+    """Por qué un dispositivo no tiene nota de deporte (lista vacía si la tiene)."""
+    if row is not None and row["score"] is not None:
+        return []
+    if row is not None:
+        return ["sin r (menos de 3 pares de FC emparejados)"]
+    if stats is None:
+        return ["sin sesiones de running, gym o ciclismo con FC emparejada"]
+    entry = stats.get(did)
+    if not entry or not entry["total"]:
+        return ["sin sesiones de entrenamiento"]
+    if not entry["valid_sport"]:
+        kinds = ", ".join(f"{k} ({v})" for k, v in sorted(entry["other_sport"].items()))
+        return [f"{entry['total']} sesiones sin deporte válido (solo cuentan running, gym y ciclismo): {kinds}"]
+    if entry.get("no_pairs") is not None and entry["no_pairs"] >= entry["valid_sport"]:
+        return [f"{entry['valid_sport']} sesiones sin pares de FC válidos (referencia y dispositivo)"]
+    return ["sin pares de FC válidos en sus sesiones"]
+
+
+def _night_reasons(did, row, night_counts):
+    if row is not None and row["score"] is not None:
+        return []
+    if row is not None:
+        missing = []
+        if row["hr_score"] is None:
+            missing.append("FC en reposo")
+        if row["rmssd_score"] is None:
+            missing.append("HRV (RMSSD)")
+        return [f"sin {' ni '.join(missing)} nocturna: la nota nocturna necesita las dos"]
+    total = (night_counts or {}).get(did, 0)
+    if total:
+        return [f"{total} noches guardadas sin ventanas válidas de FC ni RMSSD"]
+    return ["sin noches guardadas"]
+
+
+def _left_out(devices, sport_by, night_by, offers, plotted, session_stats, night_counts):
+    out = {"sports": [], "night": [], "final": []}
+    for did, name in devices:
+        s, n = sport_by.get(did), night_by.get(did)
+        sport_r = _sport_reasons(did, s, session_stats)
+        night_r = _night_reasons(did, n, night_counts)
+        price_r = [] if offers.get(did) is not None else [NO_PRICE]
+        parts = {
+            "sports": sport_r + price_r,
+            "night": night_r + price_r,
+            "final": (["sin nota de deporte"] if sport_r else []) + (["sin nota nocturna"] if night_r else []) + price_r,
+        }
+        for view, reasons in parts.items():
+            if did in plotted[view]:
+                continue
+            out[view].append({"device_id": did, "name": name, "reasons": reasons or ["motivo no determinado"]})
+    for items in out.values():
+        items.sort(key=lambda r: r["name"].casefold())
+    return out
+
+
+def build_precision_price(sport, night, prices, devices=None, session_stats=None, night_counts=None, diagnostics=None):
+    """Combina las respuestas de sport/night-validation con los precios versionados.
+
+    Cruza deporte y noche por ``device_id`` (no por nombre) y el precio por id, nombre
+    normalizado o alias. ``devices`` (id, nombre) de toda la base, ``session_stats`` y
+    ``night_counts`` solo sirven para explicar quién queda fuera de cada gráfica.
+    """
     sport_items = [
         _sport_row(it, prices)
         for it in (sport.get("sports") or {}).get("combined") or []
@@ -230,33 +337,34 @@ def build_precision_price(sport, night, prices):
         if not _excluded(it.get("name"))
     ]
 
-    sport_by = {r["name"]: r for r in sport_items}
-    night_by = {r["name"]: r for r in night_items}
-    names = sorted(set(sport_by) | set(night_by), key=lambda n: n.casefold())
+    sport_by = {r["device_id"]: r for r in sport_items}
+    night_by = {r["device_id"]: r for r in night_items}
+    ids = sorted(set(sport_by) | set(night_by),
+                 key=lambda i: ((sport_by.get(i) or night_by[i])["name"].casefold(), i))
 
     missing_price = []
     missing_night = []
     missing_sport = []
     final_items = []
-    for name in names:
-        s, n = sport_by.get(name), night_by.get(name)
+    for did in ids:
+        s, n = sport_by.get(did), night_by.get(did)
+        name = (s or n)["name"]
         has_sport = s is not None and s["score"] is not None
         has_night = n is not None and n["score"] is not None
-        price = (s or n or {}).get("price")
+        price = (s or n).get("price")
+        if price is None and n is not None and n.get("price") is not None:
+            price = n["price"]
         if price is None:
-            missing_price.append({
-                "device_id": (s or n)["device_id"],
-                "name": name,
-            })
+            missing_price.append({"device_id": did, "name": name})
         if not has_night and has_sport:
-            missing_night.append({"device_id": s["device_id"], "name": name})
+            missing_night.append({"device_id": did, "name": name})
         if not has_sport and has_night:
-            missing_sport.append({"device_id": n["device_id"], "name": name})
+            missing_sport.append({"device_id": did, "name": name})
         score = average(s["score"], n["score"]) if (has_sport and has_night) else None
         few = bool((s and s["few"]) or (n and n["few"]))
         offer_src = s if (s and s.get("price") is not None) else n
         row = {
-            "device_id": (s or n)["device_id"],
+            "device_id": did,
             "name": name,
             "sport_score": s["score"] if s else None,
             "sport_mae": s["mae"] if s else None,
@@ -267,7 +375,8 @@ def build_precision_price(sport, night, prices):
             "score": _round(score) if score is not None else None,
             "included": score is not None and price is not None,
             "missing": [part for part, ok in (("deporte", has_sport), ("noche", has_night)) if not ok],
-            **_price_fields(offer_src if offer_src and offer_src.get("price") is not None else None),
+            **{k: (offer_src or {}).get(k) if (offer_src and offer_src.get("price") is not None) else None
+               for k in ("price", "shop", "label", "checked_at", "source", "price_match")},
             "few": few,
         }
         row["value_index"] = _round(value_index(score, row["price"]), 2)
@@ -277,15 +386,42 @@ def build_precision_price(sport, night, prices):
     night_chart = _mark_frontier([r for r in night_items if r["price"] is not None and r["score"] is not None])
     final_chart = _mark_frontier([r for r in final_items if r["included"]])
     # Devices not in a chart keep frontier False.
-    in_final = {r["name"] for r in final_chart}
+    in_final = {r["device_id"] for r in final_chart}
     for r in final_items:
-        if r["name"] not in in_final:
+        if r["device_id"] not in in_final:
             r["frontier"] = False
 
     sport_chart.sort(key=lambda r: (-(r["score"] or 0), r["name"].casefold()))
     night_chart.sort(key=lambda r: (-(r["score"] or 0), r["name"].casefold()))
     final_shown = [r for r in final_items if r["included"]]
     final_shown.sort(key=lambda r: (-(r["score"] or 0), r["name"].casefold()))
+
+    # Quién queda fuera de cada gráfica y por qué (todos los dispositivos de la base).
+    known = {}
+    for d in devices or []:
+        if not _excluded(d["name"]):
+            known[d["id"]] = d["name"]
+    for did in ids:
+        known.setdefault(did, (sport_by.get(did) or night_by[did])["name"])
+    offers = {did: find_offer(prices, did, name)[0] for did, name in known.items()}
+    plotted = {
+        "sports": {r["device_id"] for r in sport_chart},
+        "night": {r["device_id"] for r in night_chart},
+        "final": {r["device_id"] for r in final_chart},
+    }
+    left_out = _left_out(sorted(known.items(), key=lambda kv: kv[1].casefold()),
+                         sport_by, night_by, offers, plotted, session_stats, night_counts)
+    has_data = set(ids)
+    needs_price = [
+        {"device_id": did, "name": name, "has_data": did in has_data}
+        for did, name in sorted(known.items(), key=lambda kv: kv[1].casefold())
+        if offers.get(did) is None
+    ]
+
+    by_norm = {}
+    for did, name in known.items():
+        by_norm.setdefault(norm_name(name), []).append(name)
+    duplicates = sorted(sorted(v) for v in by_norm.values() if len(v) > 1)
 
     return {
         "version": VERSION,
@@ -304,13 +440,64 @@ def build_precision_price(sport, night, prices):
         "missing_price": missing_price,
         "missing_night": missing_night,
         "missing_sport": missing_sport,
+        "left_out": left_out,
+        "needs_price": needs_price,
+        "diagnostics": {
+            "devices_in_db": len(known),
+            "duplicate_names": duplicates,
+            **(diagnostics or {}),
+        },
     }
 
 
-def collect_precision_price(devices, sessions, night_sessions, prices=None):
+def summarize_sessions(devices, sessions, aggregate_rows):
+    """Resumen por dispositivo de TODAS las sesiones (también las de deportes no válidos).
+
+    ``aggregate_rows``: filas ``{"_id": {"d": device_id, "s": sport_type}, "n": count}``.
+    Devuelve (stats por device_id, diagnóstico global). ``stats`` es None si no hubo agregado.
+    """
+    if aggregate_rows is None:
+        return None, {}
+    known = {str(d["_id"]) for d in devices}
+    stats, unlinked, other_total = {}, 0, {}
+    for row in aggregate_rows:
+        key = row.get("_id") or {}
+        did = str(key.get("d")) if key.get("d") is not None else None
+        sport = key.get("s")
+        count = int(row.get("n") or 0)
+        valid = sport in SPORTS
+        if did is None or did not in known:
+            unlinked += count
+            continue
+        entry = stats.setdefault(did, {"total": 0, "valid_sport": 0, "other_sport": {}, "no_pairs": 0})
+        entry["total"] += count
+        if valid:
+            entry["valid_sport"] += count
+        else:
+            label = sport if sport else "(sin deporte)"
+            entry["other_sport"][label] = entry["other_sport"].get(label, 0) + count
+            other_total[label] = other_total.get(label, 0) + count
+    for doc in sessions:
+        did = str(doc.get("device_id"))
+        if did in stats and not session_pairs(doc):
+            stats[did]["no_pairs"] += 1
+    diag = {"sessions_unlinked": unlinked, "sessions_without_valid_sport": other_total}
+    return stats, diag
+
+
+def collect_precision_price(devices, sessions, night_sessions, prices=None, session_aggregate=None):
     sport = build_sport_validation(devices, sessions)
     night = build_validation(devices, night_sessions)
-    return build_precision_price(sport, night, prices or load_prices())
+    stats, diag = summarize_sessions(devices, sessions, session_aggregate)
+    night_counts = {}
+    for doc in night_sessions:
+        did = str(doc.get("device_id"))
+        night_counts[did] = night_counts.get(did, 0) + 1
+    return build_precision_price(
+        sport, night, prices or load_prices(),
+        devices=[{"id": str(d["_id"]), "name": d.get("name") or "Dispositivo"} for d in devices],
+        session_stats=stats, night_counts=night_counts, diagnostics=diag,
+    )
 
 
 @router.get("/precision-price")
@@ -322,5 +509,13 @@ async def get_precision_price(request: Request):
         {"device_id": 1, "sport_type": 1, "fc_data.reference": 1, "fc_data.device": 1},
     )]
     nights = [s async for s in db.nocturnal_hrv_sessions.find({}, {"windows": 1, "device_id": 1})]
+    # Solo para explicar a quién se deja fuera: recuento por dispositivo y deporte (lectura).
+    aggregate_rows = None
+    try:
+        aggregate_rows = [row async for row in db.sessions.aggregate(
+            [{"$group": {"_id": {"d": "$device_id", "s": "$sport_type"}, "n": {"$sum": 1}}}]
+        )]
+    except Exception:  # el diagnóstico nunca debe romper la página
+        aggregate_rows = None
     prices = load_prices()
-    return await run_in_threadpool(collect_precision_price, devices, sessions, nights, prices)
+    return await run_in_threadpool(collect_precision_price, devices, sessions, nights, prices, aggregate_rows)

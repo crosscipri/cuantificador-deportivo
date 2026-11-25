@@ -36,11 +36,31 @@ export interface PrecisionPriceDevice {
   sport_sessions?: number | null;
   night_score?: number | null;
   night_nights?: number | null;
+  price_match?: string | null;
 }
 
 export interface PrecisionPriceMissing {
   device_id: string;
   name: string;
+}
+
+export interface PrecisionPriceLeftOut {
+  device_id: string;
+  name: string;
+  reasons: string[];
+}
+
+export interface PrecisionPriceNeedsPrice {
+  device_id: string;
+  name: string;
+  has_data: boolean;
+}
+
+export interface PrecisionPriceDiagnostics {
+  devices_in_db: number;
+  duplicate_names: string[][];
+  sessions_unlinked?: number;
+  sessions_without_valid_sport?: Record<string, number>;
 }
 
 export interface PrecisionPriceResponse {
@@ -57,6 +77,10 @@ export interface PrecisionPriceResponse {
   missing_price: PrecisionPriceMissing[];
   missing_night: PrecisionPriceMissing[];
   missing_sport: PrecisionPriceMissing[];
+  /** Quién queda fuera de cada gráfica y por qué (una versión antigua del backend no lo envía). */
+  left_out?: Record<PrecisionPriceView, PrecisionPriceLeftOut[]>;
+  needs_price?: PrecisionPriceNeedsPrice[];
+  diagnostics?: PrecisionPriceDiagnostics;
 }
 
 export type PrecisionPriceView = 'sports' | 'night' | 'final';

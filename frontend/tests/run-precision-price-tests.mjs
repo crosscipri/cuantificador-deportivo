@@ -6,17 +6,22 @@ import { spawnSync } from 'node:child_process';
 
 const dir = await mkdtemp(join(tmpdir(), 'precision-price-tests-'));
 try {
-  await build({
-    entryPoints: ['tests/precision-price-charts.test.ts'],
-    bundle: true,
-    platform: 'node',
-    format: 'esm',
-    outfile: join(dir, 'test.mjs'),
-    logLevel: 'warning',
-    tsconfig: 'tsconfig.json',
-  });
-  const result = spawnSync(process.execPath, [join(dir, 'test.mjs')], { stdio: 'inherit' });
-  process.exitCode = result.status ?? 1;
+  for (const name of ['precision-price-charts', 'precision-price-details']) {
+    await build({
+      entryPoints: [`tests/${name}.test.ts`],
+      bundle: true,
+      platform: 'node',
+      format: 'esm',
+      outfile: join(dir, `${name}.mjs`),
+      logLevel: 'warning',
+      tsconfig: 'tsconfig.json',
+    });
+    const result = spawnSync(process.execPath, [join(dir, `${name}.mjs`)], { stdio: 'inherit' });
+    if ((result.status ?? 1) !== 0) {
+      process.exitCode = result.status ?? 1;
+      break;
+    }
+  }
 } finally {
   await rm(dir, { recursive: true, force: true });
 }

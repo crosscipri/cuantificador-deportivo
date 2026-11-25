@@ -39,18 +39,32 @@
         (menos de {{ response?.few_threshold }}): {{ fewText(v.few, v.key) }}.
         Con tan pocas observaciones, el punto puede moverse bastante con una más.
       </div>
-      <div class="pp-miss" *ngIf="v.key === 'night' && response?.missing_night?.length">
-        Dispositivos con datos de deporte pero <b>sin métricas nocturnas</b>
-        (no entran en esta gráfica ni en la final): {{ missingNames(response!.missing_night) }}.
+      <div class="pp-miss" *ngIf="v.leftOut.length" [attr.data-leftout]="v.key">
+        <b>Fuera de esta gráfica ({{ v.leftOut.length }})</b>
+        <ul>
+          <li *ngFor="let d of v.leftOut"><b>{{ d.name }}</b>: {{ reasonsText(d) }}.</li>
+        </ul>
       </div>
-      <div class="pp-miss" *ngIf="v.key === 'final' && response?.missing_night?.length">
-        <b>Fuera de esta gráfica</b> (falta la nota nocturna): {{ missingNames(response!.missing_night) }}.
-      </div>
+      @defer (on viewport) {
+        <app-precision-price-details [view]="v.key" [devices]="v.devices" />
+      } @placeholder {
+        <div class="pp-lazy nv-state">Las gráficas de correlación y de FC frente a la Polar de estos dispositivos se cargan al llegar aquí…</div>
+      }
     </section>
 
     <p class="pp-formula">{{ formulaLine() }}</p>
-    <div class="pp-miss" *ngIf="response?.missing_price?.length">
+    <div class="pp-miss pp-needs" *ngIf="response?.needs_price?.length">
+      <b>Necesitan precio verificado para entrar</b>
+      <ul>
+        <li *ngIf="needsPriceWithData.length"><b>Ya tienen datos:</b> {{ needsPriceWithData.join(', ') }}.</li>
+        <li *ngIf="needsPriceNoData.length"><b>Aún sin datos de validación:</b> {{ needsPriceNoData.join(', ') }}.</li>
+        <li>El precio sale de la oferta verificada más barata de <code>content/shop-offers/verified-offers.json</code> (repo de la web)
+          y se copia a <code>backend/data/prices.json</code> con su device_id. Nunca se estima.</li>
+      </ul>
+    </div>
+    <div class="pp-miss pp-needs" *ngIf="!response?.needs_price && response?.missing_price?.length">
       <b>Sin precio</b> (fuera de las gráficas): {{ missingNames(response!.missing_price) }}.
     </div>
+    <p class="pp-formula" *ngIf="diagnosticsLine">{{ diagnosticsLine }}.</p>
   </ng-container>
 </div>

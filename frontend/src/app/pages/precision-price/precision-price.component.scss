@@ -11,3 +11,14 @@
 .pp-formula {
   margin: 28px 0 0; font-size: 12.5px; color: var(--ink-3); line-height: 1.5; max-width: 1100px;
 }
+
+.pp-detail { margin-top: 20px; }
+.pp-detail-grid + .pp-detail-grid { margin-top: 22px; }
+.pp-detail-title { margin: 0; font-size: 15px; font-weight: 700; color: #111; }
+.pp-detail-note { margin: 3px 0 10px; font-size: 12px; color: var(--ink-3); }
+.pp-mini { padding: 10px 12px 8px; h3 { font-size: 13.5px; } .nv-select { max-width: 150px; font-size: 11px; } }
+.pp-mini-canvas.square { height: 290px; }
+.pp-mini-canvas.curve { height: 230px; }
+.pp-lazy { margin-top: 20px; min-height: 160px; }
+.pp-miss ul { margin: 6px 0 0; padding-left: 18px; li { margin: 2px 0; } }
+.pp-needs { margin-top: 14px; }

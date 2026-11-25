@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
 import { ApiService } from '../../services/api.service';
-import { PrecisionPriceDevice, PrecisionPriceResponse, PrecisionPriceView } from '../../models/precision-price.model';
+import { PrecisionPriceDevice, PrecisionPriceLeftOut, PrecisionPriceResponse, PrecisionPriceView } from '../../models/precision-price.model';
+import { PrecisionPriceDetailsComponent } from './precision-price-details.component';
 import { formatDate, insideLabelsPlugin, paretoCaptionPlugin, priceScoreChart, VIEW_COPY } from './precision-price-charts';
 
 interface ChartView {
@@ -12,12 +13,14 @@ interface ChartView {
   subtitle: string;
   chart: { data: any; options: any };
   few: PrecisionPriceDevice[];
+  devices: PrecisionPriceDevice[];
+  leftOut: PrecisionPriceLeftOut[];
 }
 
 @Component({
   selector: 'app-precision-price',
   standalone: true,
-  imports: [CommonModule, RouterLink, BaseChartDirective],
+  imports: [CommonModule, RouterLink, BaseChartDirective, PrecisionPriceDetailsComponent],
   templateUrl: './precision-price.component.html',
   styleUrls: ['../night-validation/night-validation.component.scss', './precision-price.component.scss'],
 })
@@ -41,6 +44,8 @@ export class PrecisionPriceComponent implements OnInit {
           subtitle: VIEW_COPY[key].subtitle,
           chart: priceScoreChart(res[key] ?? [], key),
           few: (res[key] ?? []).filter(d => d.few),
+          devices: res[key] ?? [],
+          leftOut: res.left_out?.[key] ?? this.legacyLeftOut(res, key),
         }));
         this.loading = false;
       },
@@ -74,6 +79,31 @@ export class PrecisionPriceComponent implements OnInit {
   fewText(list: PrecisionPriceDevice[], key: PrecisionPriceView): string {
     if (key === 'sports') return list.map(d => `${d.name} (${d.sessions})`).join(', ');
     return list.map(d => `${d.name} (${d.nights ?? d.night_nights})`).join(', ');
+  }
+
+  /** Con un backend antiguo (sin left_out) se usan las listas missing_*. */
+  private legacyLeftOut(res: PrecisionPriceResponse, key: PrecisionPriceView): PrecisionPriceLeftOut[] {
+    const noPrice = (res.missing_price ?? []).map(d => ({ ...d, reasons: ['sin precio verificado'] }));
+    const noNight = (res.missing_night ?? []).map(d => ({ ...d, reasons: ['sin nota nocturna'] }));
+    if (key === 'sports') return noPrice;
+    if (key === 'night') return [...noNight, ...noPrice];
+    return [...noNight, ...noPrice];
+  }
+
+  reasonsText(d: PrecisionPriceLeftOut): string { return d.reasons.join('; '); }
+
+  get needsPriceWithData(): string[] { return (this.response?.needs_price ?? []).filter(d => d.has_data).map(d => d.name); }
+  get needsPriceNoData(): string[] { return (this.response?.needs_price ?? []).filter(d => !d.has_data).map(d => d.name); }
+
+  get diagnosticsLine(): string {
+    const dg = this.response?.diagnostics;
+    if (!dg) return '';
+    const parts = [`Dispositivos en el analizador: ${dg.devices_in_db}`];
+    const other = Object.entries(dg.sessions_without_valid_sport ?? {});
+    if (other.length) parts.push(`sesiones que no cuentan por su deporte: ${other.map(([k, v]) => `${k} (${v})`).join(', ')}`);
+    if (dg.sessions_unlinked) parts.push(`${dg.sessions_unlinked} sesiones sin dispositivo asignado`);
+    if (dg.duplicate_names?.length) parts.push(`nombres repetidos: ${dg.duplicate_names.map(g => g.join(' / ')).join('; ')}`);
+    return parts.join(' · ');
   }
 
   trackByKey(_: number, v: ChartView): string { return v.key; }
